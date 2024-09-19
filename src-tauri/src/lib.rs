@@ -1,6 +1,7 @@
 use anyhow::Context;
 use tauri::{Manager, Wry};
 
+// TODO: 使用 prelude 来消除警告
 use crate::commands::*;
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
@@ -22,6 +23,7 @@ fn generate_context() -> tauri::Context<Wry> {
     tauri::generate_context!()
 }
 
+// TODO: 添加 Panic doc
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[tokio::main]
 pub async fn run() {

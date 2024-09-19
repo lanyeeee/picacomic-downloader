@@ -23,7 +23,7 @@ use crate::types::Sort;
 const HOST_URL: &str = "https://picaapi.picacomic.com/";
 const API_KEY: &str = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
 const NONCE: &str = "ptxdhmjzqtnrtwndhbxcpkjamb33w837";
-const DIGEST_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"#;
+const DIGEST_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"#;//TODO: 去除没必要的#号
 
 #[derive(Clone)]
 pub struct PicaClient {
@@ -130,7 +130,7 @@ impl PicaClient {
         };
         let data: LoginResponseData = serde_json::from_value(data)?;
 
-        self.app.state::<RwLock<Config>>().write_or_panic().token = data.token.clone();
+        self.app.state::<RwLock<Config>>().write_or_panic().token = data.token.clone();//TODO: 改用 clone_from
         Ok(data.token)
     }
 
