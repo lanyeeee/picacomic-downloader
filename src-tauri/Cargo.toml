@@ -16,7 +16,7 @@ tauri-build = { version = "2.0.0-rc", features = [] }
 
 [dependencies]
 tauri = { version = "2.0.0-rc", features = [] }
-tauri-plugin-shell = { version = "2.0.0-rc" }
+tauri-plugin-shell = "2.0.0-rc"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 
@@ -24,7 +24,17 @@ specta = { version = "2.0.0-rc" }
 tauri-specta = { version = "2.0.0-rc", features = ["derive", "typescript"] }
 specta-typescript = { version = "0.0.7" }
 
+reqwest = { version = "0.12", features = ["rustls-tls", "json"], default-features = false }
+reqwest-retry = { version = "0.6.1" }
+reqwest-middleware = { version = "0.3.3 " }
+
+hmac = { version = "0.12.1" }
+sha2 = { version = "0.10.8" }
+hex = { version = "0.4.3" }
+
 anyhow = { version = "1" }
+chrono = { version = "0.4", features = ["serde"] }
+
 
 [profile.release]
 strip = true
