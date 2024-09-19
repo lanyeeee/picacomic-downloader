@@ -56,6 +56,7 @@ pub struct ComicSearchResponseData {
 pub struct ComicInSearch {
     #[serde(rename = "_id")]
     pub id: String,
+    #[serde(default)]
     pub author: String,
     pub categories: Vec<String>,
     #[serde(default)]
@@ -87,6 +88,7 @@ pub struct Comic {
     #[serde(rename = "_id")]
     pub id: String,
     pub title: String,
+    #[serde(default)]
     pub author: String,
     pub pages_count: i64,
     pub eps_count: i64,
@@ -169,7 +171,7 @@ pub struct Creator {
     pub gender: String,
     pub name: String,
     pub title: String,
-    pub verified: bool,
+    pub verified: Option<bool>,
     pub exp: i64,
     pub level: i64,
     pub characters: Vec<String>,
