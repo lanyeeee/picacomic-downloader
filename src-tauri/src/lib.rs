@@ -3,11 +3,15 @@ use tauri::{Manager, Wry};
 
 use crate::commands::*;
 use crate::config::Config;
-use crate::extensions::IgnoreRwLockPoison;
+use crate::download_manager::DownloadManager;
+use crate::events::prelude::*;
+use crate::pica_client::PicaClient;
 
 mod commands;
 mod config;
+mod download_manager;
 mod errors;
+mod events;
 mod extensions;
 mod pica_client;
 mod responses;
@@ -19,7 +23,8 @@ fn generate_context() -> tauri::Context<Wry> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+#[tokio::main]
+pub async fn run() {
     let builder = tauri_specta::Builder::<Wry>::new()
         .commands(tauri_specta::collect_commands![
             greet,
@@ -31,8 +36,17 @@ pub fn run() {
             get_comic,
             get_episodes,
             get_episode_image,
+            download_episodes,
         ])
-        .events(tauri_specta::collect_events![]);
+        .events(tauri_specta::collect_events![
+            DownloadEpisodeEndEvent,
+            DownloadEpisodePendingEvent,
+            DownloadEpisodeStartEvent,
+            DownloadImageErrorEvent,
+            DownloadImageSuccessEvent,
+            DownloadSpeedEvent,
+            UpdateOverallDownloadProgressEvent
+        ]);
 
     #[cfg(debug_assertions)]
     builder
@@ -46,9 +60,12 @@ pub fn run() {
         .expect("Failed to export typescript bindings");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
+            builder.mount_events(app);
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -59,10 +76,12 @@ pub fn run() {
             println!("app data dir: {app_data_dir:?}");
 
             let config = std::sync::RwLock::new(Config::new(app.handle())?);
-            let pica_client = pica_client::PicaClient::new(app.handle().clone());
+            let pica_client = PicaClient::new(app.handle().clone());
+            let download_manager = DownloadManager::new(app.handle().clone());
 
             app.manage(config);
             app.manage(pica_client);
+            app.manage(download_manager);
 
             Ok(())
         })

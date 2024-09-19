@@ -4,6 +4,7 @@ use tauri::{AppHandle, State};
 use tokio::task::JoinSet;
 
 use crate::config::Config;
+use crate::download_manager::DownloadManager;
 use crate::errors::CommandResult;
 use crate::extensions::{IgnoreLockPoison, IgnoreRwLockPoison};
 use crate::pica_client::PicaClient;
@@ -97,19 +98,19 @@ pub async fn get_episodes(
     episodes.lock_or_panic().extend(first_page.docs);
 
     let total_pages = first_page.pages;
-    let mut tasks = JoinSet::new();
+    let mut join_set = JoinSet::new();
 
     for page in 2..=total_pages {
         let pica_client = pica_client.clone();
         let episodes = episodes.clone();
         let comic_id = comic_id.clone();
-        tasks.spawn(async move {
+        join_set.spawn(async move {
             let episode_page = pica_client.get_episode(&comic_id, page).await.unwrap();
             episodes.lock().unwrap().extend(episode_page.docs);
         });
     }
 
-    tasks.join_all().await;
+    join_set.join_all().await;
 
     let episodes = {
         let mut episodes = episodes.lock().unwrap();
@@ -126,6 +127,7 @@ pub async fn get_episodes(
             comic_id: comic.id.clone(),
             comic_title: comic_title.clone(),
             is_downloaded: false,
+            order: ep.order,
         })
         .collect();
 
@@ -144,4 +146,16 @@ pub async fn get_episode_image(
         .get_episode_image(&comic_id, episode_order, page)
         .await?;
     Ok(episode_image_pagination)
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn download_episodes(
+    download_manager: State<'_, DownloadManager>,
+    episodes: Vec<types::Episode>,
+) -> CommandResult<()> {
+    for ep in episodes {
+        download_manager.submit_episode(ep).await?;
+    }
+    Ok(())
 }

@@ -66,12 +66,37 @@ async getEpisodeImage(comicId: string, episodeOrder: number, page: number) : Pro
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async downloadEpisodes(episodes: Episode[]) : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_episodes", { episodes }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
 /** user-defined events **/
 
 
+export const events = __makeEvents__<{
+downloadEpisodeEndEvent: DownloadEpisodeEndEvent,
+downloadEpisodePendingEvent: DownloadEpisodePendingEvent,
+downloadEpisodeStartEvent: DownloadEpisodeStartEvent,
+downloadImageErrorEvent: DownloadImageErrorEvent,
+downloadImageSuccessEvent: DownloadImageSuccessEvent,
+downloadSpeedEvent: DownloadSpeedEvent,
+updateOverallDownloadProgressEvent: UpdateOverallDownloadProgressEvent
+}>({
+downloadEpisodeEndEvent: "download-episode-end-event",
+downloadEpisodePendingEvent: "download-episode-pending-event",
+downloadEpisodeStartEvent: "download-episode-start-event",
+downloadImageErrorEvent: "download-image-error-event",
+downloadImageSuccessEvent: "download-image-success-event",
+downloadSpeedEvent: "download-speed-event",
+updateOverallDownloadProgressEvent: "update-overall-download-progress-event"
+})
 
 /** user-defined constants **/
 
@@ -84,11 +109,25 @@ export type ComicInSearch = { _id: string; author?: string; categories: string[]
 export type CommandError = string
 export type Config = { token: string }
 export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
-export type Episode = { epId: string; epTitle: string; comicId: string; comicTitle: string; isDownloaded: boolean }
+export type DownloadEpisodeEndEvent = DownloadEpisodeEndEventPayload
+export type DownloadEpisodeEndEventPayload = { epId: string; errMsg: string | null }
+export type DownloadEpisodePendingEvent = DownloadEpisodePendingEventPayload
+export type DownloadEpisodePendingEventPayload = { epId: string; title: string }
+export type DownloadEpisodeStartEvent = DownloadEpisodeStartEventPayload
+export type DownloadEpisodeStartEventPayload = { epId: string; title: string; total: number }
+export type DownloadImageErrorEvent = DownloadImageErrorEventPayload
+export type DownloadImageErrorEventPayload = { epId: string; url: string; errMsg: string }
+export type DownloadImageSuccessEvent = DownloadImageSuccessEventPayload
+export type DownloadImageSuccessEventPayload = { epId: string; url: string; downloadedCount: number }
+export type DownloadSpeedEvent = DownloadSpeedEventPayload
+export type DownloadSpeedEventPayload = { speed: string }
+export type Episode = { epId: string; epTitle: string; comicId: string; comicTitle: string; isDownloaded: boolean; order: number }
 export type EpisodeImage = { _id: string; media: Image }
 export type Image = { originalName: string; path: string; fileServer: string }
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
 export type Sort = "Default" | "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"
+export type UpdateOverallDownloadProgressEvent = UpdateOverallDownloadProgressEventPayload
+export type UpdateOverallDownloadProgressEventPayload = { downloadedImageCount: number; totalImageCount: number; percentage: number }
 export type UserProfile = { _id: string; gender: string; name: string; title: string; verified: boolean; exp: number; level: number; characters: string[]; avatar?: Image; birthday: string; email: string; created_at: string; isPunched: boolean }
 
 /** tauri-specta globals **/

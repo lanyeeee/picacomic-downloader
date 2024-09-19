@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {SelectionArea, SelectionEvent, SelectionOptions} from "@viselect/vue";
 import {nextTick, ref, watch} from "vue";
-import {Episode} from "../bindings.ts";
+import {commands, Episode} from "../bindings.ts";
 
 const comicId = defineModel<string | undefined>("comicId", {required: true});
 const episodes = defineModel<Episode[] | undefined>("episodes", {required: true});
@@ -101,6 +101,11 @@ async function onContextMenu(e: MouseEvent) {
 }
 
 async function downloadEpisodes() {
+  const episodesToDownload = episodes.value?.filter(ep => !ep.isDownloaded && checkedIds.value.includes(ep.epId));
+  if (episodesToDownload === undefined) {
+    return;
+  }
+  await commands.downloadEpisodes(episodesToDownload);
 }
 
 async function refreshEpisodes() {

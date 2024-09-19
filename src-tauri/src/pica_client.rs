@@ -8,8 +8,8 @@ use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
 use sha2::Sha256;
-use tauri::{AppHandle, Manager};
 use tauri::http::StatusCode;
+use tauri::{AppHandle, Manager};
 
 use crate::config::Config;
 use crate::extensions::IgnoreRwLockPoison;

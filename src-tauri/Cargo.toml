@@ -16,7 +16,8 @@ tauri-build = { version = "2.0.0-rc", features = [] }
 
 [dependencies]
 tauri = { version = "2.0.0-rc", features = [] }
-tauri-plugin-shell = "2.0.0-rc"
+tauri-plugin-shell = { version = "2.0.0-rc" }
+tauri-plugin-fs = { version = "2.0.0-rc.2" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 
@@ -35,6 +36,7 @@ hex = { version = "0.4.3" }
 anyhow = { version = "1" }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1.40.0", features = ["full"] }
+bytes = { version = "1.7.1" }
 
 
 [profile.release]

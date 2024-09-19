@@ -5,6 +5,7 @@ import {useMessage, useNotification} from "naive-ui";
 import LoginDialog from "./components/LoginDialog.vue";
 import SearchPane from "./components/SearchPane.vue";
 import EpisodePane from "./components/EpisodePane.vue";
+import DownloadingList from "./components/DownloadingList.vue";
 
 const message = useMessage();
 const notification = useNotification();
@@ -60,30 +61,33 @@ async function test() {
       <n-button type="primary" @click="loginDialogShowing=true">账号登录</n-button>
       <n-button @click="test">测试用</n-button>
     </div>
-    <div class="flex" v-if="userProfile!==undefined">
-      <n-avatar v-if="userProfile.avatar!==undefined"
-                round
-                :size="50"
-                :src="`${userProfile.avatar.fileServer}/static/${userProfile.avatar.path}`"
-                fallback-src="https://storage-b.picacomic.com/static/b3411e38-32f2-4ec4-a46c-2edee925dbbd.jpg"/>
-      <div class="flex flex-col">
-        <span>{{ userProfile.name }}</span>
-        <span>Lv.{{ userProfile.level }} {{ userProfile.title }}</span>
-      </div>
-    </div>
-    <div class="flex flex-1 overflow-hidden">
-      <n-tabs class="h-full" v-model:value="currentTabName" type="line" size="small">
+    <div class="flex overflow-hidden">
+      <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
           <search-pane v-model:episodes="episodes" v-model:current-tab-name="currentTabName"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
           <episode-pane v-model:comic-id="comicId" v-model:episodes="episodes"/>
         </n-tab-pane>
-
-        <n-modal v-model:show="loginDialogShowing">
-          <login-dialog v-model:showing="loginDialogShowing" v-model:token="config.token"/>
-        </n-modal>
       </n-tabs>
+
+      <div class="basis-1/2 overflow-auto">
+        <div class="flex flex-justify-end" v-if="userProfile!==undefined">
+          <n-avatar v-if="userProfile.avatar!==undefined"
+                    round
+                    :size="50"
+                    :src="`${userProfile.avatar.fileServer}/static/${userProfile.avatar.path}`"
+                    fallback-src="https://storage-b.picacomic.com/static/b3411e38-32f2-4ec4-a46c-2edee925dbbd.jpg"/>
+          <div class="flex flex-col">
+            <span>{{ userProfile.name }}</span>
+            <span>Lv.{{ userProfile.level }} {{ userProfile.title }}</span>
+          </div>
+        </div>
+        <downloading-list></downloading-list>
+      </div>
     </div>
+    <n-modal v-model:show="loginDialogShowing">
+      <login-dialog v-model:showing="loginDialogShowing" v-model:token="config.token"/>
+    </n-modal>
   </div>
 </template>
