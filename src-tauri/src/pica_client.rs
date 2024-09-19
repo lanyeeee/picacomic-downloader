@@ -19,12 +19,18 @@ const DIGEST_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pdd
 
 #[derive(Clone)]
 pub struct PicaClient {
-    client: ClientWithMiddleware,
     token: Arc<RwLock<String>>,
 }
 
 impl PicaClient {
     pub fn new() -> Self {
+        Self {
+            token: Arc::new(RwLock::new(String::new())),
+        }
+    }
+
+    pub fn client() -> ClientWithMiddleware {
+        // TODO: 可以将retry_policy缓存起来，避免每次请求都创建
         let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
             .base(1) // 指数为1，保证重试间隔为1秒不变
             .jitter(Jitter::Bounded) // 重试间隔在1秒左右波动
@@ -33,17 +39,9 @@ impl PicaClient {
             .timeout(Duration::from_secs(2)) // 每个请求超过2秒就超时
             .build()
             .unwrap();
-        let client = reqwest_middleware::ClientBuilder::new(client)
+        reqwest_middleware::ClientBuilder::new(client)
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-            .build();
-        Self {
-            client,
-            token: Arc::new(RwLock::new(String::new())),
-        }
-    }
-
-    pub fn client(&self) -> &ClientWithMiddleware {
-        &self.client
+            .build()
     }
 
     pub fn set_token(&self, token: &str) {
@@ -63,8 +61,7 @@ impl PicaClient {
         let time = Local::now().timestamp().to_string();
         let signature = create_signature(path, &method, &time)?;
 
-        let request = self
-            .client()
+        let request = Self::client()
             .request(method.clone(), format!("{HOST_URL}{path}").as_str())
             .header("api-key", API_KEY)
             .header("accept", "application/vnd.picacomic.com.v1+json")
