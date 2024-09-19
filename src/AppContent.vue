@@ -67,15 +67,21 @@ async function showConfigInFileManager() {
 
 <template>
   <div v-if="config!==undefined" class="h-screen flex flex-col overflow-auto">
-    <div class="flex">
+    <div class="flex gap-col-1">
       <n-input v-model:value="config.token" placeholder="" clearable>
-        <template #prefix>
-          Authorization：
-        </template>
+        <template #prefix>Authorization：</template>
       </n-input>
       <n-button type="primary" @click="loginDialogShowing=true">账号登录</n-button>
       <n-button @click="showConfigInFileManager">打开配置目录</n-button>
       <n-button @click="test">测试用</n-button>
+      <div v-if="userProfile!==undefined" class="flex flex-justify-end" >
+        <n-avatar v-if="userProfile.avatar!==undefined"
+                  round
+                  :size="32"
+                  :src="`${userProfile.avatar.fileServer}/static/${userProfile.avatar.path}`"
+                  fallback-src="https://storage-b.picacomic.com/static/b3411e38-32f2-4ec4-a46c-2edee925dbbd.jpg"/>
+        <span class="whitespace-nowrap">{{ userProfile.name }}</span>
+      </div>
     </div>
     <div class="flex overflow-hidden">
       <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
@@ -90,17 +96,6 @@ async function showConfigInFileManager() {
       </n-tabs>
 
       <div class="basis-1/2 overflow-auto">
-        <div class="flex flex-justify-end" v-if="userProfile!==undefined">
-          <n-avatar v-if="userProfile.avatar!==undefined"
-                    round
-                    :size="50"
-                    :src="`${userProfile.avatar.fileServer}/static/${userProfile.avatar.path}`"
-                    fallback-src="https://storage-b.picacomic.com/static/b3411e38-32f2-4ec4-a46c-2edee925dbbd.jpg"/>
-          <div class="flex flex-col">
-            <span>{{ userProfile.name }}</span>
-            <span>Lv.{{ userProfile.level }} {{ userProfile.title }}</span>
-          </div>
-        </div>
         <downloading-list></downloading-list>
       </div>
     </div>
