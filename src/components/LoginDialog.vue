@@ -9,22 +9,20 @@ const notification = useNotification();
 const showing = defineModel<boolean>("showing", {required: true});
 const token = defineModel<string>("token", {required: true});
 
-const email = ref<string>();
-const password = ref<string>();
+const emailInput = ref<string>("");
+const passwordInput = ref<string>("");
 
-async function onLogin() {
-  if (email.value === undefined) {
-    message.error("请输入邮箱");
+async function onLogin(email: string, password: string) {
+  if (email === "") {
+    message.error("请输入用户名");
     return;
   }
-  if (password.value === undefined) {
+  if (password === "") {
     message.error("请输入密码");
     return;
   }
-  const result = await commands.login(email.value, password.value);
-  console.log("command result:", result);
+  const result = await commands.login(email, password);
   if (result.status === "error") {
-    console.error(result.error);
     notification.error({title: "登录失败", description: result.error});
     return;
   }
@@ -39,14 +37,14 @@ async function onLogin() {
             :showIcon="false"
             title="账号登录"
             positive-text="登录"
-            @positive-click="onLogin"
+            @positive-click="onLogin(emailInput, passwordInput)"
             @close="showing=false">
-    <n-input v-model:value="email" placeholder="">
+    <n-input v-model:value="emailInput" placeholder="">
       <template #prefix>
-        邮箱:
+        用户名:
       </template>
     </n-input>
-    <n-input v-model:value="password" type="password" placeholder="" show-password-on="mousedown">
+    <n-input v-model:value="passwordInput" type="password" placeholder="" show-password-on="mousedown">
       <template #prefix>
         密码:
       </template>
