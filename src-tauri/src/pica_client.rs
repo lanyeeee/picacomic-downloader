@@ -1,9 +1,10 @@
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use chrono::Local;
 use hmac::{Hmac, Mac};
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
 use sha2::Sha256;
@@ -25,10 +26,14 @@ pub struct PicaClient {
 impl PicaClient {
     pub fn new() -> Self {
         let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
-            .base(1) // 指数为1，保证重试间隔为不变
+            .base(1) // 指数为1，保证重试间隔为1秒不变
             .jitter(Jitter::Bounded) // 重试间隔在1秒左右波动
-            .build_with_max_retries(3); // 最多重试3次
-        let client = ClientBuilder::new(reqwest::Client::new())
+            .build_with_total_retry_duration(Duration::from_secs(3)); // 重试总时长为3秒
+        let client = reqwest::ClientBuilder::new()
+            .timeout(Duration::from_secs(2)) // 每个请求超过2秒就超时
+            .build()
+            .unwrap();
+        let client = reqwest_middleware::ClientBuilder::new(client)
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))
             .build();
         Self {
