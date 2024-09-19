@@ -74,7 +74,7 @@ async getEpisodeImage(comicId: string, episodeOrder: number, page: number) : Pro
 export type Comic = { _id: string; title: string; author: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; _creator: Creator; description?: string; chineseTeam?: string; tags: string[]; updated_at: string; created_at: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number }
 export type ComicInSearch = { _id: string; author: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: Image; title: string; totalLikes: number | null; totalViews: number | null; updated_at: string }
 export type CommandError = string
-export type Config = { email: string; password: string; token: string }
+export type Config = { token: string }
 export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
 export type Episode = { _id: string; title: string; order: number; updated_at: string }
 export type EpisodeImage = { _id: string; media: Image }
