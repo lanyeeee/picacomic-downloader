@@ -3,6 +3,7 @@ use std::sync::RwLock;
 use tauri::State;
 
 use crate::config::Config;
+use crate::errors::CommandResult;
 use crate::pica_client::PicaClient;
 
 #[tauri::command]
@@ -24,7 +25,7 @@ pub async fn login(
     pica_client: State<'_, PicaClient>,
     email: String,
     password: String,
-) -> Result<String, ()> {
+) -> CommandResult<String> {
     let token = pica_client.login(&email, &password).await.unwrap();
     Ok(token)
 }

@@ -11,7 +11,7 @@ async greet(name: string) : Promise<string> {
 async getConfig() : Promise<Config> {
     return await TAURI_INVOKE("get_config");
 },
-async login(email: string, password: string) : Promise<Result<string, null>> {
+async login(email: string, password: string) : Promise<Result<string, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("login", { email, password }) };
 } catch (e) {
@@ -31,6 +31,7 @@ async login(email: string, password: string) : Promise<Result<string, null>> {
 
 /** user-defined types **/
 
+export type CommandError = string
 export type Config = { email: string | null; password: string | null; token: string | null }
 
 /** tauri-specta globals **/
