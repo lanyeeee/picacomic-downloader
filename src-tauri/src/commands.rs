@@ -5,7 +5,7 @@ use tauri::State;
 use crate::config::Config;
 use crate::errors::CommandResult;
 use crate::pica_client::PicaClient;
-use crate::responses::{ComicInSearch, Pagination, UserProfile};
+use crate::responses::{Comic, ComicInSearch, Pagination, UserProfile};
 use crate::types::Sort;
 
 #[tauri::command]
@@ -39,7 +39,7 @@ pub async fn get_user_profile(pica_client: State<'_, PicaClient>) -> CommandResu
     Ok(user_profile)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub async fn search_comic(
     pica_client: State<'_, PicaClient>,
@@ -52,4 +52,14 @@ pub async fn search_comic(
         .search_comic(&keyword, sort, page, categories)
         .await?;
     Ok(comic_in_search_pagination)
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn get_comic(
+    pica_client: State<'_, PicaClient>,
+    comic_id: String,
+) -> CommandResult<Comic> {
+    let comic = pica_client.get_comic(&comic_id).await?;
+    Ok(comic)
 }

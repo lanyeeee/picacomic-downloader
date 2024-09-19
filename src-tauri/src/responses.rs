@@ -75,6 +75,42 @@ pub struct ComicInSearch {
     pub updated_at: String,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComicResponseData {
+    pub comic: Comic,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Comic {
+    #[serde(rename = "_id")]
+    pub id: String,
+    pub title: String,
+    pub author: String,
+    pub pages_count: i64,
+    pub eps_count: i64,
+    pub finished: bool,
+    pub categories: Vec<String>,
+    pub thumb: Image,
+    pub likes_count: i64,
+    #[serde(rename = "_creator")]
+    pub creator: Creator,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub chinese_team: String,
+    pub tags: Vec<String>,
+    #[serde(rename = "updated_at")]
+    pub updated_at: DateTime<Utc>,
+    #[serde(rename = "created_at")]
+    pub created_at: String,
+    pub allow_download: bool,
+    pub views_count: i64,
+    pub is_liked: bool,
+    pub comments_count: i64,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Pagination<T> {

@@ -11,8 +11,8 @@ async function greet() {
 }
 
 async function test() {
-  const comicInSearchPagination = await commands.searchComic("测试", "Default", 1, []);
-  console.log(comicInSearchPagination);
+  const comic = await commands.getComic("669d1a6269476246a982a16a");
+  console.log(comic);
 }
 </script>
 
