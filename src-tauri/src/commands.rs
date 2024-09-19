@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, RwLock};
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::task::JoinSet;
 
 use crate::config::Config;
@@ -87,6 +87,7 @@ pub async fn get_comic(
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn get_episodes(
+    app: AppHandle,
     pica_client: State<'_, PicaClient>,
     comic_id: String,
 ) -> CommandResult<Vec<types::Episode>> {
@@ -119,15 +120,23 @@ pub async fn get_episodes(
     };
 
     let comic_title = utils::filename_filter(&comic.title);
+    let app_data_dir = app.path().app_data_dir().map_err(anyhow::Error::from)?;
+
     let episodes = episodes
         .into_iter()
-        .map(|ep| types::Episode {
-            ep_id: ep.id,
-            ep_title: utils::filename_filter(&ep.title),
-            comic_id: comic.id.clone(),
-            comic_title: comic_title.clone(),
-            is_downloaded: false,
-            order: ep.order,
+        .map(|ep| {
+            let download_dir = app_data_dir
+                .join("漫画下载")
+                .join(&comic_title)
+                .join(&ep.title);
+            types::Episode {
+                ep_id: ep.id,
+                ep_title: utils::filename_filter(&ep.title),
+                comic_id: comic.id.clone(),
+                comic_title: comic_title.clone(),
+                is_downloaded: download_dir.exists(),
+                order: ep.order,
+            }
         })
         .collect();
 

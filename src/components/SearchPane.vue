@@ -13,6 +13,7 @@ const sortOptions = [
   {label: "最多指名", value: "ViewMost"},
 ];
 
+const comicId = defineModel<string | undefined>("comicId", {required: true});
 const episodes = defineModel<Episode[] | undefined>("episodes", {required: true});
 const currentTabName = defineModel<"search" | "episode">("currentTabName", {required: true});
 
@@ -31,13 +32,14 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
   console.log("comicInSearchPagination", comicInSearchPagination.value);
 }
 
-async function searchById(comicId: string) {
-  const result = await commands.getEpisodes(comicId);
+async function searchById(id: string) {
+  const result = await commands.getEpisodes(id);
   if (result.status === "error") {
     notification.error({title: "获取章节详情失败", description: result.error});
     return;
   }
   episodes.value = result.data;
+  comicId.value = id;
   currentTabName.value = "episode";
 }
 
