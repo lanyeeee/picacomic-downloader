@@ -111,6 +111,23 @@ pub struct Comic {
     pub comments_count: i64,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EpisodeResponseData {
+    pub eps: Pagination<Episode>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Episode {
+    #[serde(rename = "_id")]
+    pub id: String,
+    pub title: String,
+    pub order: i64,
+    #[serde(rename = "updated_at")]
+    pub updated_at: DateTime<Utc>,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Pagination<T> {

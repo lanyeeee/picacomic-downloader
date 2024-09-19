@@ -11,8 +11,8 @@ async function greet() {
 }
 
 async function test() {
-  const comic = await commands.getComic("669d1a6269476246a982a16a");
-  console.log(comic);
+  const episodePagination = await commands.getEpisode("669d1a6269476246a982a16a", 1);
+  console.log(episodePagination);
 }
 </script>
 
