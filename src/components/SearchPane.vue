@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import {ref} from "vue";
 import {ComicInSearch, commands, Episode, Pagination, Sort} from "../bindings.ts";
-import {useNotification} from "naive-ui";
+import {useMessage, useNotification} from "naive-ui";
 import SearchResult from "./SearchResult.vue";
 
+const message = useMessage();
 const notification = useNotification();
 
 const sortOptions = [
@@ -33,6 +34,10 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
 }
 
 async function searchById(id: string) {
+  if (id === "") {
+    message.warning("漫画ID不能为空");
+    return;
+  }
   const result = await commands.getEpisodes(id);
   if (result.status === "error") {
     notification.error({title: "获取章节详情失败", description: result.error});
@@ -47,29 +52,34 @@ async function searchById(id: string) {
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="flex flex-col">
-      <div class="grid grid-cols-[4fr_1fr]">
-        <div class="flex">
-          <n-input class="text-align-left"
-                   size="tiny"
-                   v-model:value="searchInput"
-                   placeholder=""
-                   clearable
-                   @keydown.enter="searchByKeyword(searchInput.trim(), sortSelected, 1, [])">
-            <template #prefix>
-              漫画名:
-            </template>
-          </n-input>
-          <n-button size="tiny" @click="searchByKeyword(searchInput.trim(), sortSelected, 1, [])">搜索</n-button>
+    <div class="flex flex-col gap-row-1 pt-1">
+      <div class="grid grid-cols-[5fr_3fr] gap-col-1">
+        <n-input class="text-align-left"
+                 size="tiny"
+                 v-model:value="searchInput"
+                 placeholder=""
+                 clearable
+                 @keydown.enter="searchByKeyword(searchInput.trim(), sortSelected, 1, [])">
+          <template #prefix>
+            漫画名:
+          </template>
+        </n-input>
+        <div class="flex gap-col-1">
+          <n-button type="primary"
+                    secondary
+                    size="tiny"
+                    @click="searchByKeyword(searchInput.trim(), sortSelected, 1, [])">
+            搜索
+          </n-button>
+          <n-select class="flex"
+                    v-model:value="sortSelected"
+                    :options="sortOptions"
+                    :show-checkmark="false"
+                    size="tiny"
+                    @update-value="searchByKeyword(searchInput.trim(), $event, 1, [])"/>
         </div>
-        <n-select class="flex"
-                  v-model:value="sortSelected"
-                  :options="sortOptions"
-                  :show-checkmark="false"
-                  size="tiny"
-                  @update-value="searchByKeyword(searchInput.trim(), $event, 1, [])"/>
       </div>
-      <div class="flex">
+      <div class="grid grid-cols-[5fr_3fr] gap-col-1">
         <n-input class="text-align-left"
                  size="tiny"
                  v-model:value="comicIdInput"
@@ -80,7 +90,11 @@ async function searchById(id: string) {
             漫画ID:
           </template>
         </n-input>
-        <n-button size="tiny" @click="searchById(comicIdInput.trim())">直达</n-button>
+        <n-button type="primary"
+                  secondary
+                  size="tiny" @click="searchById(comicIdInput.trim())">
+          直达
+        </n-button>
       </div>
     </div>
 
