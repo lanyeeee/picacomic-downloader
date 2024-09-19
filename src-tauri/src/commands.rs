@@ -1,13 +1,16 @@
-use std::sync::RwLock;
+use std::sync::{Arc, Mutex, RwLock};
 
 use tauri::{AppHandle, State};
+use tokio::task::JoinSet;
 
 use crate::config::Config;
 use crate::errors::CommandResult;
-use crate::extensions::IgnoreRwLockPoison;
+use crate::extensions::{IgnoreLockPoison, IgnoreRwLockPoison};
 use crate::pica_client::PicaClient;
-use crate::responses::{Comic, ComicInSearch, Episode, EpisodeImage, Pagination, UserProfile};
+use crate::responses::{Comic, ComicInSearch, EpisodeImage, Pagination, UserProfile};
+use crate::types;
 use crate::types::Sort;
+use crate::utils;
 
 #[tauri::command]
 #[specta::specta]
@@ -82,13 +85,51 @@ pub async fn get_comic(
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_episode(
+pub async fn get_episodes(
     pica_client: State<'_, PicaClient>,
     comic_id: String,
-    page: i64,
-) -> CommandResult<Pagination<Episode>> {
-    let episode_pagination = pica_client.get_episode(&comic_id, page).await?;
-    Ok(episode_pagination)
+) -> CommandResult<Vec<types::Episode>> {
+    let pica_client = pica_client.inner().clone();
+    // TODO: 漫画获取和第一个章节获取可以并行
+    let comic = pica_client.get_comic(&comic_id).await?;
+    let episodes = Arc::new(Mutex::new(vec![]));
+    let first_page = pica_client.get_episode(&comic_id, 1).await?;
+    episodes.lock_or_panic().extend(first_page.docs);
+
+    let total_pages = first_page.pages;
+    let mut tasks = JoinSet::new();
+
+    for page in 2..=total_pages {
+        let pica_client = pica_client.clone();
+        let episodes = episodes.clone();
+        let comic_id = comic_id.clone();
+        tasks.spawn(async move {
+            let episode_page = pica_client.get_episode(&comic_id, page).await.unwrap();
+            episodes.lock().unwrap().extend(episode_page.docs);
+        });
+    }
+
+    tasks.join_all().await;
+
+    let episodes = {
+        let mut episodes = episodes.lock().unwrap();
+        episodes.sort_by_key(|ep| ep.order);
+        std::mem::take(&mut *episodes)
+    };
+
+    let comic_title = utils::filename_filter(&comic.title);
+    let episodes = episodes
+        .into_iter()
+        .map(|ep| types::Episode {
+            ep_id: ep.id,
+            ep_title: utils::filename_filter(&ep.title),
+            comic_id: comic.id.clone(),
+            comic_title: comic_title.clone(),
+            is_downloaded: false,
+        })
+        .collect();
+
+    Ok(episodes)
 }
 
 #[tauri::command(async)]

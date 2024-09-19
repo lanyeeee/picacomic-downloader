@@ -21,3 +21,12 @@ impl Sort {
         }
     }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Episode {
+    pub ep_id: String,
+    pub ep_title: String,
+    pub comic_id: String,
+    pub comic_title: String,
+    pub is_downloaded: bool,
+}
