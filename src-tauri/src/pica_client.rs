@@ -115,6 +115,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::BAD_REQUEST {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            //TODO: 改成 "登录失败，邮箱或密码错误({status}): {text}"
             return Err(anyhow!("登录失败，用户名或密码错误({status}): {text}"));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;

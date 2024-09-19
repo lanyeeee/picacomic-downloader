@@ -19,6 +19,7 @@ pub fn greet(name: &str) -> String {
 #[specta::specta]
 #[allow(clippy::needless_pass_by_value)]
 pub fn get_config(config: State<RwLock<Config>>) -> Config {
+    // TODO: 改用 read_or_panic
     config.read().unwrap().clone()
 }
 
@@ -43,7 +44,7 @@ pub async fn login(
     email: String,
     password: String,
 ) -> CommandResult<String> {
-    let token = pica_client.login(&email, &password).await.unwrap();
+    let token = pica_client.login(&email, &password).await?;
     Ok(token)
 }
 
