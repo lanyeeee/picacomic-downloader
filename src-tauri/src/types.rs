@@ -29,4 +29,5 @@ pub struct Episode {
     pub comic_id: String,
     pub comic_title: String,
     pub is_downloaded: bool,
+    pub order: i64,
 }

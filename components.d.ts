@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    DownloadingList: typeof import('./src/components/DownloadingList.vue')['default']
     EpisodePane: typeof import('./src/components/EpisodePane.vue')['default']
     Greet: typeof import('./src/components/Greet.vue')['default']
     LoginDialog: typeof import('./src/components/LoginDialog.vue')['default']
@@ -28,6 +29,7 @@ declare module 'vue' {
     NSelect: typeof import('naive-ui')['NSelect']
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
+    NText: typeof import('naive-ui')['NText']
     SearchPane: typeof import('./src/components/SearchPane.vue')['default']
     SearchResult: typeof import('./src/components/SearchResult.vue')['default']
   }
