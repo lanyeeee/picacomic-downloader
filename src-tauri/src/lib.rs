@@ -10,6 +10,7 @@ mod errors;
 mod extensions;
 mod pica_client;
 mod responses;
+mod types;
 
 fn generate_context() -> tauri::Context<Wry> {
     tauri::generate_context!()
@@ -22,7 +23,8 @@ pub fn run() {
             greet,
             get_config,
             login,
-            get_user_profile
+            get_user_profile,
+            search_comic,
         ])
         .events(tauri_specta::collect_events![]);
 
