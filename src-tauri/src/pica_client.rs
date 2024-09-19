@@ -10,7 +10,11 @@ use serde_json::json;
 use sha2::Sha256;
 use tauri::http::StatusCode;
 
-use crate::responses::{LoginResponseData, PicaResponse, UserProfile, UserProfileResponseData};
+use crate::responses::{
+    ComicInSearch, ComicSearchResponseData, LoginResponseData, Pagination, PicaResponse,
+    UserProfile, UserProfileResponseData,
+};
+use crate::types::Sort;
 
 const HOST_URL: &str = "https://picaapi.picacomic.com/";
 const API_KEY: &str = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
@@ -155,6 +159,44 @@ impl PicaClient {
         let data: UserProfileResponseData = serde_json::from_value(data)?;
 
         Ok(data.user)
+    }
+
+    pub async fn search_comic(
+        &self,
+        keyword: &str,
+        sort: Sort,
+        page: i32,
+        categories: Vec<String>,
+    ) -> anyhow::Result<Pagination<ComicInSearch>> {
+        let payload = json!({
+            "keyword": keyword,
+            "sort": sort.as_str(),
+            "categories": categories,
+        });
+
+        let path = format!("comics/advanced-search?page={page}");
+        let http_resp = self.pica_post(&path, payload).await?;
+
+        let status = http_resp.status();
+        if status == StatusCode::UNAUTHORIZED {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!("搜索漫画失败，未登录({status}): {text}"));
+        } else if http_resp.status() != StatusCode::OK {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!("搜索漫画失败，预料之外的状态码({status}): {text}"));
+        }
+
+        let pica_resp: PicaResponse = http_resp.json().await?;
+        if pica_resp.code != 200 {
+            return Err(anyhow!("搜索漫画失败，预料之外的code: {pica_resp:?}"));
+        }
+
+        let Some(data) = pica_resp.data else {
+            return Err(anyhow!("搜索漫画失败，data字段不存在: {pica_resp:?}"));
+        };
+        let data: ComicSearchResponseData = serde_json::from_value(data)?;
+
+        Ok(data.comics)
     }
 }
 

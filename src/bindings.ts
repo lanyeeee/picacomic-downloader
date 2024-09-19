@@ -26,6 +26,14 @@ async getUserProfile() : Promise<Result<UserProfile, CommandError>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async searchComic(keyword: string, sort: Sort, page: number, categories: string[]) : Promise<Result<Pagination<ComicInSearch>, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("search_comic", { keyword, sort, page, categories }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -39,9 +47,12 @@ async getUserProfile() : Promise<Result<UserProfile, CommandError>> {
 
 /** user-defined types **/
 
+export type ComicInSearch = { _id: string; author: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: Image; title: string; totalLikes: number | null; totalViews: number | null; updated_at: string }
 export type CommandError = string
 export type Config = { email: string | null; password: string | null; token: string | null }
 export type Image = { originalName: string; path: string; fileServer: string }
+export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
+export type Sort = "Default" | "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"
 export type UserProfile = { _id: string; gender: string; name: string; title: string; verified: boolean; exp: number; level: number; characters: string[]; avatar?: Image; birthday: string; email: string; created_at: string; isPunched: boolean }
 
 /** tauri-specta globals **/
