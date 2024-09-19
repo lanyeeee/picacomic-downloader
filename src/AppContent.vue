@@ -64,7 +64,9 @@ async function test() {
     <div class="flex overflow-hidden">
       <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
-          <search-pane v-model:episodes="episodes" v-model:current-tab-name="currentTabName"/>
+          <search-pane v-model:episodes="episodes"
+                       v-model:current-tab-name="currentTabName"
+                       v-model:comic-id="comicId"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
           <episode-pane v-model:comic-id="comicId" v-model:episodes="episodes"/>

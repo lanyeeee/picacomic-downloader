@@ -2,6 +2,9 @@
 import {SelectionArea, SelectionEvent, SelectionOptions} from "@viselect/vue";
 import {nextTick, ref, watch} from "vue";
 import {commands, Episode} from "../bindings.ts";
+import {useNotification} from "naive-ui";
+
+const notification = useNotification();
 
 const comicId = defineModel<string | undefined>("comicId", {required: true});
 const episodes = defineModel<Episode[] | undefined>("episodes", {required: true});
@@ -106,9 +109,26 @@ async function downloadEpisodes() {
     return;
   }
   await commands.downloadEpisodes(episodesToDownload);
+
+  for (const downloadedEp of episodesToDownload) {
+    const episode = episodes.value?.find(ep => ep.epId === downloadedEp.epId);
+    if (episode !== undefined) {
+      episode.isDownloaded = true;
+      checkedIds.value = checkedIds.value.filter(id => id !== downloadedEp.epId);
+    }
+  }
 }
 
 async function refreshEpisodes() {
+  if (comicId.value === undefined) {
+    return;
+  }
+  const result = await commands.getEpisodes(comicId.value.trim());
+  if (result.status === "error") {
+    notification.error({title: "刷新失败(获取章节详情失败)", description: result.error});
+    return;
+  }
+  episodes.value = result.data;
 }
 
 </script>
