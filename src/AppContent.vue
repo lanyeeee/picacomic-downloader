@@ -6,6 +6,10 @@ import LoginDialog from "./components/LoginDialog.vue";
 import SearchPane from "./components/SearchPane.vue";
 import EpisodePane from "./components/EpisodePane.vue";
 import DownloadingList from "./components/DownloadingList.vue";
+import {BaseDirectory, exists} from "@tauri-apps/plugin-fs";
+import {appDataDir} from "@tauri-apps/api/path";
+import {path} from "@tauri-apps/api";
+import {showPathInFileManager} from "./utils.ts";
 
 const message = useMessage();
 const notification = useNotification();
@@ -48,6 +52,17 @@ async function test() {
   console.log(userProfile.value);
 }
 
+async function showConfigInFileManager() {
+  const configName = "config.json";
+  const configExists = await exists(configName, {baseDir: BaseDirectory.AppData});
+  if (!configExists) {
+    message.error("配置文件不存在");
+    return;
+  }
+  const configPath = await path.join(await appDataDir(), configName);
+  await showPathInFileManager(configPath);
+}
+
 </script>
 
 <template>
@@ -59,6 +74,7 @@ async function test() {
         </template>
       </n-input>
       <n-button type="primary" @click="loginDialogShowing=true">账号登录</n-button>
+      <n-button @click="showConfigInFileManager">打开配置目录</n-button>
       <n-button @click="test">测试用</n-button>
     </div>
     <div class="flex overflow-hidden">

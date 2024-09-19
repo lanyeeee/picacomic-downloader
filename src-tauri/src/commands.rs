@@ -1,5 +1,7 @@
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
+use path_slash::PathBufExt;
 use tauri::{AppHandle, Manager, State};
 use tokio::task::JoinSet;
 
@@ -167,4 +169,11 @@ pub async fn download_episodes(
         download_manager.submit_episode(ep).await?;
     }
     Ok(())
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn show_path_in_file_manager(path: &str) {
+    let path = PathBuf::from_slash(path);
+    showfile::show_path_in_file_manager(path);
 }
