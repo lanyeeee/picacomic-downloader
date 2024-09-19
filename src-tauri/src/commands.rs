@@ -5,6 +5,7 @@ use tauri::State;
 use crate::config::Config;
 use crate::errors::CommandResult;
 use crate::pica_client::PicaClient;
+use crate::responses::UserProfile;
 
 #[tauri::command]
 #[specta::specta]
@@ -28,4 +29,11 @@ pub async fn login(
 ) -> CommandResult<String> {
     let token = pica_client.login(&email, &password).await.unwrap();
     Ok(token)
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn get_user_profile(pica_client: State<'_, PicaClient>) -> CommandResult<UserProfile> {
+    let user_profile = pica_client.get_user_profile().await?;
+    Ok(user_profile)
 }

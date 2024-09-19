@@ -10,7 +10,7 @@ use serde_json::json;
 use sha2::Sha256;
 use tauri::http::StatusCode;
 
-use crate::responses::{LoginResponseData, PicaResponse};
+use crate::responses::{LoginResponseData, PicaResponse, UserProfile, UserProfileResponseData};
 
 const HOST_URL: &str = "https://picaapi.picacomic.com/";
 const API_KEY: &str = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
@@ -86,6 +86,10 @@ impl PicaClient {
         Ok(http_resp)
     }
 
+    async fn pica_get(&self, path: &str) -> anyhow::Result<reqwest::Response> {
+        self.pica_request(reqwest::Method::GET, path, None).await
+    }
+
     async fn pica_post(
         &self,
         path: &str,
@@ -124,6 +128,33 @@ impl PicaClient {
 
         self.set_token(&data.token);
         Ok(data.token)
+    }
+
+    pub async fn get_user_profile(&self) -> anyhow::Result<UserProfile> {
+        let http_resp = self.pica_get("users/profile").await?;
+
+        let status = http_resp.status();
+        if status == StatusCode::UNAUTHORIZED {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!("获取用户信息失败，未登录({status}): {text}"));
+        } else if status != StatusCode::OK {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!(
+                "获取用户信息失败，预料之外的状态码({status}): {text}"
+            ));
+        }
+
+        let pica_resp: PicaResponse = http_resp.json().await?;
+        if pica_resp.code != 200 {
+            return Err(anyhow!("获取用户信息失败，预料之外的code: {pica_resp:?}"));
+        }
+
+        let Some(data) = pica_resp.data else {
+            return Err(anyhow!("获取用户信息失败，data字段不存在: {pica_resp:?}"));
+        };
+        let data: UserProfileResponseData = serde_json::from_value(data)?;
+
+        Ok(data.user)
     }
 }
 
