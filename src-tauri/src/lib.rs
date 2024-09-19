@@ -55,14 +55,10 @@ pub fn run() {
 
             std::fs::create_dir_all(&app_data_dir)
                 .context(format!("failed to create app data dir: {app_data_dir:?}"))?;
-            println!("app data dir: {:?}", app_data_dir);
+            println!("app data dir: {app_data_dir:?}");
 
             let config = std::sync::RwLock::new(Config::new(app.handle())?);
-            let pica_client = pica_client::PicaClient::new();
-
-            if !config.read_or_panic().token.is_empty() {
-                pica_client.set_token(&config.read_or_panic().token);
-            }
+            let pica_client = pica_client::PicaClient::new(app.handle().clone());
 
             app.manage(config);
             app.manage(pica_client);

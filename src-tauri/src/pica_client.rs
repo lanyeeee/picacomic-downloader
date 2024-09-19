@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -8,8 +8,11 @@ use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
 use sha2::Sha256;
+use tauri::{AppHandle, Manager};
 use tauri::http::StatusCode;
 
+use crate::config::Config;
+use crate::extensions::IgnoreRwLockPoison;
 use crate::responses::{
     Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, Episode, EpisodeImage,
     EpisodeImageResponseData, EpisodeResponseData, LoginResponseData, Pagination, PicaResponse,
@@ -24,14 +27,12 @@ const DIGEST_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pdd
 
 #[derive(Clone)]
 pub struct PicaClient {
-    token: Arc<RwLock<String>>,
+    app: AppHandle,
 }
 
 impl PicaClient {
-    pub fn new() -> Self {
-        Self {
-            token: Arc::new(RwLock::new(String::new())),
-        }
+    pub fn new(app: AppHandle) -> Self {
+        Self { app }
     }
 
     pub fn client() -> ClientWithMiddleware {
@@ -49,14 +50,6 @@ impl PicaClient {
             .build()
     }
 
-    pub fn set_token(&self, token: &str) {
-        token.clone_into(&mut self.token.write().unwrap());
-    }
-
-    pub fn token(&self) -> String {
-        self.token.read().unwrap().clone()
-    }
-
     async fn pica_request(
         &self,
         method: reqwest::Method,
@@ -65,6 +58,12 @@ impl PicaClient {
     ) -> anyhow::Result<reqwest::Response> {
         let time = Local::now().timestamp().to_string();
         let signature = create_signature(path, &method, &time)?;
+        let token = self
+            .app
+            .state::<RwLock<Config>>()
+            .read_or_panic()
+            .token
+            .clone();
 
         let request = Self::client()
             .request(method.clone(), format!("{HOST_URL}{path}").as_str())
@@ -79,7 +78,7 @@ impl PicaClient {
             .header("app-build-version", "44")
             .header("Content-Type", "application/json; charset=UTF-8")
             .header("User-Agent", "okhttp/3.8.1")
-            .header("authorization", self.token())
+            .header("authorization", token)
             .header("image-quality", "original")
             .header("signature", signature);
 
@@ -115,7 +114,6 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::BAD_REQUEST {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            //TODO: 改成 "登录失败，邮箱或密码错误({status}): {text}"
             return Err(anyhow!("登录失败，用户名或密码错误({status}): {text}"));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
@@ -132,7 +130,7 @@ impl PicaClient {
         };
         let data: LoginResponseData = serde_json::from_value(data)?;
 
-        self.set_token(&data.token);
+        self.app.state::<RwLock<Config>>().write_or_panic().token = data.token.clone();
         Ok(data.token)
     }
 
