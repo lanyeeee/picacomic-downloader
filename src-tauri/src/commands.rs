@@ -5,7 +5,7 @@ use tauri::State;
 use crate::config::Config;
 use crate::errors::CommandResult;
 use crate::pica_client::PicaClient;
-use crate::responses::{Comic, ComicInSearch, Pagination, UserProfile};
+use crate::responses::{Comic, ComicInSearch, Episode, Pagination, UserProfile};
 use crate::types::Sort;
 
 #[tauri::command]
@@ -62,4 +62,15 @@ pub async fn get_comic(
 ) -> CommandResult<Comic> {
     let comic = pica_client.get_comic(&comic_id).await?;
     Ok(comic)
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn get_episode(
+    pica_client: State<'_, PicaClient>,
+    comic_id: String,
+    page: i64,
+) -> CommandResult<Pagination<Episode>> {
+    let episode_pagination = pica_client.get_episode(&comic_id, page).await?;
+    Ok(episode_pagination)
 }

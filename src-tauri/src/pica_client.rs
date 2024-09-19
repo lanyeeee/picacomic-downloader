@@ -11,8 +11,8 @@ use sha2::Sha256;
 use tauri::http::StatusCode;
 
 use crate::responses::{
-    Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, LoginResponseData,
-    Pagination, PicaResponse, UserProfile, UserProfileResponseData,
+    Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, Episode, EpisodeResponseData,
+    LoginResponseData, Pagination, PicaResponse, UserProfile, UserProfileResponseData,
 };
 use crate::types::Sort;
 
@@ -206,6 +206,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            //TODO: 改为 "获取漫画`{comic_id}`的信息失败，...."
             return Err(anyhow!(
                 "获取ID为 {comic_id} 的漫画失败，未登录({status}): {text}"
             ));
@@ -231,6 +232,44 @@ impl PicaClient {
         let data: ComicResponseData = serde_json::from_value(data)?;
 
         Ok(data.comic)
+    }
+
+    pub async fn get_episode(
+        &self,
+        comic_id: &str,
+        page: i64,
+    ) -> anyhow::Result<Pagination<Episode>> {
+        let path = format!("comics/{comic_id}/eps?page={page}");
+        let http_resp = self.pica_get(&path).await?;
+
+        let status = http_resp.status();
+        if status == StatusCode::UNAUTHORIZED {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`的章节分页`{page}`失败，未登录({status}): {text}"
+            ));
+        } else if status != StatusCode::OK {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`的章节分页`{page}`失败，预料之外的状态码({status}): {text}"
+            ));
+        }
+
+        let pica_res: PicaResponse = http_resp.json().await?;
+        if pica_res.code != 200 {
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`的章节分页`{page}`失败，预料之外的code: {pica_res:?}"
+            ));
+        }
+
+        let Some(data) = pica_res.data else {
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`的章节分页`{page}`失败，data字段不存在: {pica_res:?}"
+            ));
+        };
+        let data: EpisodeResponseData = serde_json::from_value(data)?;
+
+        Ok(data.eps)
     }
 }
 
