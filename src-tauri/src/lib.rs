@@ -37,6 +37,7 @@ pub async fn run() {
             get_episodes,
             get_episode_image,
             download_episodes,
+            show_path_in_file_manager,
         ])
         .events(tauri_specta::collect_events![
             DownloadEpisodeEndEvent,

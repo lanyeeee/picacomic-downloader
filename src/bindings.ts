@@ -74,6 +74,9 @@ async downloadEpisodes(episodes: Episode[]) : Promise<Result<null, CommandError>
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async showPathInFileManager(path: string) : Promise<void> {
+    await TAURI_INVOKE("show_path_in_file_manager", { path });
 }
 }
 

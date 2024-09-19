@@ -3,6 +3,10 @@
 import {onMounted, ref} from "vue";
 import {events} from "../bindings.ts";
 import {NProgress, useNotification} from "naive-ui";
+import {BaseDirectory, exists, mkdir} from "@tauri-apps/plugin-fs";
+import {path} from "@tauri-apps/api";
+import {appDataDir} from "@tauri-apps/api/path";
+import {showPathInFileManager} from "../utils.ts";
 
 type ProgressData = {
   title: string;
@@ -90,13 +94,14 @@ onMounted(async () => {
 });
 
 async function showDownloadDirInFileManager() {
-  // const downloadDirName = "漫画下载";
-  // const downloadDirExists = await exists(downloadDirName, {baseDir: BaseDirectory.Resource});
-  // if (!downloadDirExists) {
-  //   await mkdir(downloadDirName, {baseDir: BaseDirectory.Resource});
-  // }
-  // const downloadDirPath = await path.join(await resourceDir(), downloadDirName);
-  // await showPathInFileManager(downloadDirPath);
+  const downloadDirName = "漫画下载";
+  const downloadDirExists = await exists(downloadDirName, {baseDir: BaseDirectory.AppData});
+  console.log("downloadDirExists", downloadDirExists);
+  if (!downloadDirExists) {
+    await mkdir(downloadDirName, {baseDir: BaseDirectory.AppData});
+  }
+  const downloadDirPath = await path.join(await appDataDir(), downloadDirName);
+  await showPathInFileManager(downloadDirPath);
 }
 
 </script>
