@@ -28,6 +28,7 @@ pub fn run() {
             search_comic,
             get_comic,
             get_episode,
+            get_episode_image,
         ])
         .events(tauri_specta::collect_events![]);
 

@@ -11,8 +11,9 @@ use sha2::Sha256;
 use tauri::http::StatusCode;
 
 use crate::responses::{
-    Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, Episode, EpisodeResponseData,
-    LoginResponseData, Pagination, PicaResponse, UserProfile, UserProfileResponseData,
+    Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, Episode, EpisodeImage,
+    EpisodeImageResponseData, EpisodeResponseData, LoginResponseData, Pagination, PicaResponse,
+    UserProfile, UserProfileResponseData,
 };
 use crate::types::Sort;
 
@@ -270,6 +271,45 @@ impl PicaClient {
         let data: EpisodeResponseData = serde_json::from_value(data)?;
 
         Ok(data.eps)
+    }
+
+    pub async fn get_episode_image(
+        &self,
+        comic_id: &str,
+        ep_order: i64,
+        page: i64,
+    ) -> anyhow::Result<Pagination<EpisodeImage>> {
+        let path = format!("comics/{comic_id}/order/{ep_order}/pages?page={page}");
+        let http_resp = self.pica_get(&path).await?;
+
+        let status = http_resp.status();
+        if status == StatusCode::UNAUTHORIZED {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，未登录({status}): {text}"
+            ));
+        } else if status != StatusCode::OK {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，预料之外的状态码({status}): {text}"
+            ));
+        }
+
+        let pica_res: PicaResponse = http_resp.json().await?;
+        if pica_res.code != 200 {
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，预料之外的code: {pica_res:?}"
+            ));
+        }
+
+        let Some(data) = pica_res.data else {
+            return Err(anyhow!(
+                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，data字段不存在: {pica_res:?}"
+            ));
+        };
+        let data: EpisodeImageResponseData = serde_json::from_value(data)?;
+
+        Ok(data.pages)
     }
 }
 

@@ -50,6 +50,14 @@ async getEpisode(comicId: string, page: number) : Promise<Result<Pagination<Epis
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getEpisodeImage(comicId: string, episodeOrder: number, page: number) : Promise<Result<Pagination<EpisodeImage>, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_episode_image", { comicId, episodeOrder, page }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -69,6 +77,7 @@ export type CommandError = string
 export type Config = { email: string; password: string; token: string }
 export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
 export type Episode = { _id: string; title: string; order: number; updated_at: string }
+export type EpisodeImage = { _id: string; media: Image }
 export type Image = { originalName: string; path: string; fileServer: string }
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
 export type Sort = "Default" | "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"

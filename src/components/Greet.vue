@@ -11,8 +11,8 @@ async function greet() {
 }
 
 async function test() {
-  const episodePagination = await commands.getEpisode("669d1a6269476246a982a16a", 1);
-  console.log(episodePagination);
+  const episodeImagePagination = await commands.getEpisodeImage("669d1a6269476246a982a16a", 1, 1);
+  console.log(episodeImagePagination);
 }
 </script>
 
