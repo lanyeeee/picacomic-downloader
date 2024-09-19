@@ -1,9 +1,10 @@
 use std::sync::RwLock;
 
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::config::Config;
 use crate::errors::CommandResult;
+use crate::extensions::IgnoreRwLockPoison;
 use crate::pica_client::PicaClient;
 use crate::responses::{Comic, ComicInSearch, Episode, EpisodeImage, Pagination, UserProfile};
 use crate::types::Sort;
@@ -19,6 +20,20 @@ pub fn greet(name: &str) -> String {
 #[allow(clippy::needless_pass_by_value)]
 pub fn get_config(config: State<RwLock<Config>>) -> Config {
     config.read().unwrap().clone()
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+#[allow(clippy::needless_pass_by_value)]
+pub fn save_config(
+    app: AppHandle,
+    config_state: State<RwLock<Config>>,
+    config: Config,
+) -> CommandResult<()> {
+    let mut config_state = config_state.write_or_panic();
+    *config_state = config;
+    config_state.save(&app)?;
+    Ok(())
 }
 
 #[tauri::command(async)]
