@@ -12,6 +12,7 @@ mod extensions;
 mod pica_client;
 mod responses;
 mod types;
+mod utils;
 
 fn generate_context() -> tauri::Context<Wry> {
     tauri::generate_context!()
@@ -28,7 +29,7 @@ pub fn run() {
             get_user_profile,
             search_comic,
             get_comic,
-            get_episode,
+            get_episodes,
             get_episode_image,
         ])
         .events(tauri_specta::collect_events![]);

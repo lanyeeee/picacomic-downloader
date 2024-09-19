@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import {onMounted, ref, watch} from "vue";
-import {commands, Config, UserProfile} from "./bindings.ts";
+import {commands, Config, Episode, UserProfile} from "./bindings.ts";
 import {useMessage, useNotification} from "naive-ui";
 import LoginDialog from "./components/LoginDialog.vue";
+import SearchPane from "./components/SearchPane.vue";
+import EpisodePane from "./components/EpisodePane.vue";
 
 const message = useMessage();
 const notification = useNotification();
@@ -10,6 +12,9 @@ const notification = useNotification();
 const config = ref<Config>();
 const loginDialogShowing = ref<boolean>(false);
 const userProfile = ref<UserProfile>();
+const episodes = ref<Episode[]>();
+const currentTabName = ref<"search" | "episode">("search");
+const comicId = ref<string>();
 
 watch(config, async () => {
   if (config.value === undefined) {
@@ -30,6 +35,11 @@ watch(() => config.value?.token, async () => {
 });
 
 onMounted(async () => {
+  // 屏蔽浏览器右键菜单
+  document.oncontextmenu = (event) => {
+    event.preventDefault();
+  };
+  // 获取配置
   config.value = await commands.getConfig();
 });
 
@@ -40,7 +50,7 @@ async function test() {
 </script>
 
 <template>
-  <div v-if="config!==undefined" class="h-full flex flex-col">
+  <div v-if="config!==undefined" class="h-screen flex flex-col overflow-auto">
     <div class="flex">
       <n-input v-model:value="config.token" placeholder="" clearable>
         <template #prefix>
@@ -61,9 +71,19 @@ async function test() {
         <span>Lv.{{ userProfile.level }} {{ userProfile.title }}</span>
       </div>
     </div>
+    <div class="flex flex-1 overflow-hidden">
+      <n-tabs class="h-full" v-model:value="currentTabName" type="line" size="small">
+        <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
+          <search-pane v-model:episodes="episodes" v-model:current-tab-name="currentTabName"/>
+        </n-tab-pane>
+        <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
+          <episode-pane v-model:comic-id="comicId" v-model:episodes="episodes"/>
+        </n-tab-pane>
 
-    <n-modal v-model:show="loginDialogShowing">
-      <login-dialog v-model:showing="loginDialogShowing" v-model:token="config.token"/>
-    </n-modal>
+        <n-modal v-model:show="loginDialogShowing">
+          <login-dialog v-model:showing="loginDialogShowing" v-model:token="config.token"/>
+        </n-modal>
+      </n-tabs>
+    </div>
   </div>
 </template>
