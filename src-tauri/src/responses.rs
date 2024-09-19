@@ -128,6 +128,21 @@ pub struct Episode {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EpisodeImageResponseData {
+    pub pages: Pagination<EpisodeImage>,
+    // pub ep: Episode // 服务端返回的数据中有这个字段，但是这个字段的`Episode`没有`order`和`updated_at`字段，所以这里不定义
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EpisodeImage {
+    #[serde(rename = "_id")]
+    pub id: String,
+    pub media: Image,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Pagination<T> {
