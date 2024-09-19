@@ -3,6 +3,7 @@ use tauri::{Manager, Wry};
 
 use crate::commands::*;
 use crate::config::Config;
+use crate::extensions::IgnoreRwLockPoison;
 
 mod commands;
 mod config;
@@ -53,9 +54,13 @@ pub fn run() {
             println!("app data dir: {:?}", app_data_dir);
 
             let config = std::sync::RwLock::new(Config::new(app.handle())?);
-            app.manage(config);
-
             let pica_client = pica_client::PicaClient::new();
+
+            if let Some(token) = &config.read_or_panic().token {
+                pica_client.set_token(token);
+            }
+
+            app.manage(config);
             app.manage(pica_client);
 
             Ok(())
