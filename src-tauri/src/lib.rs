@@ -56,8 +56,8 @@ pub fn run() {
             let config = std::sync::RwLock::new(Config::new(app.handle())?);
             let pica_client = pica_client::PicaClient::new();
 
-            if let Some(token) = &config.read_or_panic().token {
-                pica_client.set_token(token);
+            if !config.read_or_panic().token.is_empty() {
+                pica_client.set_token(&config.read_or_panic().token);
             }
 
             app.manage(config);

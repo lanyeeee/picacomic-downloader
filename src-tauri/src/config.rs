@@ -5,9 +5,9 @@ use tauri::{AppHandle, Manager};
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
-    pub email: Option<String>,
-    pub password: Option<String>,
-    pub token: Option<String>,
+    pub email: String,
+    pub password: String,
+    pub token: String,
 }
 
 impl Config {
@@ -15,9 +15,9 @@ impl Config {
         let resource_dir = app.path().app_data_dir()?;
         let config_path = resource_dir.join("config.json");
         let default_config = Config {
-            email: None,
-            password: None,
-            token: None,
+            email: String::new(),
+            password: String::new(),
+            token: String::new(),
         };
         // 如果配置文件存在且能够解析，则使用配置文件中的配置，否则使用默认配置
         let config = if config_path.exists() {
