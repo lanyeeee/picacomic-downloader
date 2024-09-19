@@ -49,7 +49,7 @@ async searchComic(keyword: string, sort: Sort, page: number, categories: string[
 
 export type ComicInSearch = { _id: string; author: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: Image; title: string; totalLikes: number | null; totalViews: number | null; updated_at: string }
 export type CommandError = string
-export type Config = { email: string | null; password: string | null; token: string | null }
+export type Config = { email: string; password: string; token: string }
 export type Image = { originalName: string; path: string; fileServer: string }
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
 export type Sort = "Default" | "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"
