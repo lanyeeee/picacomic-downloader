@@ -86,10 +86,9 @@ async function searchById(comicId: string) {
       <search-result :comic-in-search-pagination="comicInSearchPagination"
                      :on-click-item="searchById"/>
 
-      <!--   TODO: :current应该改成:page   -->
       <n-pagination :total="comicInSearchPagination.total"
                     :page-count="comicInSearchPagination.pages"
-                    :current="comicInSearchPagination.page"
+                    :page="comicInSearchPagination.page"
                     @update:page="searchByKeyword(searchInput.trim(), sortSelected, $event, [])"/>
     </div>
 
