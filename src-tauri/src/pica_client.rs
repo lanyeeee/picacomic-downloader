@@ -140,8 +140,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            // TODO: 把所有`未登录({status})` 改为 `Authorization无效或已过期，请重新登录({status}): {text}`
-            return Err(anyhow!("获取用户信息失败，未登录({status}): {text}"));
+            return Err(anyhow!("获取用户信息失败，Authorization无效或已过期，请重新登录({status}): {text}"));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
@@ -181,7 +180,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            return Err(anyhow!("搜索漫画失败，未登录({status}): {text}"));
+            return Err(anyhow!("搜索漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"));
         } else if http_resp.status() != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!("搜索漫画失败，预料之外的状态码({status}): {text}"));
@@ -209,7 +208,7 @@ impl PicaClient {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             //TODO: 改为 "获取漫画`{comic_id}`的信息失败，...."
             return Err(anyhow!(
-                "获取ID为 {comic_id} 的漫画失败，未登录({status}): {text}"
+                "获取ID为 {comic_id} 的漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"
             ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
@@ -247,7 +246,7 @@ impl PicaClient {
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，未登录({status}): {text}"
+                "获取漫画`{comic_id}`的章节分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {text}"
             ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
@@ -286,7 +285,7 @@ impl PicaClient {
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，未登录({status}): {text}"
+                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {text}"
             ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
@@ -324,7 +323,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            return Err(anyhow!("获取收藏的漫画失败，未登录({status}): {text}"));
+            return Err(anyhow!("获取收藏的漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
