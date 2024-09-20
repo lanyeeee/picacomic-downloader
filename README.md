@@ -8,6 +8,9 @@
 
 在[Release页面](https://github.com/lanyeeee/pica-downloader/releases)可以直接下载
 
+# 图形界面
+![image](https://github.com/user-attachments/assets/97294210-2e49-4d8c-ad8e-809bc5a619c9)
+
 # 使用方法
 
 1. 点击`账号登录`按钮完成登录~~(直接输入`Authorization`也行)~~
