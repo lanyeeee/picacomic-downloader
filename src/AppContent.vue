@@ -10,6 +10,7 @@ import {BaseDirectory, exists} from "@tauri-apps/plugin-fs";
 import {appDataDir} from "@tauri-apps/api/path";
 import {path} from "@tauri-apps/api";
 import {showPathInFileManager} from "./utils.ts";
+import FavouritePane from "./components/FavouritePane.vue";
 
 const message = useMessage();
 const notification = useNotification();
@@ -63,6 +64,21 @@ async function showConfigInFileManager() {
   await showPathInFileManager(configPath);
 }
 
+async function searchById(id: string) {
+  if (id === "") {
+    message.warning("漫画ID不能为空");
+    return;
+  }
+  const result = await commands.getEpisodes(id);
+  if (result.status === "error") {
+    notification.error({title: "获取章节详情失败", description: result.error});
+    return;
+  }
+  episodes.value = result.data;
+  comicId.value = id;
+  currentTabName.value = "episode";
+}
+
 </script>
 
 <template>
@@ -74,7 +90,7 @@ async function showConfigInFileManager() {
       <n-button type="primary" @click="loginDialogShowing=true">账号登录</n-button>
       <n-button @click="showConfigInFileManager">打开配置目录</n-button>
       <n-button @click="test">测试用</n-button>
-      <div v-if="userProfile!==undefined" class="flex flex-justify-end" >
+      <div v-if="userProfile!==undefined" class="flex flex-justify-end">
         <n-avatar v-if="userProfile.avatar!==undefined"
                   round
                   :size="32"
@@ -84,11 +100,16 @@ async function showConfigInFileManager() {
       </div>
     </div>
     <div class="flex overflow-hidden">
+      <!-- TODO: 可以给n-tabs加animated -->
       <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
-          <search-pane v-model:episodes="episodes"
+          <search-pane :search-by-id="searchById"
+                       v-model:episodes="episodes"
                        v-model:current-tab-name="currentTabName"
                        v-model:comic-id="comicId"/>
+        </n-tab-pane>
+        <n-tab-pane class="h-full overflow-auto p-0!" name="favourite" tab="漫画收藏" display-directive="show:lazy">
+          <favourite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
           <episode-pane v-model:comic-id="comicId" v-model:episodes="episodes"/>
