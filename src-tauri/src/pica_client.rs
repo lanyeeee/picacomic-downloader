@@ -8,22 +8,22 @@ use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
 use sha2::Sha256;
-use tauri::http::StatusCode;
 use tauri::{AppHandle, Manager};
+use tauri::http::StatusCode;
 
 use crate::config::Config;
 use crate::extensions::IgnoreRwLockPoison;
 use crate::responses::{
-    Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, Episode, EpisodeImage,
-    EpisodeImageResponseData, EpisodeResponseData, LoginResponseData, Pagination, PicaResponse,
-    UserProfile, UserProfileResponseData,
+    Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, ComicSimple,
+    ComicSimpleResponseData, Episode, EpisodeImage, EpisodeImageResponseData, EpisodeResponseData,
+    LoginResponseData, Pagination, PicaResponse, UserProfile, UserProfileResponseData,
 };
 use crate::types::Sort;
 
 const HOST_URL: &str = "https://picaapi.picacomic.com/";
 const API_KEY: &str = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
 const NONCE: &str = "ptxdhmjzqtnrtwndhbxcpkjamb33w837";
-const DIGEST_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"#;//TODO: 去除没必要的#号
+const DIGEST_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"#; //TODO: 去除没必要的#号
 
 #[derive(Clone)]
 pub struct PicaClient {
@@ -130,7 +130,7 @@ impl PicaClient {
         };
         let data: LoginResponseData = serde_json::from_value(data)?;
 
-        self.app.state::<RwLock<Config>>().write_or_panic().token = data.token.clone();//TODO: 改用 clone_from
+        self.app.state::<RwLock<Config>>().write_or_panic().token = data.token.clone(); //TODO: 改用 clone_from
         Ok(data.token)
     }
 
@@ -140,7 +140,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            return Err(anyhow!("获取用户信息失败，未登录({status}): {text}"));
+            return Err(anyhow!("获取用户信息失败，Authorization无效或已过期，请重新登录({status}): {text}"));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
@@ -180,7 +180,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            return Err(anyhow!("搜索漫画失败，未登录({status}): {text}"));
+            return Err(anyhow!("搜索漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"));
         } else if http_resp.status() != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!("搜索漫画失败，预料之外的状态码({status}): {text}"));
@@ -208,7 +208,7 @@ impl PicaClient {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             //TODO: 改为 "获取漫画`{comic_id}`的信息失败，...."
             return Err(anyhow!(
-                "获取ID为 {comic_id} 的漫画失败，未登录({status}): {text}"
+                "获取ID为 {comic_id} 的漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"
             ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
@@ -246,7 +246,7 @@ impl PicaClient {
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，未登录({status}): {text}"
+                "获取漫画`{comic_id}`的章节分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {text}"
             ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
@@ -285,7 +285,7 @@ impl PicaClient {
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，未登录({status}): {text}"
+                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {text}"
             ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
@@ -309,6 +309,39 @@ impl PicaClient {
         let data: EpisodeImageResponseData = serde_json::from_value(data)?;
 
         Ok(data.pages)
+    }
+
+    pub async fn get_favourite_comics(
+        &self,
+        sort: Sort,
+        page: i64,
+    ) -> anyhow::Result<Pagination<ComicSimple>> {
+        let sort = sort.as_str();
+        let url = format!("users/favourite?s={sort}&page={page}");
+        let http_resp = self.pica_get(&url).await?;
+
+        let status = http_resp.status();
+        if status == StatusCode::UNAUTHORIZED {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!("获取收藏的漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"));
+        } else if status != StatusCode::OK {
+            let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            return Err(anyhow!(
+                "获取收藏的漫画失败，预料之外的状态码({status}): {text}"
+            ));
+        }
+
+        let pica_resp: PicaResponse = http_resp.json().await?;
+        if pica_resp.code != 200 {
+            return Err(anyhow!("获取收藏的漫画失败，预料之外的code: {pica_resp:?}"));
+        }
+
+        let Some(data) = pica_resp.data else {
+            return Err(anyhow!("获取收藏的漫画失败，data字段不存在: {pica_resp:?}"));
+        };
+        let data: ComicSimpleResponseData = serde_json::from_value(data)?;
+
+        Ok(data.comics)
     }
 }
 

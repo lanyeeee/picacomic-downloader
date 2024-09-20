@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import {ref} from "vue";
-import {ComicInSearch, commands, Episode, Pagination, Sort} from "../bindings.ts";
-import {useMessage, useNotification} from "naive-ui";
-import SearchResult from "./SearchResult.vue";
+import {computed, ref} from "vue";
+import {ComicInSearch, commands, Pagination, Sort} from "../bindings.ts";
+import {useNotification} from "naive-ui";
+import ComicCard from "./ComicCard.vue";
+import {ComicInfo} from "../types.ts";
 
-const message = useMessage();
 const notification = useNotification();
 
 const sortOptions = [
@@ -14,14 +14,26 @@ const sortOptions = [
   {label: "最多指名", value: "ViewMost"},
 ];
 
-const comicId = defineModel<string | undefined>("comicId", {required: true});
-const episodes = defineModel<Episode[] | undefined>("episodes", {required: true});
-const currentTabName = defineModel<"search" | "episode">("currentTabName", {required: true});
+
+defineProps<{
+  searchById: (comicId: string) => void;
+}>();
 
 const searchInput = ref<string>("");
 const comicIdInput = ref<string>("");
 const sortSelected = ref<Sort>("TimeNewest");
 const comicInSearchPagination = ref<Pagination<ComicInSearch>>();
+
+const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
+  const pagination = comicInSearchPagination.value;
+  if (pagination === undefined) {
+    return undefined;
+  }
+  return {
+    ...pagination,
+    docs: pagination.docs.map(({_id, title, author, categories, thumb}) => ({_id, title, author, categories, thumb,})),
+  };
+});
 
 async function searchByKeyword(keyword: string, sort: Sort, page: number, categories: string[]) {
   const result = await commands.searchComic(keyword, sort, page, categories);
@@ -30,23 +42,8 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
     return;
   }
   comicInSearchPagination.value = result.data;
-  console.log("comicInSearchPagination", comicInSearchPagination.value);
 }
 
-async function searchById(id: string) {
-  if (id === "") {
-    message.warning("漫画ID不能为空");
-    return;
-  }
-  const result = await commands.getEpisodes(id);
-  if (result.status === "error") {
-    notification.error({title: "获取章节详情失败", description: result.error});
-    return;
-  }
-  episodes.value = result.data;
-  comicId.value = id;
-  currentTabName.value = "episode";
-}
 
 </script>
 
@@ -98,16 +95,14 @@ async function searchById(id: string) {
       </div>
     </div>
 
-    <div v-if="comicInSearchPagination!==undefined" class="flex flex-col gap-row-1 overflow-auto p-2">
-      <search-result :comic-in-search-pagination="comicInSearchPagination"
-                     :on-click-item="searchById"/>
+    <div v-if="comicInfoPagination!==undefined" class="flex flex-col gap-row-1 overflow-auto p-2">
+      <comic-card :comic-info-pagination="comicInfoPagination"
+                  :on-click-item="searchById"/>
 
-      <n-pagination :total="comicInSearchPagination.total"
-                    :page-count="comicInSearchPagination.pages"
-                    :page="comicInSearchPagination.page"
+      <n-pagination :total="comicInfoPagination.total"
+                    :page-count="comicInfoPagination.pages"
+                    :page="comicInfoPagination.page"
                     @update:page="searchByKeyword(searchInput.trim(), sortSelected, $event, [])"/>
     </div>
-
-
   </div>
 </template>
