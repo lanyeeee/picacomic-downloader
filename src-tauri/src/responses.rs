@@ -145,6 +145,28 @@ pub struct EpisodeImage {
     pub media: Image,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComicSimpleResponseData {
+    pub comics: Pagination<ComicSimple>,
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ComicSimple {
+    #[serde(rename = "_id")]
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub author: String,
+    pub pages_count: i32,
+    pub eps_count: i32,
+    pub finished: bool,
+    pub categories: Vec<String>,
+    pub thumb: Image,
+    pub likes_count: i32,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Pagination<T> {

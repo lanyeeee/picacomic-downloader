@@ -11,7 +11,7 @@ use crate::download_manager::DownloadManager;
 use crate::errors::CommandResult;
 use crate::extensions::{IgnoreLockPoison, IgnoreRwLockPoison};
 use crate::pica_client::PicaClient;
-use crate::responses::{Comic, ComicInSearch, EpisodeImage, Pagination, UserProfile};
+use crate::responses::{Comic, ComicInSearch, ComicSimple, EpisodeImage, Pagination, UserProfile};
 use crate::types;
 use crate::types::Sort;
 use crate::utils;
@@ -177,4 +177,15 @@ pub async fn download_episodes(
 pub fn show_path_in_file_manager(path: &str) {
     let path = PathBuf::from_slash(path);
     showfile::show_path_in_file_manager(path);
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn get_favourite_comics(
+    pica_client: State<'_, PicaClient>,
+    sort: Sort,
+    page: i64,
+) -> CommandResult<Pagination<ComicSimple>> {
+    let favourite_comics = pica_client.get_favourite_comics(sort, page).await?;
+    Ok(favourite_comics)
 }
