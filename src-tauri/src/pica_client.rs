@@ -140,6 +140,7 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
+            // TODO: 把所有`未登录({status})` 改为 `Authorization无效或已过期，请重新登录({status}): {text}`
             return Err(anyhow!("获取用户信息失败，未登录({status}): {text}"));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;

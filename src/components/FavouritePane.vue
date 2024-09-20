@@ -14,7 +14,7 @@ const props = defineProps<{
 }>();
 
 const comicSimplePagination = ref<Pagination<ComicInfo>>();
-const sortSelected = ref<Sort>("TimeNewest");
+const sortSelected = ref<Sort>("TimeNewest");// TODO: 添加一个选择器来控制这个值
 
 const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
   const pagination = comicSimplePagination.value;
