@@ -2317,7 +2317,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pica-downloader"
+name = "picacomic-downloader"
 version = "0.1.0"
 dependencies = [
  "anyhow",

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0-rc",
-  "productName": "pica-downloader",
+  "productName": "picacomic-downloader",
   "version": "0.1.0" ,
-  "identifier": "com.lanyeeee.pica-downloader",
+  "identifier": "com.lanyeeee.picacomic-downloader",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "pica-downloader",
+        "title": "哔咔漫画下载器",
         "width": 800,
         "height": 600
       }
