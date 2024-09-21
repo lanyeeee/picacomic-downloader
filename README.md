@@ -6,7 +6,7 @@
 
 一个用于 manhuabika.com 哔咔漫画 pica漫画 bika漫画 PicACG 的多线程下载器，带图形界面，带收藏夹，下载速度飞快。图形界面基于[Tauri](https://v2.tauri.app/start/)
 
-在[Release页面](https://github.com/lanyeeee/pica-downloader/releases)可以直接下载
+在[Release页面](https://github.com/lanyeeee/picacomic-downloader/releases)可以直接下载
 
 # 图形界面
 ![image](https://github.com/user-attachments/assets/97294210-2e49-4d8c-ad8e-809bc5a619c9)
@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/8d08bba1-851c-41e4-ba3e-66f99c7f614b
 我能想到的解决办法只有：
 
 1. 根据下面的**如何构建(build)**，自行编译
-2. 希望你相信我的承诺，我承诺你在[Release页面](https://github.com/lanyeeee/pica-downloader/releases)下载到的所有东西都是安全的
+2. 希望你相信我的承诺，我承诺你在[Release页面](https://github.com/lanyeeee/picacomic-downloader/releases)下载到的所有东西都是安全的
 
 # 如何构建(build)
 
@@ -46,13 +46,13 @@ https://github.com/user-attachments/assets/8d08bba1-851c-41e4-ba3e-66f99c7f614b
 #### 1. 克隆本仓库
 
 ```
-git clone https://github.com/lanyeeee/pica-downloader.git
+git clone https://github.com/lanyeeee/picacomic-downloader.git
 ```
 
 #### 2.安装依赖
 
 ```
-cd pica-downloader
+cd picacomic-downloader
 pnpm install
 ```
 
