@@ -9,7 +9,7 @@ use tokio::task::JoinSet;
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
 use crate::errors::CommandResult;
-use crate::extensions::{IgnoreLockPoison, IgnoreRwLockPoison};
+use crate::extensions::IgnoreRwLockPoison;
 use crate::pica_client::PicaClient;
 use crate::responses::{Comic, ComicInSearch, ComicSimple, EpisodeImage, Pagination, UserProfile};
 use crate::types;
@@ -95,11 +95,13 @@ pub async fn get_episodes(
     comic_id: String,
 ) -> CommandResult<Vec<types::Episode>> {
     let pica_client = pica_client.inner().clone();
-    // TODO: 漫画获取和第一个章节获取可以并行
-    let comic = pica_client.get_comic(&comic_id).await?;
+
+    let comic_task = pica_client.get_comic(&comic_id);
+    let first_page_task = pica_client.get_episode(&comic_id, 1);
+    let (comic, first_page) = tokio::try_join!(comic_task, first_page_task)?;
+
     let episodes = Arc::new(Mutex::new(vec![]));
-    let first_page = pica_client.get_episode(&comic_id, 1).await?;
-    episodes.lock_or_panic().extend(first_page.docs);
+    episodes.lock().unwrap().extend(first_page.docs);
 
     let total_pages = first_page.pages;
     let mut join_set = JoinSet::new();
