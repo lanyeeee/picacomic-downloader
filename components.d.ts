@@ -21,6 +21,7 @@ declare module 'vue' {
     NDivider: typeof import('naive-ui')['NDivider']
     NDropdown: typeof import('naive-ui')['NDropdown']
     NEmpty: typeof import('naive-ui')['NEmpty']
+    NH3: typeof import('naive-ui')['NH3']
     NInput: typeof import('naive-ui')['NInput']
     NMessageProvider: typeof import('naive-ui')['NMessageProvider']
     NModal: typeof import('naive-ui')['NModal']
@@ -30,7 +31,6 @@ declare module 'vue' {
     NSelect: typeof import('naive-ui')['NSelect']
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
-    NText: typeof import('naive-ui')['NText']
     SearchPane: typeof import('./src/components/SearchPane.vue')['default']
   }
 }

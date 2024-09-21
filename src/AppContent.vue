@@ -6,10 +6,8 @@ import LoginDialog from "./components/LoginDialog.vue";
 import SearchPane from "./components/SearchPane.vue";
 import EpisodePane from "./components/EpisodePane.vue";
 import DownloadingList from "./components/DownloadingList.vue";
-import {BaseDirectory, exists} from "@tauri-apps/plugin-fs";
 import {appDataDir} from "@tauri-apps/api/path";
 import {path} from "@tauri-apps/api";
-import {showPathInFileManager} from "./utils.ts";
 import FavouritePane from "./components/FavouritePane.vue";
 
 const message = useMessage();
@@ -55,13 +53,11 @@ async function test() {
 
 async function showConfigInFileManager() {
   const configName = "config.json";
-  const configExists = await exists(configName, {baseDir: BaseDirectory.AppData});
-  if (!configExists) {
-    message.error("配置文件不存在");
-    return;
-  }
   const configPath = await path.join(await appDataDir(), configName);
-  await showPathInFileManager(configPath);
+  const result = await commands.showPathInFileManager(configPath);
+  if (result.status === "error") {
+    notification.error({title: "打开配置文件失败", description: result.error});
+  }
 }
 
 async function searchById(id: string) {
@@ -117,7 +113,7 @@ async function searchById(id: string) {
       </n-tabs>
 
       <div class="basis-1/2 overflow-auto">
-        <downloading-list></downloading-list>
+        <downloading-list v-model:config="config"></downloading-list>
       </div>
     </div>
     <n-modal v-model:show="loginDialogShowing">
