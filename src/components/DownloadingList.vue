@@ -1,12 +1,9 @@
 <script setup lang="ts">
 
 import {onMounted, ref} from "vue";
-import {events} from "../bindings.ts";
+import {commands, Config, events} from "../bindings.ts";
+import {open} from "@tauri-apps/plugin-dialog";
 import {NProgress, useNotification} from "naive-ui";
-import {BaseDirectory, exists, mkdir} from "@tauri-apps/plugin-fs";
-import {path} from "@tauri-apps/api";
-import {appDataDir} from "@tauri-apps/api/path";
-import {showPathInFileManager} from "../utils.ts";
 
 type ProgressData = {
   title: string;
@@ -17,6 +14,8 @@ type ProgressData = {
 }
 
 const notification = useNotification();
+
+const config = defineModel<Config>("config", {required: true});
 
 const progresses = ref<Map<string, ProgressData>>(new Map());
 const overallProgress = ref<ProgressData>({
@@ -94,23 +93,37 @@ onMounted(async () => {
 });
 
 async function showDownloadDirInFileManager() {
-  const downloadDirName = "漫画下载";
-  const downloadDirExists = await exists(downloadDirName, {baseDir: BaseDirectory.AppData});
-  console.log("downloadDirExists", downloadDirExists);
-  if (!downloadDirExists) {
-    await mkdir(downloadDirName, {baseDir: BaseDirectory.AppData});
+  if (config.value === undefined) {
+    return;
   }
-  const downloadDirPath = await path.join(await appDataDir(), downloadDirName);
-  await showPathInFileManager(downloadDirPath);
+  const result = await commands.showPathInFileManager(config.value.downloadDir);
+  if (result.status === "error") {
+    notification.error({title: "打开下载目录失败", description: result.error});
+  }
+}
+
+async function selectDownloadDir() {
+  const selectedDirPath = await open({directory: true});
+  if (selectedDirPath === null) {
+    return;
+  }
+  config.value.downloadDir = selectedDirPath;
 }
 
 </script>
 
 <template>
   <div class="flex flex-col gap-row-1">
-    <div class="flex flex-justify-between">
-      <n-text>下载列表</n-text>
-      <n-button class="w-1/3" size="tiny" @click="showDownloadDirInFileManager">打开下载目录</n-button>
+    <n-h3 class="m-be-0">下载列表</n-h3>
+    <div class="flex gap-col-1">
+      <n-input v-model:value="config.downloadDir"
+               size="tiny"
+               readonly
+               placeholder="请选择漫画目录"
+               @click="selectDownloadDir">
+        <template #prefix>下载目录：</template>
+      </n-input>
+      <n-button size="tiny" @click="showDownloadDirInFileManager">打开下载目录</n-button>
     </div>
     <div class="grid grid-cols-[1fr_4fr_2fr]">
       <span class="text-ellipsis whitespace-nowrap overflow-hidden">{{ overallProgress.title }}</span>

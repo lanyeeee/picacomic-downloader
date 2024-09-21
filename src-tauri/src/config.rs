@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{AppHandle, Manager};
@@ -6,6 +9,7 @@ use tauri::{AppHandle, Manager};
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     pub token: String,
+    pub download_dir: PathBuf,
 }
 
 impl Config {
@@ -14,6 +18,7 @@ impl Config {
         let config_path = resource_dir.join("config.json");
         let default_config = Config {
             token: String::new(),
+            download_dir: app.path().app_data_dir()?.join("漫画下载"),
         };
         // 如果配置文件存在且能够解析，则使用配置文件中的配置，否则使用默认配置
         let config = if config_path.exists() {
@@ -22,6 +27,12 @@ impl Config {
         } else {
             default_config
         };
+        if !config.download_dir.exists() {
+            std::fs::create_dir_all(&config.download_dir).context(format!(
+                "创建下载目录`{}`失败",
+                config.download_dir.display()
+            ))?;
+        }
         config.save(app)?;
         Ok(config)
     }

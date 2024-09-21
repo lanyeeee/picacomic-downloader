@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -15,9 +15,10 @@ use tokio::sync::{mpsc, Semaphore};
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinSet;
 
+use crate::config::Config;
 use crate::events;
 use crate::events::{DownloadSpeedEvent, DownloadSpeedEventPayload};
-use crate::extensions::{AnyhowErrorToStringChain, IgnoreLockPoison};
+use crate::extensions::{AnyhowErrorToStringChain, IgnoreLockPoison, IgnoreRwLockPoison};
 use crate::pica_client::PicaClient;
 use crate::types::Episode;
 
@@ -131,7 +132,7 @@ impl DownloadManager {
             .map(|(file_server, path)| format!("{file_server}/static/{path}"))
             .collect();
         // 创建临时下载目录
-        let temp_download_dir = get_download_dir(&self.app, &ep)?;
+        let temp_download_dir = get_temp_download_dir(&self.app, &ep);
         std::fs::create_dir_all(&temp_download_dir)
             .context(format!("创建目录`{temp_download_dir:?}`失败"))?;
 
@@ -250,14 +251,12 @@ impl DownloadManager {
     }
 }
 
-fn get_download_dir(app: &AppHandle, ep: &Episode) -> anyhow::Result<PathBuf> {
-    let download_dir = app
-        .path()
-        .app_data_dir()?
-        .join("漫画下载")
+fn get_temp_download_dir(app: &AppHandle, ep: &Episode) -> PathBuf {
+    app.state::<RwLock<Config>>()
+        .read_or_panic()
+        .download_dir
         .join(&ep.comic_title)
-        .join(format!(".下载中-{}", ep.ep_title)); // 以 `.下载中-` 开头，表示是临时目录
-    Ok(download_dir)
+        .join(format!(".下载中-{}", ep.ep_title)) // 以 `.下载中-` 开头，表示是临时目录
 }
 
 fn emit_start_event(app: &AppHandle, ep_id: String, title: String, total: u32) {

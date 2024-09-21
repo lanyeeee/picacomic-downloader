@@ -1,7 +1,8 @@
-//TODO:使用 #![allow(clippy::used_underscore_binding)] 来禁用警告
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
+//TODO:使用 #![allow(clippy::used_underscore_binding)] 来禁用警告
+use anyhow::anyhow;
 use path_slash::PathBufExt;
 use tauri::{AppHandle, Manager, State};
 use tokio::task::JoinSet;
@@ -125,13 +126,16 @@ pub async fn get_episodes(
     };
 
     let comic_title = utils::filename_filter(&comic.title);
-    let app_data_dir = app.path().app_data_dir().map_err(anyhow::Error::from)?;
+    let download_dir = app
+        .state::<RwLock<Config>>()
+        .read_or_panic()
+        .download_dir
+        .clone();
 
     let episodes = episodes
         .into_iter()
         .map(|ep| {
-            let download_dir = app_data_dir
-                .join("漫画下载")
+            let episode_dir = download_dir
                 .join(&comic_title)
                 .join(&ep.title);
             types::Episode {
@@ -139,7 +143,7 @@ pub async fn get_episodes(
                 ep_title: utils::filename_filter(&ep.title),
                 comic_id: comic.id.clone(),
                 comic_title: comic_title.clone(),
-                is_downloaded: download_dir.exists(),
+                is_downloaded: episode_dir.exists(),
                 order: ep.order,
             }
         })
@@ -176,9 +180,13 @@ pub async fn download_episodes(
 
 #[tauri::command(async)]
 #[specta::specta]
-pub fn show_path_in_file_manager(path: &str) {
+pub fn show_path_in_file_manager(path: &str) -> CommandResult<()> {
     let path = PathBuf::from_slash(path);
+    if !path.exists() {
+        return Err(anyhow!("路径`{path:?}`不存在").into());
+    }
     showfile::show_path_in_file_manager(path);
+    Ok(())
 }
 
 #[tauri::command(async)]
