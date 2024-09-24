@@ -27,8 +27,7 @@ pub fn greet(name: &str) -> String {
 #[specta::specta]
 #[allow(clippy::needless_pass_by_value)]
 pub fn get_config(config: State<RwLock<Config>>) -> Config {
-    // TODO: 改用 read_or_panic
-    config.read().unwrap().clone()
+    config.read_or_panic().clone()
 }
 
 #[tauri::command(async)]
@@ -135,9 +134,7 @@ pub async fn get_episodes(
     let episodes = episodes
         .into_iter()
         .map(|ep| {
-            let episode_dir = download_dir
-                .join(&comic_title)
-                .join(&ep.title);
+            let episode_dir = download_dir.join(&comic_title).join(&ep.title);
             types::Episode {
                 ep_id: ep.id,
                 ep_title: utils::filename_filter(&ep.title),
