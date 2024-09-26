@@ -1,7 +1,7 @@
+#![allow(clippy::used_underscore_binding)]
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
-//TODO:使用 #![allow(clippy::used_underscore_binding)] 来禁用警告
 use anyhow::anyhow;
 use path_slash::PathBufExt;
 use tauri::{AppHandle, Manager, State};
