@@ -83,8 +83,8 @@ impl PicaClient {
             .header("signature", signature);
 
         let http_resp = match payload {
+            Some(body) => request.json(&body).send().await?,
             None => request.send().await?,
-            Some(body) => request.body(serde_json::to_string(&body)?).send().await?,
         };
 
         Ok(http_resp)
@@ -140,7 +140,9 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            return Err(anyhow!("获取用户信息失败，Authorization无效或已过期，请重新登录({status}): {text}"));
+            return Err(anyhow!(
+                "获取用户信息失败，Authorization无效或已过期，请重新登录({status}): {text}"
+            ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
@@ -180,7 +182,9 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            return Err(anyhow!("搜索漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"));
+            return Err(anyhow!(
+                "搜索漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"
+            ));
         } else if http_resp.status() != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!("搜索漫画失败，预料之外的状态码({status}): {text}"));
@@ -323,7 +327,9 @@ impl PicaClient {
         let status = http_resp.status();
         if status == StatusCode::UNAUTHORIZED {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
-            return Err(anyhow!("获取收藏的漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"));
+            return Err(anyhow!(
+                "获取收藏的漫画失败，Authorization无效或已过期，请重新登录({status}): {text}"
+            ));
         } else if status != StatusCode::OK {
             let text = http_resp.text().await.map_err(anyhow::Error::from)?;
             return Err(anyhow!(
