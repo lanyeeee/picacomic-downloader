@@ -75,6 +75,8 @@ pnpm tauri build
 - 作者不对使用本工具导致的任何损失、法律纠纷或其他后果负责
 - 作者不对用户使用本工具的行为负责，包括但不限于用户违反法律或任何第三方权益的行为
 # 其他
+禁漫天堂下载器  
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=lanyeeee&repo=jmcomic-downloader)](https://github.com/lanyeeee/jmcomic-downloader)   
 
 任何使用中遇到的问题、任何希望添加的功能，都欢迎提交issue或开discussion交流，我会尽力解决
 
