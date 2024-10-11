@@ -47,9 +47,12 @@ watch(() => props.currentTabName, async () => {
 
 <template>
   <div v-if="comicInfoPagination!==undefined" class="flex flex-col gap-row-1 overflow-auto p-2">
-    <comic-card :comic-info-pagination="comicInfoPagination"
-                :on-click-item="searchById"/>
-
+    <div class="flex flex-col gap-row-2 overflow-auto">
+      <comic-card v-for="comicInfo in comicInfoPagination.docs"
+                  :key="comicInfo._id"
+                  :comic-info="comicInfo"
+                  :onClickItem="searchById"/>
+    </div>
     <n-pagination :total="comicInfoPagination.total"
                   :page-count="comicInfoPagination.pages"
                   :page="comicInfoPagination.page"
