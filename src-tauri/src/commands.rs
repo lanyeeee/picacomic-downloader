@@ -14,7 +14,7 @@ use crate::extensions::IgnoreRwLockPoison;
 use crate::pica_client::PicaClient;
 use crate::responses::{Comic, ComicInSearch, ComicSimple, EpisodeImage, Pagination, UserProfile};
 use crate::types;
-use crate::types::Sort;
+use crate::types::{Episode, Sort};
 use crate::utils;
 
 #[tauri::command]
@@ -172,6 +172,27 @@ pub async fn download_episodes(
     for ep in episodes {
         download_manager.submit_episode(ep).await?;
     }
+    Ok(())
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn download_comic(
+    app: AppHandle,
+    pica_client: State<'_, PicaClient>,
+    download_manager: State<'_, DownloadManager>,
+    comic_id: String,
+) -> CommandResult<()> {
+    let episodes: Vec<Episode> = get_episodes(app, pica_client, comic_id)
+        .await?
+        .into_iter()
+        .filter(|ep| !ep.is_downloaded)
+        .collect();
+    if episodes.is_empty() {
+        // TODO: 错误提示里添加漫画名
+        return Err(anyhow!("该漫画的所有章节都已存在于下载目录，无需重复下载").into());
+    }
+    download_episodes(download_manager, episodes).await?;
     Ok(())
 }
 

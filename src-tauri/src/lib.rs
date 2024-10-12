@@ -39,6 +39,7 @@ pub async fn run() {
             get_episodes,
             get_episode_image,
             download_episodes,
+            download_comic,
             show_path_in_file_manager,
             get_favourite_comics,
         ])
