@@ -134,10 +134,11 @@ pub async fn get_episodes(
     let episodes = episodes
         .into_iter()
         .map(|ep| {
-            let episode_dir = download_dir.join(&comic_title).join(&ep.title);
+            let ep_title = utils::filename_filter(&ep.title);
+            let episode_dir = download_dir.join(&comic_title).join(&ep_title);
             types::Episode {
                 ep_id: ep.id,
-                ep_title: utils::filename_filter(&ep.title),
+                ep_title,
                 comic_id: comic.id.clone(),
                 comic_title: comic_title.clone(),
                 is_downloaded: episode_dir.exists(),
