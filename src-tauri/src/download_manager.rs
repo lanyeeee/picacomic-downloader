@@ -167,6 +167,13 @@ impl DownloadManager {
                 total_image_count,
             );
         }
+        let download_interval = self
+            .app
+            .state::<RwLock<Config>>()
+            .read_or_panic()
+            .episode_download_interval;
+        // 等待一段时间再下载下一章节
+        tokio::time::sleep(Duration::from_secs(download_interval)).await;
         drop(permit);
         // 如果DownloadManager所有图片全部都已下载(无论成功或失败)，则清空下载进度
         let downloaded_image_count = self.downloaded_image_count.load(Ordering::Relaxed);
