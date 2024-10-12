@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
@@ -11,8 +11,8 @@ use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
 use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
-use tokio::sync::{mpsc, Semaphore};
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc, Semaphore};
 use tokio::task::JoinSet;
 
 use crate::config::Config;
@@ -61,6 +61,7 @@ impl DownloadManager {
             total_image_count: Arc::new(AtomicU32::new(0)),
         };
 
+        // TODO: 改用tauri::async_runtime::spawn
         tokio::spawn(manager.clone().log_download_speed());
         tokio::spawn(manager.clone().receiver_loop(receiver));
 
