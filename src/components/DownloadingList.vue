@@ -110,6 +110,7 @@ async function selectDownloadDir() {
   config.value.downloadDir = selectedDirPath;
 }
 
+
 </script>
 
 <template>
@@ -117,6 +118,7 @@ async function selectDownloadDir() {
     <n-h3 class="m-be-0">下载列表</n-h3>
     <div class="flex gap-col-1">
       <n-input v-model:value="config.downloadDir"
+               :default-value="0"
                size="tiny"
                readonly
                placeholder="请选择漫画目录"
@@ -125,6 +127,15 @@ async function selectDownloadDir() {
       </n-input>
       <n-button size="tiny" @click="showDownloadDirInFileManager">打开下载目录</n-button>
     </div>
+    <n-input-number v-model:value="config.episodeDownloadInterval"
+                    placeholder=""
+                    :update-value-on-input="false"
+                    :min="0"
+                    :show-button="false"
+                    size="tiny">
+      <template #prefix>每个章节下载完成后休息</template>
+      <template #suffix>秒，然后才继续下载下一个章节</template>
+    </n-input-number>
     <div class="grid grid-cols-[1fr_4fr_2fr]">
       <span class="text-ellipsis whitespace-nowrap overflow-hidden">{{ overallProgress.title }}</span>
       <n-progress :percentage="overallProgress.percentage" indicator-placement="inside" :height="21">

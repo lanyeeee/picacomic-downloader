@@ -10,6 +10,7 @@ use tauri::{AppHandle, Manager};
 pub struct Config {
     pub token: String,
     pub download_dir: PathBuf,
+    pub episode_download_interval: u64,
 }
 
 impl Config {
@@ -19,6 +20,7 @@ impl Config {
         let default_config = Config {
             token: String::new(),
             download_dir: app.path().app_data_dir()?.join("漫画下载"),
+            episode_download_interval: 0,
         };
         // 如果配置文件存在且能够解析，则使用配置文件中的配置，否则使用默认配置
         let config = if config_path.exists() {

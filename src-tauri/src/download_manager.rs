@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
@@ -11,8 +11,8 @@ use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
 use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
-use tokio::sync::{mpsc, Semaphore};
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc, Semaphore};
 use tokio::task::JoinSet;
 
 use crate::config::Config;
@@ -61,6 +61,7 @@ impl DownloadManager {
             total_image_count: Arc::new(AtomicU32::new(0)),
         };
 
+        // TODO: 改用tauri::async_runtime::spawn
         tokio::spawn(manager.clone().log_download_speed());
         tokio::spawn(manager.clone().receiver_loop(receiver));
 
@@ -166,6 +167,13 @@ impl DownloadManager {
                 total_image_count,
             );
         }
+        let download_interval = self
+            .app
+            .state::<RwLock<Config>>()
+            .read_or_panic()
+            .episode_download_interval;
+        // 等待一段时间再下载下一章节
+        tokio::time::sleep(Duration::from_secs(download_interval)).await;
         drop(permit);
         // 如果DownloadManager所有图片全部都已下载(无论成功或失败)，则清空下载进度
         let downloaded_image_count = self.downloaded_image_count.load(Ordering::Relaxed);

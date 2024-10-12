@@ -75,6 +75,14 @@ async downloadEpisodes(episodes: Episode[]) : Promise<Result<null, CommandError>
     else return { status: "error", error: e  as any };
 }
 },
+async downloadComic(comicId: string) : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_comic", { comicId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async showPathInFileManager(path: string) : Promise<Result<null, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("show_path_in_file_manager", { path }) };
@@ -124,7 +132,7 @@ export type Comic = { _id: string; title: string; author?: string; pagesCount: n
 export type ComicInSearch = { _id: string; author?: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: Image; title: string; totalLikes: number | null; totalViews: number | null; updated_at: string }
 export type ComicSimple = { _id: string; title: string; author?: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number }
 export type CommandError = string
-export type Config = { token: string; downloadDir: string }
+export type Config = { token: string; downloadDir: string; episodeDownloadInterval: number }
 export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
 export type DownloadEpisodeEndEvent = DownloadEpisodeEndEventPayload
 export type DownloadEpisodeEndEventPayload = { epId: string; errMsg: string | null }
