@@ -22,6 +22,9 @@
 
 https://github.com/user-attachments/assets/8d08bba1-851c-41e4-ba3e-66f99c7f614b
 
+# 禁漫天堂下载器  
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=lanyeeee&repo=jmcomic-downloader)](https://github.com/lanyeeee/jmcomic-downloader)  
+
 # 关于被杀毒软件误判为病毒
 
 对于个人开发者来说，这个问题几乎是无解的(~~需要购买数字证书给软件签名，甚至给杀毒软件交保护费~~)  
@@ -77,8 +80,5 @@ pnpm tauri build
 - 作者不对使用本工具导致的任何损失、法律纠纷或其他后果负责
 - 作者不对用户使用本工具的行为负责，包括但不限于用户违反法律或任何第三方权益的行为
 # 其他
-禁漫天堂下载器  
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=lanyeeee&repo=jmcomic-downloader)](https://github.com/lanyeeee/jmcomic-downloader)   
-
 任何使用中遇到的问题、任何希望添加的功能，都欢迎提交issue或开discussion交流，我会尽力解决
 
