@@ -6,7 +6,9 @@
 
 一个用于 manhuabika.com 哔咔漫画 pica漫画 bika漫画 PicACG 的多线程下载器，带图形界面，带收藏夹，下载速度飞快。图形界面基于[Tauri](https://v2.tauri.app/start/)
 
-在[Release页面](https://github.com/lanyeeee/picacomic-downloader/releases)可以直接下载，⭐ **如果觉得本项目对你有帮助，欢迎 Star 支持！** 🌟  
+在[Release页面](https://github.com/lanyeeee/picacomic-downloader/releases)可以直接下载
+
+**如果本项目对你有帮助，欢迎点个 Star⭐ 支持！你的支持是我持续更新维护的动力🙏**
 
 # 图形界面
 ![image](https://github.com/user-attachments/assets/97294210-2e49-4d8c-ad8e-809bc5a619c9)
