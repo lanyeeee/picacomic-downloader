@@ -14,7 +14,7 @@ use crate::extensions::IgnoreRwLockPoison;
 use crate::pica_client::PicaClient;
 use crate::responses::{Comic, ComicInSearch, ComicSimple, EpisodeImage, Pagination, UserProfile};
 use crate::types;
-use crate::types::Sort;
+use crate::types::{Episode, Sort};
 use crate::utils;
 
 #[tauri::command]
@@ -134,11 +134,10 @@ pub async fn get_episodes(
     let episodes = episodes
         .into_iter()
         .map(|ep| {
-            let ep_title = utils::filename_filter(&ep.title);
-            let episode_dir = download_dir.join(&comic_title).join(&ep_title);
+            let episode_dir = download_dir.join(&comic_title).join(&ep.title);
             types::Episode {
                 ep_id: ep.id,
-                ep_title,
+                ep_title: utils::filename_filter(&ep.title),
                 comic_id: comic.id.clone(),
                 comic_title: comic_title.clone(),
                 is_downloaded: episode_dir.exists(),
@@ -184,7 +183,7 @@ pub async fn download_comic(
     download_manager: State<'_, DownloadManager>,
     comic_id: String,
 ) -> CommandResult<()> {
-    let episodes: Vec<types::Episode> = get_episodes(app, pica_client, comic_id)
+    let episodes: Vec<Episode> = get_episodes(app, pica_client, comic_id)
         .await?
         .into_iter()
         .filter(|ep| !ep.is_downloaded)
