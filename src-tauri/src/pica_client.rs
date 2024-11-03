@@ -8,15 +8,16 @@ use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
 use sha2::Sha256;
-use tauri::{AppHandle, Manager};
 use tauri::http::StatusCode;
+use tauri::{AppHandle, Manager};
 
 use crate::config::Config;
 use crate::extensions::IgnoreRwLockPoison;
 use crate::responses::{
-    Comic, ComicInSearch, ComicResponseData, ComicSearchResponseData, ComicSimple,
-    ComicSimpleResponseData, Episode, EpisodeImage, EpisodeImageResponseData, EpisodeResponseData,
-    LoginResponseData, Pagination, PicaResponse, UserProfile, UserProfileResponseData,
+    ComicInFavoriteRespData, ComicInSearchRespData, ComicRespData, EpisodeImageRespData,
+    EpisodeRespData, GetComicRespData, GetEpisodeImageRespData, GetEpisodeRespData,
+    GetFavoriteRespData, LoginRespData, Pagination, PicaResp, SearchRespData,
+    UserProfileDetailRespData, UserProfileRespData,
 };
 use crate::types::Sort;
 
@@ -120,7 +121,7 @@ impl PicaClient {
             return Err(anyhow!("登录失败，预料之外的状态码({status}): {text}"));
         }
 
-        let pica_resp: PicaResponse = http_resp.json().await?;
+        let pica_resp: PicaResp = http_resp.json().await?;
         if pica_resp.code != 200 {
             return Err(anyhow!("登录失败，预料之外的code: {pica_resp:?}"));
         }
@@ -128,13 +129,13 @@ impl PicaClient {
         let Some(data) = pica_resp.data else {
             return Err(anyhow!("登录失败，data字段不存在: {pica_resp:?}"));
         };
-        let data: LoginResponseData = serde_json::from_value(data)?;
+        let data: LoginRespData = serde_json::from_value(data)?;
 
         self.app.state::<RwLock<Config>>().write_or_panic().token = data.token.clone(); //TODO: 改用 clone_from
         Ok(data.token)
     }
 
-    pub async fn get_user_profile(&self) -> anyhow::Result<UserProfile> {
+    pub async fn get_user_profile(&self) -> anyhow::Result<UserProfileDetailRespData> {
         let http_resp = self.pica_get("users/profile").await?;
 
         let status = http_resp.status();
@@ -150,7 +151,7 @@ impl PicaClient {
             ));
         }
 
-        let pica_resp: PicaResponse = http_resp.json().await?;
+        let pica_resp: PicaResp = http_resp.json().await?;
         if pica_resp.code != 200 {
             return Err(anyhow!("获取用户信息失败，预料之外的code: {pica_resp:?}"));
         }
@@ -158,7 +159,7 @@ impl PicaClient {
         let Some(data) = pica_resp.data else {
             return Err(anyhow!("获取用户信息失败，data字段不存在: {pica_resp:?}"));
         };
-        let data: UserProfileResponseData = serde_json::from_value(data)?;
+        let data: UserProfileRespData = serde_json::from_value(data)?;
 
         Ok(data.user)
     }
@@ -169,7 +170,7 @@ impl PicaClient {
         sort: Sort,
         page: i32,
         categories: Vec<String>,
-    ) -> anyhow::Result<Pagination<ComicInSearch>> {
+    ) -> anyhow::Result<Pagination<ComicInSearchRespData>> {
         let payload = json!({
             "keyword": keyword,
             "sort": sort.as_str(),
@@ -190,7 +191,7 @@ impl PicaClient {
             return Err(anyhow!("搜索漫画失败，预料之外的状态码({status}): {text}"));
         }
 
-        let pica_resp: PicaResponse = http_resp.json().await?;
+        let pica_resp: PicaResp = http_resp.json().await?;
         if pica_resp.code != 200 {
             return Err(anyhow!("搜索漫画失败，预料之外的code: {pica_resp:?}"));
         }
@@ -198,12 +199,12 @@ impl PicaClient {
         let Some(data) = pica_resp.data else {
             return Err(anyhow!("搜索漫画失败，data字段不存在: {pica_resp:?}"));
         };
-        let data: ComicSearchResponseData = serde_json::from_value(data)?;
+        let data: SearchRespData = serde_json::from_value(data)?;
 
         Ok(data.comics)
     }
 
-    pub async fn get_comic(&self, comic_id: &str) -> anyhow::Result<Comic> {
+    pub async fn get_comic(&self, comic_id: &str) -> anyhow::Result<ComicRespData> {
         let path = format!("comics/{comic_id}");
         let http_resp = self.pica_get(&path).await?;
 
@@ -221,7 +222,7 @@ impl PicaClient {
             ));
         }
 
-        let pica_resp: PicaResponse = http_resp.json().await?;
+        let pica_resp: PicaResp = http_resp.json().await?;
         if pica_resp.code != 200 {
             return Err(anyhow!(
                 "获取ID为 {comic_id} 的漫画失败，预料之外的code: {pica_resp:?}"
@@ -233,7 +234,7 @@ impl PicaClient {
                 "获取ID为 {comic_id} 的漫画失败，data字段不存在: {pica_resp:?}"
             ));
         };
-        let data: ComicResponseData = serde_json::from_value(data)?;
+        let data: GetComicRespData = serde_json::from_value(data)?;
 
         Ok(data.comic)
     }
@@ -242,7 +243,7 @@ impl PicaClient {
         &self,
         comic_id: &str,
         page: i64,
-    ) -> anyhow::Result<Pagination<Episode>> {
+    ) -> anyhow::Result<Pagination<EpisodeRespData>> {
         let path = format!("comics/{comic_id}/eps?page={page}");
         let http_resp = self.pica_get(&path).await?;
 
@@ -259,7 +260,7 @@ impl PicaClient {
             ));
         }
 
-        let pica_res: PicaResponse = http_resp.json().await?;
+        let pica_res: PicaResp = http_resp.json().await?;
         if pica_res.code != 200 {
             return Err(anyhow!(
                 "获取漫画`{comic_id}`的章节分页`{page}`失败，预料之外的code: {pica_res:?}"
@@ -271,7 +272,7 @@ impl PicaClient {
                 "获取漫画`{comic_id}`的章节分页`{page}`失败，data字段不存在: {pica_res:?}"
             ));
         };
-        let data: EpisodeResponseData = serde_json::from_value(data)?;
+        let data: GetEpisodeRespData = serde_json::from_value(data)?;
 
         Ok(data.eps)
     }
@@ -281,7 +282,7 @@ impl PicaClient {
         comic_id: &str,
         ep_order: i64,
         page: i64,
-    ) -> anyhow::Result<Pagination<EpisodeImage>> {
+    ) -> anyhow::Result<Pagination<EpisodeImageRespData>> {
         let path = format!("comics/{comic_id}/order/{ep_order}/pages?page={page}");
         let http_resp = self.pica_get(&path).await?;
 
@@ -298,7 +299,7 @@ impl PicaClient {
             ));
         }
 
-        let pica_res: PicaResponse = http_resp.json().await?;
+        let pica_res: PicaResp = http_resp.json().await?;
         if pica_res.code != 200 {
             return Err(anyhow!(
                 "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，预料之外的code: {pica_res:?}"
@@ -310,7 +311,7 @@ impl PicaClient {
                 "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，data字段不存在: {pica_res:?}"
             ));
         };
-        let data: EpisodeImageResponseData = serde_json::from_value(data)?;
+        let data: GetEpisodeImageRespData = serde_json::from_value(data)?;
 
         Ok(data.pages)
     }
@@ -319,7 +320,7 @@ impl PicaClient {
         &self,
         sort: Sort,
         page: i64,
-    ) -> anyhow::Result<Pagination<ComicSimple>> {
+    ) -> anyhow::Result<Pagination<ComicInFavoriteRespData>> {
         let sort = sort.as_str();
         let url = format!("users/favourite?s={sort}&page={page}");
         let http_resp = self.pica_get(&url).await?;
@@ -337,7 +338,7 @@ impl PicaClient {
             ));
         }
 
-        let pica_resp: PicaResponse = http_resp.json().await?;
+        let pica_resp: PicaResp = http_resp.json().await?;
         if pica_resp.code != 200 {
             return Err(anyhow!("获取收藏的漫画失败，预料之外的code: {pica_resp:?}"));
         }
@@ -345,7 +346,7 @@ impl PicaClient {
         let Some(data) = pica_resp.data else {
             return Err(anyhow!("获取收藏的漫画失败，data字段不存在: {pica_resp:?}"));
         };
-        let data: ComicSimpleResponseData = serde_json::from_value(data)?;
+        let data: GetFavoriteRespData = serde_json::from_value(data)?;
 
         Ok(data.comics)
     }

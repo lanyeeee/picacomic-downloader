@@ -3,7 +3,7 @@
 import ComicCard from "./ComicCard.vue";
 import {computed, ref, watch} from "vue";
 import {ComicInfo} from "../types.ts";
-import {commands, Pagination, Sort} from "../bindings.ts";
+import {ComicInFavoriteRespData, commands, Pagination, Sort} from "../bindings.ts";
 import {useNotification} from "naive-ui";
 
 const notification = useNotification();
@@ -13,11 +13,11 @@ const props = defineProps<{
   currentTabName: "search" | "episode" | "favourite";
 }>();
 
-const comicSimplePagination = ref<Pagination<ComicInfo>>();
+const comicInFavoritePagination = ref<Pagination<ComicInFavoriteRespData>>();
 const sortSelected = ref<Sort>("TimeNewest");// TODO: 添加一个选择器来控制这个值
 
 const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
-  const pagination = comicSimplePagination.value;
+  const pagination = comicInFavoritePagination.value;
   if (pagination === undefined) {
     return undefined;
   }
@@ -33,11 +33,11 @@ async function getFavourite(sort: Sort, page: number) {
     notification.error({title: "获取收藏失败", description: result.error});
     return;
   }
-  comicSimplePagination.value = result.data;
+  comicInFavoritePagination.value = result.data;
 }
 
 watch(() => props.currentTabName, async () => {
-  if (comicSimplePagination.value !== undefined || props.currentTabName !== "favourite") {
+  if (comicInFavoritePagination.value !== undefined || props.currentTabName !== "favourite") {
     return;
   }
   await getFavourite(sortSelected.value, 1);

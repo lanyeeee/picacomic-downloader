@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {onMounted, ref, watch} from "vue";
-import {commands, Config, Episode, UserProfile} from "./bindings.ts";
+import {commands, Config, Episode, UserProfileDetailRespData} from "./bindings.ts";
 import {useMessage, useNotification} from "naive-ui";
 import LoginDialog from "./components/LoginDialog.vue";
 import SearchPane from "./components/SearchPane.vue";
@@ -15,7 +15,7 @@ const notification = useNotification();
 
 const config = ref<Config>();
 const loginDialogShowing = ref<boolean>(false);
-const userProfile = ref<UserProfile>();
+const userProfile = ref<UserProfileDetailRespData>();
 const episodes = ref<Episode[]>();
 const currentTabName = ref<"search" | "episode">("search");
 const comicId = ref<string>();

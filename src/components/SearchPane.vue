@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, ref} from "vue";
-import {ComicInSearch, commands, Pagination, Sort} from "../bindings.ts";
+import {ComicInSearchRespData, commands, Pagination, Sort} from "../bindings.ts";
 import {useNotification} from "naive-ui";
 import ComicCard from "./ComicCard.vue";
 import {ComicInfo} from "../types.ts";
@@ -22,7 +22,7 @@ defineProps<{
 const searchInput = ref<string>("");
 const comicIdInput = ref<string>("");
 const sortSelected = ref<Sort>("TimeNewest");
-const comicInSearchPagination = ref<Pagination<ComicInSearch>>();
+const comicInSearchPagination = ref<Pagination<ComicInSearchRespData>>();
 
 const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
   const pagination = comicInSearchPagination.value;
