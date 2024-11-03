@@ -12,7 +12,7 @@ use crate::download_manager::DownloadManager;
 use crate::errors::CommandResult;
 use crate::extensions::IgnoreRwLockPoison;
 use crate::pica_client::PicaClient;
-use crate::responses::{Comic, ComicInSearch, ComicSimple, EpisodeImage, Pagination, UserProfile};
+use crate::responses::{ComicRespData, ComicInSearchRespData, ComicInFavoriteRespData, EpisodeImageRespData, Pagination, UserProfileDetailRespData};
 use crate::types;
 use crate::types::Sort;
 use crate::utils;
@@ -57,7 +57,7 @@ pub async fn login(
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_user_profile(pica_client: State<'_, PicaClient>) -> CommandResult<UserProfile> {
+pub async fn get_user_profile(pica_client: State<'_, PicaClient>) -> CommandResult<UserProfileDetailRespData> {
     let user_profile = pica_client.get_user_profile().await?;
     Ok(user_profile)
 }
@@ -70,7 +70,7 @@ pub async fn search_comic(
     sort: Sort,
     page: i32,
     categories: Vec<String>,
-) -> CommandResult<Pagination<ComicInSearch>> {
+) -> CommandResult<Pagination<ComicInSearchRespData>> {
     let comic_in_search_pagination = pica_client
         .search_comic(&keyword, sort, page, categories)
         .await?;
@@ -82,7 +82,7 @@ pub async fn search_comic(
 pub async fn get_comic(
     pica_client: State<'_, PicaClient>,
     comic_id: String,
-) -> CommandResult<Comic> {
+) -> CommandResult<ComicRespData> {
     let comic = pica_client.get_comic(&comic_id).await?;
     Ok(comic)
 }
@@ -157,7 +157,7 @@ pub async fn get_episode_image(
     comic_id: String,
     episode_order: i64,
     page: i64,
-) -> CommandResult<Pagination<EpisodeImage>> {
+) -> CommandResult<Pagination<EpisodeImageRespData>> {
     let episode_image_pagination = pica_client
         .get_episode_image(&comic_id, episode_order, page)
         .await?;
@@ -214,7 +214,7 @@ pub async fn get_favourite_comics(
     pica_client: State<'_, PicaClient>,
     sort: Sort,
     page: i64,
-) -> CommandResult<Pagination<ComicSimple>> {
+) -> CommandResult<Pagination<ComicInFavoriteRespData>> {
     let favourite_comics = pica_client.get_favourite_comics(sort, page).await?;
     Ok(favourite_comics)
 }
