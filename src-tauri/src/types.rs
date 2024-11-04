@@ -63,17 +63,19 @@ pub struct Comic {
 impl Comic {
     pub fn from(app: &AppHandle, comic: ComicRespData, episodes: Vec<EpisodeRespData>) -> Self {
         let comic_title = filename_filter(&comic.title);
+        let author = filename_filter(&comic.author);
 
         let episodes: Vec<Episode> = episodes
             .into_iter()
             .map(|ep| {
                 let ep_title = filename_filter(&ep.title);
-                let is_downloaded = Self::get_is_downloaded(app, &comic_title, &ep_title);
+                let is_downloaded = Self::get_is_downloaded(app, &comic_title, &ep_title, &author);
                 Episode {
                     ep_id: ep.id,
                     ep_title,
                     comic_id: comic.id.clone(),
                     comic_title: comic_title.clone(),
+                    author: author.clone(),
                     is_downloaded,
                     order: ep.order,
                 }
@@ -129,7 +131,16 @@ impl Comic {
         }
     }
 
-    fn get_is_downloaded(app: &AppHandle, comic_title: &str, ep_title: &str) -> bool {
+    fn get_is_downloaded(app: &AppHandle, comic_title: &str, ep_title: &str, author: &str) -> bool {
+        let download_with_author = app
+            .state::<RwLock<Config>>()
+            .read_or_panic()
+            .download_with_author;
+        let comic_title = if download_with_author {
+            &format!("[{author}] {comic_title}")
+        } else {
+            comic_title
+        };
         app.state::<RwLock<Config>>()
             .read_or_panic()
             .download_dir
@@ -146,6 +157,7 @@ pub struct Episode {
     pub ep_title: String,
     pub comic_id: String,
     pub comic_title: String,
+    pub author: String,
     pub is_downloaded: bool,
     pub order: i64,
 }
