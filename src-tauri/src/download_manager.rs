@@ -93,7 +93,9 @@ impl DownloadManager {
     }
 
     #[allow(clippy::cast_possible_truncation)]
-    //TODO: 这里不能用anyhow::Result<()>和`?`，否则会导致错误信息被忽略
+    #[allow(clippy::too_many_lines)]
+    // TODO: 重构这个函数，减少行数
+    // TODO: 这里不能用anyhow::Result<()>和`?`，否则会导致错误信息被忽略
     async fn process_episode(self, ep: Episode) -> anyhow::Result<()> {
         emit_pending_event(&self.app, ep.ep_id.clone(), ep.ep_title.clone());
 
@@ -260,11 +262,23 @@ impl DownloadManager {
 }
 
 fn get_temp_download_dir(app: &AppHandle, ep: &Episode) -> PathBuf {
+    let author = &ep.author;
+    let comic_title = &ep.comic_title;
+    let ep_title = &ep.ep_title;
+    let download_with_author = app
+        .state::<RwLock<Config>>()
+        .read_or_panic()
+        .download_with_author;
+    let comic_title = if download_with_author {
+        &format!("[{author}] {comic_title}")
+    } else {
+        &ep.comic_title
+    };
     app.state::<RwLock<Config>>()
         .read_or_panic()
         .download_dir
-        .join(&ep.comic_title)
-        .join(format!(".下载中-{}", ep.ep_title)) // 以 `.下载中-` 开头，表示是临时目录
+        .join(comic_title)
+        .join(format!(".下载中-{ep_title}")) // 以 `.下载中-` 开头，表示是临时目录
 }
 
 fn emit_start_event(app: &AppHandle, ep_id: String, title: String, total: u32) {

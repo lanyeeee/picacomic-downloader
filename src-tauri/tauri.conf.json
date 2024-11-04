@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0-rc",
   "productName": "picacomic-downloader",
-  "version": "0.3.0" ,
+  "version": "0.4.0" ,
   "identifier": "com.lanyeeee.picacomic-downloader",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:5005",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },

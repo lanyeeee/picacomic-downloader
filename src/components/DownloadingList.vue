@@ -136,6 +136,12 @@ async function selectDownloadDir() {
       <template #prefix>每个章节下载完成后休息</template>
       <template #suffix>秒，然后才继续下载下一个章节</template>
     </n-input-number>
+    <n-tooltip placement="bottom" trigger="hover">
+      <template #trigger>
+        <n-checkbox v-model:checked="config.downloadWithAuthor" class="mr-auto">在漫画名前面附加作者名</n-checkbox>
+      </template>
+      [作者名] 漫画名
+    </n-tooltip>
     <div class="grid grid-cols-[1fr_4fr_2fr]">
       <span class="text-ellipsis whitespace-nowrap overflow-hidden">{{ overallProgress.title }}</span>
       <n-progress :percentage="overallProgress.percentage" indicator-placement="inside" :height="21">

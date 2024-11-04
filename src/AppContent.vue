@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {onMounted, ref, watch} from "vue";
-import {commands, Config, Episode, UserProfile} from "./bindings.ts";
+import {Comic, commands, Config, UserProfileDetailRespData} from "./bindings.ts";
 import {useMessage, useNotification} from "naive-ui";
 import LoginDialog from "./components/LoginDialog.vue";
 import SearchPane from "./components/SearchPane.vue";
@@ -15,10 +15,9 @@ const notification = useNotification();
 
 const config = ref<Config>();
 const loginDialogShowing = ref<boolean>(false);
-const userProfile = ref<UserProfile>();
-const episodes = ref<Episode[]>();
+const userProfile = ref<UserProfileDetailRespData>();
 const currentTabName = ref<"search" | "episode">("search");
-const comicId = ref<string>();
+const selectedComic = ref<Comic>();
 
 watch(config, async () => {
   if (config.value === undefined) {
@@ -60,18 +59,17 @@ async function showConfigInFileManager() {
   }
 }
 
-async function searchById(id: string) {
-  if (id === "") {
+async function searchById(comicId: string) {
+  if (comicId === "") {
     message.warning("漫画ID不能为空");
     return;
   }
-  const result = await commands.getEpisodes(id);
+  const result = await commands.getComic(comicId);
   if (result.status === "error") {
     notification.error({title: "获取章节详情失败", description: result.error});
     return;
   }
-  episodes.value = result.data;
-  comicId.value = id;
+  selectedComic.value = result.data;
   currentTabName.value = "episode";
 }
 
@@ -100,15 +98,14 @@ async function searchById(id: string) {
       <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
           <search-pane :search-by-id="searchById"
-                       v-model:episodes="episodes"
                        v-model:current-tab-name="currentTabName"
-                       v-model:comic-id="comicId"/>
+                       v-model:selected-comic="selectedComic"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="favourite" tab="漫画收藏" display-directive="show:lazy">
           <favourite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
-          <episode-pane v-model:comic-id="comicId" v-model:episodes="episodes"/>
+          <episode-pane v-model:selected-comic="selectedComic"/>
         </n-tab-pane>
       </n-tabs>
 

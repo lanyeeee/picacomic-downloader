@@ -31,7 +31,7 @@ async function downloadComic(comicId: string) {
           @click="onClickItem(comicInfo._id)"/>
       <div class="flex flex-col w-full justify-between">
         <div class="flex flex-col">
-          <span class="font-bold text-xl line-clamp-2 cursor-pointer hover:text-blue-5"
+          <span class="font-bold text-xl line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
                 @click="onClickItem(comicInfo._id)">{{ comicInfo.title }}</span>
           <span class="text-red">作者：{{ comicInfo.author }}</span>
           <span class="text-gray" v-html="`分类：${comicInfo.categories}`"></span>
