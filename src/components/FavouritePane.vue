@@ -46,16 +46,18 @@ watch(() => props.currentTabName, async () => {
 </script>
 
 <template>
-  <div v-if="comicInfoPagination!==undefined" class="flex flex-col gap-row-1 overflow-auto p-2">
-    <div class="flex flex-col gap-row-2 overflow-auto">
-      <comic-card v-for="comicInfo in comicInfoPagination.docs"
-                  :key="comicInfo._id"
-                  :comic-info="comicInfo"
-                  :onClickItem="searchById"/>
+  <div class="h-full flex flex-col">
+    <div v-if="comicInfoPagination!==undefined" class="flex flex-col gap-row-1 overflow-auto p-2">
+      <div class="flex flex-col gap-row-2 overflow-auto">
+        <comic-card v-for="comicInfo in comicInfoPagination.docs"
+                    :key="comicInfo._id"
+                    :comic-info="comicInfo"
+                    :onClickItem="searchById"/>
+      </div>
+      <n-pagination :total="comicInfoPagination.total"
+                    :page-count="comicInfoPagination.pages"
+                    :page="comicInfoPagination.page"
+                    @update:page="getFavourite(sortSelected, $event)"/>
     </div>
-    <n-pagination :total="comicInfoPagination.total"
-                  :page-count="comicInfoPagination.pages"
-                  :page="comicInfoPagination.page"
-                  @update:page="getFavourite(sortSelected, $event)"/>
   </div>
 </template>
