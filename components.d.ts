@@ -32,6 +32,7 @@ declare module 'vue' {
     NSelect: typeof import('naive-ui')['NSelect']
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
+    NTooltip: typeof import('naive-ui')['NTooltip']
     SearchPane: typeof import('./src/components/SearchPane.vue')['default']
   }
 }
