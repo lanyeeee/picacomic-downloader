@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, ref} from "vue";
-import {ComicInSearch, commands, Pagination, Sort} from "../bindings.ts";
+import {ComicInSearchRespData, commands, Pagination, Sort} from "../bindings.ts";
 import {useNotification} from "naive-ui";
 import ComicCard from "./ComicCard.vue";
 import {ComicInfo} from "../types.ts";
@@ -14,7 +14,6 @@ const sortOptions = [
   {label: "最多指名", value: "ViewMost"},
 ];
 
-
 defineProps<{
   searchById: (comicId: string) => void;
 }>();
@@ -22,7 +21,7 @@ defineProps<{
 const searchInput = ref<string>("");
 const comicIdInput = ref<string>("");
 const sortSelected = ref<Sort>("TimeNewest");
-const comicInSearchPagination = ref<Pagination<ComicInSearch>>();
+const comicInSearchPagination = ref<Pagination<ComicInSearchRespData>>();
 
 const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
   const pagination = comicInSearchPagination.value;
@@ -44,12 +43,11 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
   comicInSearchPagination.value = result.data;
 }
 
-
 </script>
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="flex flex-col gap-row-1 pt-1">
+    <div class="flex flex-col gap-row-1">
       <div class="grid grid-cols-[5fr_3fr] gap-col-1">
         <n-input class="text-align-left"
                  size="tiny"

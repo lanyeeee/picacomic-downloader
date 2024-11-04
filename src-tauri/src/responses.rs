@@ -4,7 +4,7 @@ use specta::Type;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PicaResponse {
+pub struct PicaResp {
     pub code: i64,
     pub error: Option<String>,
     pub message: String,
@@ -14,19 +14,19 @@ pub struct PicaResponse {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LoginResponseData {
+pub struct LoginRespData {
     pub token: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UserProfileResponseData {
-    pub user: UserProfile,
+pub struct UserProfileRespData {
+    pub user: UserProfileDetailRespData,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct UserProfile {
+pub struct UserProfileDetailRespData {
     #[serde(rename = "_id")]
     pub id: String,
     pub gender: String,
@@ -37,7 +37,7 @@ pub struct UserProfile {
     pub level: i64,
     pub characters: Vec<String>,
     #[serde(default)]
-    pub avatar: Image,
+    pub avatar: ImageRespData,
     pub birthday: String,
     pub email: String,
     #[serde(rename = "created_at")]
@@ -47,13 +47,13 @@ pub struct UserProfile {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ComicSearchResponseData {
-    pub comics: Pagination<ComicInSearch>,
+pub struct SearchRespData {
+    pub comics: Pagination<ComicInSearchRespData>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct ComicInSearch {
+pub struct ComicInSearchRespData {
     #[serde(rename = "_id")]
     pub id: String,
     #[serde(default)]
@@ -68,7 +68,7 @@ pub struct ComicInSearch {
     pub finished: bool,
     pub likes_count: i64,
     pub tags: Vec<String>,
-    pub thumb: Image,
+    pub thumb: ImageRespData,
     pub title: String,
     pub total_likes: Option<i64>,
     pub total_views: Option<i64>,
@@ -78,13 +78,13 @@ pub struct ComicInSearch {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ComicResponseData {
-    pub comic: Comic,
+pub struct GetComicRespData {
+    pub comic: ComicRespData,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct Comic {
+pub struct ComicRespData {
     #[serde(rename = "_id")]
     pub id: String,
     pub title: String,
@@ -94,10 +94,10 @@ pub struct Comic {
     pub eps_count: i64,
     pub finished: bool,
     pub categories: Vec<String>,
-    pub thumb: Image,
+    pub thumb: ImageRespData,
     pub likes_count: i64,
     #[serde(rename = "_creator")]
-    pub creator: Creator,
+    pub creator: CreatorRespData,
     #[serde(default)]
     pub description: String,
     #[serde(default)]
@@ -115,13 +115,13 @@ pub struct Comic {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EpisodeResponseData {
-    pub eps: Pagination<Episode>,
+pub struct GetEpisodeRespData {
+    pub eps: Pagination<EpisodeRespData>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct Episode {
+pub struct EpisodeRespData {
     #[serde(rename = "_id")]
     pub id: String,
     pub title: String,
@@ -132,28 +132,27 @@ pub struct Episode {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EpisodeImageResponseData {
-    pub pages: Pagination<EpisodeImage>,
-    // pub ep: Episode // 服务端返回的数据中有这个字段，但是这个字段的`Episode`没有`order`和`updated_at`字段，所以这里不定义
+pub struct GetEpisodeImageRespData {
+    pub pages: Pagination<EpisodeImageRespData>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct EpisodeImage {
+pub struct EpisodeImageRespData {
     #[serde(rename = "_id")]
     pub id: String,
-    pub media: Image,
+    pub media: ImageRespData,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ComicSimpleResponseData {
-    pub comics: Pagination<ComicSimple>,
+pub struct GetFavoriteRespData {
+    pub comics: Pagination<ComicInFavoriteRespData>,
 }
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct ComicSimple {
+pub struct ComicInFavoriteRespData {
     #[serde(rename = "_id")]
     pub id: String,
     pub title: String,
@@ -163,7 +162,7 @@ pub struct ComicSimple {
     pub eps_count: i32,
     pub finished: bool,
     pub categories: Vec<String>,
-    pub thumb: Image,
+    pub thumb: ImageRespData,
     pub likes_count: i32,
 }
 
@@ -179,7 +178,7 @@ pub struct Pagination<T> {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct Image {
+pub struct ImageRespData {
     pub original_name: String,
     pub path: String,
     pub file_server: String,
@@ -187,7 +186,7 @@ pub struct Image {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct Creator {
+pub struct CreatorRespData {
     #[serde(rename = "_id")]
     pub id: String,
     pub gender: String,
@@ -198,7 +197,7 @@ pub struct Creator {
     pub level: i64,
     pub characters: Vec<String>,
     #[serde(default)]
-    pub avatar: Image,
+    pub avatar: ImageRespData,
     #[serde(default)]
     pub slogan: String,
     pub role: String,
