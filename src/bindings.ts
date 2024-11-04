@@ -43,17 +43,9 @@ async searchComic(keyword: string, sort: Sort, page: number, categories: string[
     else return { status: "error", error: e  as any };
 }
 },
-async getComic(comicId: string) : Promise<Result<ComicRespData, CommandError>> {
+async getComic(comicId: string) : Promise<Result<Comic, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_comic", { comicId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async getEpisodes(comicId: string) : Promise<Result<Episode[], CommandError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_episodes", { comicId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -128,12 +120,12 @@ updateOverallDownloadProgressEvent: "update-overall-download-progress-event"
 
 /** user-defined types **/
 
+export type Comic = { _id: string; title: string; author?: string; pagesCount: number; episodes: Episode[]; epsCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; _creator: Creator; description?: string; chineseTeam?: string; tags: string[]; updated_at: string; created_at: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number }
 export type ComicInFavoriteRespData = { _id: string; title: string; author?: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number }
 export type ComicInSearchRespData = { _id: string; author?: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updated_at: string }
-export type ComicRespData = { _id: string; title: string; author?: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number; _creator: CreatorRespData; description?: string; chineseTeam?: string; tags: string[]; updated_at: string; created_at: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number }
 export type CommandError = string
-export type Config = { token: string; downloadDir: string; episodeDownloadInterval: number }
-export type CreatorRespData = { _id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar?: ImageRespData; slogan?: string; role: string; character?: string }
+export type Config = { token: string; downloadDir: string; episodeDownloadInterval: number; downloadWithAuthor: boolean }
+export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
 export type DownloadEpisodeEndEvent = DownloadEpisodeEndEventPayload
 export type DownloadEpisodeEndEventPayload = { epId: string; errMsg: string | null }
 export type DownloadEpisodePendingEvent = DownloadEpisodePendingEventPayload
@@ -146,8 +138,9 @@ export type DownloadImageSuccessEvent = DownloadImageSuccessEventPayload
 export type DownloadImageSuccessEventPayload = { epId: string; url: string; downloadedCount: number }
 export type DownloadSpeedEvent = DownloadSpeedEventPayload
 export type DownloadSpeedEventPayload = { speed: string }
-export type Episode = { epId: string; epTitle: string; comicId: string; comicTitle: string; isDownloaded: boolean; order: number }
+export type Episode = { epId: string; epTitle: string; comicId: string; comicTitle: string; author: string; isDownloaded: boolean; order: number }
 export type EpisodeImageRespData = { _id: string; media: ImageRespData }
+export type Image = { originalName: string; path: string; fileServer: string }
 export type ImageRespData = { originalName: string; path: string; fileServer: string }
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
 export type Sort = "Default" | "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"

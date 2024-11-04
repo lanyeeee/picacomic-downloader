@@ -14,7 +14,6 @@ const sortOptions = [
   {label: "最多指名", value: "ViewMost"},
 ];
 
-
 defineProps<{
   searchById: (comicId: string) => void;
 }>();
@@ -43,7 +42,6 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
   }
   comicInSearchPagination.value = result.data;
 }
-
 
 </script>
 
