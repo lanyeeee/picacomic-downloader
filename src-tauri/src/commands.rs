@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use anyhow::anyhow;
 use path_slash::PathBufExt;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tokio::task::JoinSet;
 
 use crate::config::Config;
@@ -12,10 +12,11 @@ use crate::download_manager::DownloadManager;
 use crate::errors::CommandResult;
 use crate::extensions::IgnoreRwLockPoison;
 use crate::pica_client::PicaClient;
-use crate::responses::{ComicRespData, ComicInSearchRespData, ComicInFavoriteRespData, EpisodeImageRespData, Pagination, UserProfileDetailRespData};
-use crate::types;
-use crate::types::Sort;
-use crate::utils;
+use crate::responses::{
+    ComicInFavoriteRespData, ComicInSearchRespData, EpisodeImageRespData, Pagination,
+    UserProfileDetailRespData,
+};
+use crate::types::{Comic, Episode, Sort};
 
 #[tauri::command]
 #[specta::specta]
@@ -57,7 +58,9 @@ pub async fn login(
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_user_profile(pica_client: State<'_, PicaClient>) -> CommandResult<UserProfileDetailRespData> {
+pub async fn get_user_profile(
+    pica_client: State<'_, PicaClient>,
+) -> CommandResult<UserProfileDetailRespData> {
     let user_profile = pica_client.get_user_profile().await?;
     Ok(user_profile)
 }
@@ -80,74 +83,43 @@ pub async fn search_comic(
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn get_comic(
-    pica_client: State<'_, PicaClient>,
-    comic_id: String,
-) -> CommandResult<ComicRespData> {
-    let comic = pica_client.get_comic(&comic_id).await?;
-    Ok(comic)
-}
-
-#[tauri::command(async)]
-#[specta::specta]
-pub async fn get_episodes(
     app: AppHandle,
     pica_client: State<'_, PicaClient>,
     comic_id: String,
-) -> CommandResult<Vec<types::Episode>> {
+) -> CommandResult<Comic> {
     let pica_client = pica_client.inner().clone();
-
+    // 获取漫画详情和章节的第一页
     let comic_task = pica_client.get_comic(&comic_id);
     let first_page_task = pica_client.get_episode(&comic_id, 1);
     let (comic, first_page) = tokio::try_join!(comic_task, first_page_task)?;
-
+    // 准备根据章节的第一页获取所有章节
+    // 先把第一页的章节放进去
     let episodes = Arc::new(Mutex::new(vec![]));
     episodes.lock().unwrap().extend(first_page.docs);
-
+    // 获取剩下的章节
     let total_pages = first_page.pages;
     let mut join_set = JoinSet::new();
-
     for page in 2..=total_pages {
         let pica_client = pica_client.clone();
         let episodes = episodes.clone();
         let comic_id = comic_id.clone();
+        // 创建获取章节的任务
         join_set.spawn(async move {
             let episode_page = pica_client.get_episode(&comic_id, page).await.unwrap();
             episodes.lock().unwrap().extend(episode_page.docs);
         });
     }
-
+    // 等待所有章节获取完毕
     join_set.join_all().await;
-
+    // 按章节顺序排序
     let episodes = {
         let mut episodes = episodes.lock().unwrap();
         episodes.sort_by_key(|ep| ep.order);
         std::mem::take(&mut *episodes)
     };
+    let comic = Comic::from(&app, comic, episodes);
 
-    let comic_title = utils::filename_filter(&comic.title);
-    let download_dir = app
-        .state::<RwLock<Config>>()
-        .read_or_panic()
-        .download_dir
-        .clone();
-
-    let episodes = episodes
-        .into_iter()
-        .map(|ep| {
-            let ep_title = utils::filename_filter(&ep.title);
-            let episode_dir = download_dir.join(&comic_title).join(&ep_title);
-            types::Episode {
-                ep_id: ep.id,
-                ep_title,
-                comic_id: comic.id.clone(),
-                comic_title: comic_title.clone(),
-                is_downloaded: episode_dir.exists(),
-                order: ep.order,
-            }
-        })
-        .collect();
-
-    Ok(episodes)
+    Ok(comic)
 }
 
 #[tauri::command(async)]
@@ -168,7 +140,7 @@ pub async fn get_episode_image(
 #[specta::specta]
 pub async fn download_episodes(
     download_manager: State<'_, DownloadManager>,
-    episodes: Vec<types::Episode>,
+    episodes: Vec<Episode>,
 ) -> CommandResult<()> {
     for ep in episodes {
         download_manager.submit_episode(ep).await?;
@@ -184,16 +156,12 @@ pub async fn download_comic(
     download_manager: State<'_, DownloadManager>,
     comic_id: String,
 ) -> CommandResult<()> {
-    let episodes: Vec<types::Episode> = get_episodes(app, pica_client, comic_id)
-        .await?
-        .into_iter()
-        .filter(|ep| !ep.is_downloaded)
-        .collect();
-    if episodes.is_empty() {
+    let comic = get_comic(app, pica_client, comic_id).await?;
+    if comic.episodes.is_empty() {
         // TODO: 错误提示里添加漫画名
         return Err(anyhow!("该漫画的所有章节都已存在于下载目录，无需重复下载").into());
     }
-    download_episodes(download_manager, episodes).await?;
+    download_episodes(download_manager, comic.episodes).await?;
     Ok(())
 }
 
