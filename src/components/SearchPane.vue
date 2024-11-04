@@ -47,7 +47,7 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="flex flex-col gap-row-1 pt-1">
+    <div class="flex flex-col gap-row-1">
       <div class="grid grid-cols-[5fr_3fr] gap-col-1">
         <n-input class="text-align-left"
                  size="tiny"

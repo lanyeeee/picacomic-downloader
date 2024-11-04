@@ -133,7 +133,7 @@ async function refreshEpisodes() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col gap-row-1">
     <div class="flex flex-justify-around">
       <span>总章数：{{ selectedComic?.episodes.length }}</span>
       <n-divider vertical></n-divider>
