@@ -93,7 +93,7 @@ async function searchById(comicId: string) {
         <span class="whitespace-nowrap">{{ userProfile.name }}</span>
       </div>
     </div>
-    <div class="flex overflow-hidden">
+    <div class="flex overflow-hidden flex-1">
       <!-- TODO: 可以给n-tabs加animated -->
       <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
