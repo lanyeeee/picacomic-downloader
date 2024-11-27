@@ -156,7 +156,7 @@ async function refreshEpisodes() {
     </n-empty>
     <SelectionArea v-else
                    ref="selectionAreaRef"
-                   class="selection-container"
+                   class="selection-container  flex-1"
                    :options="{selectables: '.selectable'} as SelectionOptions"
                    @contextmenu="onContextMenu"
                    @mousedown="onMouseDown"
