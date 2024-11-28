@@ -97,9 +97,7 @@ async function searchById(comicId: string) {
       <!-- TODO: 可以给n-tabs加animated -->
       <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
-          <search-pane :search-by-id="searchById"
-                       v-model:current-tab-name="currentTabName"
-                       v-model:selected-comic="pickedComic"/>
+          <search-pane :search-by-id="searchById"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="favourite" tab="漫画收藏" display-directive="show:lazy">
           <favourite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
