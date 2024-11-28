@@ -17,7 +17,7 @@ const config = ref<Config>();
 const loginDialogShowing = ref<boolean>(false);
 const userProfile = ref<UserProfileDetailRespData>();
 const currentTabName = ref<"search" | "episode">("search");
-const selectedComic = ref<Comic>();
+const pickedComic = ref<Comic>();
 
 watch(config, async () => {
   if (config.value === undefined) {
@@ -69,7 +69,7 @@ async function searchById(comicId: string) {
     notification.error({title: "获取章节详情失败", description: result.error});
     return;
   }
-  selectedComic.value = result.data;
+  pickedComic.value = result.data;
   currentTabName.value = "episode";
 }
 
@@ -99,13 +99,13 @@ async function searchById(comicId: string) {
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
           <search-pane :search-by-id="searchById"
                        v-model:current-tab-name="currentTabName"
-                       v-model:selected-comic="selectedComic"/>
+                       v-model:selected-comic="pickedComic"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="favourite" tab="漫画收藏" display-directive="show:lazy">
           <favourite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
-          <episode-pane v-model:selected-comic="selectedComic"/>
+          <episode-pane v-model:picked-comic="pickedComic"/>
         </n-tab-pane>
       </n-tabs>
 
