@@ -16,7 +16,7 @@ const notification = useNotification();
 const config = ref<Config>();
 const loginDialogShowing = ref<boolean>(false);
 const userProfile = ref<UserProfileDetailRespData>();
-const currentTabName = ref<"search" | "episode">("search");
+const currentTabName = ref<"search" | "favourite" | "episode">("search");
 const pickedComic = ref<Comic>();
 
 watch(config, async () => {
