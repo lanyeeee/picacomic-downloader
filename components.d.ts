@@ -10,7 +10,7 @@ declare module 'vue' {
     ComicCard: typeof import('./src/components/ComicCard.vue')['default']
     DownloadingList: typeof import('./src/components/DownloadingList.vue')['default']
     EpisodePane: typeof import('./src/components/EpisodePane.vue')['default']
-    FavouritePane: typeof import('./src/components/FavouritePane.vue')['default']
+    FavoritePane: typeof import('./src/components/FavoritePane.vue')['default']
     LoginDialog: typeof import('./src/components/LoginDialog.vue')['default']
     NAvatar: typeof import('naive-ui')['NAvatar']
     NButton: typeof import('naive-ui')['NButton']

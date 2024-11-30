@@ -8,7 +8,7 @@ import EpisodePane from "./components/EpisodePane.vue";
 import DownloadingList from "./components/DownloadingList.vue";
 import {appDataDir} from "@tauri-apps/api/path";
 import {path} from "@tauri-apps/api";
-import FavouritePane from "./components/FavouritePane.vue";
+import FavoritePane from "./components/FavoritePane.vue";
 
 const message = useMessage();
 const notification = useNotification();
@@ -16,7 +16,7 @@ const notification = useNotification();
 const config = ref<Config>();
 const loginDialogShowing = ref<boolean>(false);
 const userProfile = ref<UserProfileDetailRespData>();
-const currentTabName = ref<"search" | "favourite" | "episode">("search");
+const currentTabName = ref<"search" | "favorite" | "episode">("search");
 const pickedComic = ref<Comic>();
 
 watch(config, async () => {
@@ -99,8 +99,8 @@ async function searchById(comicId: string) {
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
           <search-pane :search-by-id="searchById"/>
         </n-tab-pane>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="favourite" tab="漫画收藏" display-directive="show:lazy">
-          <favourite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
+        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="漫画收藏" display-directive="show:lazy">
+          <favorite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
           <episode-pane v-model:picked-comic="pickedComic"/>

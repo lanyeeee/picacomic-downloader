@@ -358,7 +358,7 @@ impl PicaClient {
         Ok(get_episode_image_resp_data.pages)
     }
 
-    pub async fn get_favourite_comics(
+    pub async fn get_favorite_comics(
         &self,
         sort: Sort,
         page: i64,

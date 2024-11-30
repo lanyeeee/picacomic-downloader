@@ -178,11 +178,11 @@ pub fn show_path_in_file_manager(path: &str) -> CommandResult<()> {
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_favourite_comics(
+pub async fn get_favorite_comics(
     pica_client: State<'_, PicaClient>,
     sort: Sort,
     page: i64,
 ) -> CommandResult<Pagination<ComicInFavoriteRespData>> {
-    let favourite_comics = pica_client.get_favourite_comics(sort, page).await?;
-    Ok(favourite_comics)
+    let favorite_comics = pica_client.get_favorite_comics(sort, page).await?;
+    Ok(favorite_comics)
 }
