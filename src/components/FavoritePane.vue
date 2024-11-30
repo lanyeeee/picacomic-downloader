@@ -10,7 +10,7 @@ const notification = useNotification();
 
 const props = defineProps<{
   searchById: (comicId: string) => void;
-  currentTabName: "search" | "favourite" | "episode";
+  currentTabName: "search" | "favorite" | "episode";
 }>();
 
 const comicInFavoritePagination = ref<Pagination<ComicInFavoriteRespData>>();
@@ -27,8 +27,8 @@ const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
   };
 });
 
-async function getFavourite(sort: Sort, page: number) {
-  const result = await commands.getFavouriteComics(sort, page);
+async function getFavorite(sort: Sort, page: number) {
+  const result = await commands.getFavoriteComics(sort, page);
   if (result.status === "error") {
     notification.error({title: "获取收藏失败", description: result.error});
     return;
@@ -37,10 +37,10 @@ async function getFavourite(sort: Sort, page: number) {
 }
 
 watch(() => props.currentTabName, async () => {
-  if (comicInFavoritePagination.value !== undefined || props.currentTabName !== "favourite") {
+  if (comicInFavoritePagination.value !== undefined || props.currentTabName !== "favorite") {
     return;
   }
-  await getFavourite(sortSelected.value, 1);
+  await getFavorite(sortSelected.value, 1);
 }, {immediate: true});
 
 </script>
@@ -57,7 +57,7 @@ watch(() => props.currentTabName, async () => {
       <n-pagination :total="comicInfoPagination.total"
                     :page-count="comicInfoPagination.pages"
                     :page="comicInfoPagination.page"
-                    @update:page="getFavourite(sortSelected, $event)"/>
+                    @update:page="getFavorite(sortSelected, $event)"/>
     </div>
   </div>
 </template>
