@@ -10,7 +10,7 @@ const notification = useNotification();
 
 const props = defineProps<{
   searchById: (comicId: string) => void;
-  currentTabName: "search" | "episode" | "favourite";
+  currentTabName: "search" | "favourite" | "episode";
 }>();
 
 const comicInFavoritePagination = ref<Pagination<ComicInFavoriteRespData>>();
