@@ -8,6 +8,10 @@ const notification = useNotification();
 
 const pickedComic = defineModel<Comic | undefined>("pickedComic", {required: true});
 
+defineProps<{
+  searchById: (comicId: string) => void;
+}>();
+
 const dropdownX = ref<number>(0);
 const dropdownY = ref<number>(0);
 const showDropdown = ref<boolean>(false);
@@ -175,6 +179,20 @@ async function refreshEpisodes() {
       </n-checkbox-group>
     </SelectionArea>
 
+    <div v-if="pickedComic!==undefined" class="flex">
+      <img
+          class="w-24"
+          :src="`${pickedComic.thumb.fileServer}/static/${pickedComic.thumb.path}`"
+          alt=""
+          referrerpolicy="no-referrer"/>
+      <div class="flex flex-col w-full justify-between">
+        <div class="flex flex-col">
+          <span class="font-bold text-xl line-clamp-2">{{ pickedComic.title }}</span>
+          <span class="text-red">作者：{{ pickedComic.author }}</span>
+          <span class="text-gray" v-html="`分类：${pickedComic.categories}`"></span>
+        </div>
+      </div>
+    </div>
     <n-dropdown
         placement="bottom-start"
         trigger="manual"
