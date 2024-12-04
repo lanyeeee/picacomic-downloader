@@ -157,6 +157,7 @@ pub async fn download_comic(
     comic_id: String,
 ) -> CommandResult<()> {
     let comic = get_comic(app, pica_client, comic_id).await?;
+    // TODO: 检查漫画的所有章节是否已存在于下载目录
     if comic.episodes.is_empty() {
         // TODO: 错误提示里添加漫画名
         return Err(anyhow!("该漫画的所有章节都已存在于下载目录，无需重复下载").into());
