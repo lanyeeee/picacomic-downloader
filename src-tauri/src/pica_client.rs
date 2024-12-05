@@ -85,9 +85,16 @@ impl PicaClient {
             .header("signature", signature);
 
         let http_resp = match payload {
-            Some(body) => request.json(&body).send().await?,
-            None => request.send().await?,
-        };
+            Some(body) => request.json(&body).send().await,
+            None => request.send().await,
+        }
+        .map_err(|e| {
+            if e.is_timeout() {
+                anyhow::Error::from(e).context("连接超时，请使用代理或换条线路重试")
+            } else {
+                anyhow::Error::from(e)
+            }
+        })?;
 
         Ok(http_resp)
     }
