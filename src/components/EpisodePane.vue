@@ -8,10 +8,6 @@ const notification = useNotification();
 
 const pickedComic = defineModel<Comic | undefined>("pickedComic", {required: true});
 
-defineProps<{
-  searchById: (comicId: string) => void;
-}>();
-
 const dropdownX = ref<number>(0);
 const dropdownY = ref<number>(0);
 const showDropdown = ref<boolean>(false);
