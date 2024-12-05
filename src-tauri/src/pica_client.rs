@@ -36,6 +36,7 @@ impl PicaClient {
         Self { app }
     }
 
+    // TODO: 用api_client和img_client分别处理api请求和图片请求，避免每次请求都创建client
     pub fn client() -> ClientWithMiddleware {
         // TODO: 可以将retry_policy缓存起来，避免每次请求都创建
         let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
