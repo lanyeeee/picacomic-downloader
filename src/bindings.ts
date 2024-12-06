@@ -83,9 +83,9 @@ async showPathInFileManager(path: string) : Promise<Result<null, CommandError>> 
     else return { status: "error", error: e  as any };
 }
 },
-async getFavouriteComics(sort: Sort, page: number) : Promise<Result<Pagination<ComicInFavoriteRespData>, CommandError>> {
+async getFavoriteComics(sort: Sort, page: number) : Promise<Result<Pagination<ComicInFavoriteRespData>, CommandError>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_favourite_comics", { sort, page }) };
+    return { status: "ok", data: await TAURI_INVOKE("get_favorite_comics", { sort, page }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

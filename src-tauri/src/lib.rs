@@ -40,7 +40,7 @@ pub async fn run() {
             download_episodes,
             download_comic,
             show_path_in_file_manager,
-            get_favourite_comics,
+            get_favorite_comics,
         ])
         .events(tauri_specta::collect_events![
             DownloadEpisodeEndEvent,
