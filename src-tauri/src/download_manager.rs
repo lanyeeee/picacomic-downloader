@@ -95,37 +95,64 @@ impl DownloadManager {
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::too_many_lines)]
     // TODO: 重构这个函数，减少行数
-    // TODO: 这里不能用anyhow::Result<()>和`?`，否则会导致错误信息被忽略
-    async fn process_episode(self, ep: Episode) -> anyhow::Result<()> {
+    async fn process_episode(self, ep: Episode) {
         emit_pending_event(&self.app, ep.ep_id.clone(), ep.ep_title.clone());
 
         let pica_client = self.app.state::<PicaClient>().inner().clone();
+        // TODO: 用parking_lot::Mutex替换std::Mutex
         let images = Arc::new(Mutex::new(vec![]));
-        let first_page = pica_client
+        // 先获取该章节的第一页图片
+        let first_page = match pica_client
             .get_episode_image(&ep.comic_id, ep.order, 1)
             .await
-            .unwrap();
+        {
+            Ok(first_page) => first_page,
+            Err(err) => {
+                let comic_title = &ep.comic_title;
+                let ep_order = ep.order;
+                let ep_title = &ep.ep_title;
+                let err = err.context(format!(
+                    "获取`{comic_title}`第`{ep_order}`章节`{ep_title}`的第`1`页图片失败"
+                ));
+                emit_end_event(&self.app, ep.ep_id.clone(), Some(err.to_string_chain()));
+                return;
+            }
+        };
         images.lock_or_panic().push((1, first_page.docs));
-
+        // 根据第一页返回的总页数，创建获取剩下页数图片的任务
         let total_pages = first_page.pages;
         let mut join_set = JoinSet::new();
-
+        // 从第二页开始获取
         for page in 2..=total_pages {
             let pica_client = pica_client.clone();
             let images = images.clone();
             let comic_id = ep.comic_id.clone();
+            let comic_title = ep.comic_title.clone();
+            let ep_id = ep.ep_id.clone();
+            let ep_title = ep.ep_title.clone();
             let ep_order = ep.order;
+            let app = self.app.clone();
             join_set.spawn(async move {
-                let image_page = pica_client
+                let image_page = match pica_client
                     .get_episode_image(&comic_id, ep_order, page)
                     .await
-                    .unwrap();
+                {
+                    Ok(image_page) => image_page,
+                    Err(err) => {
+                        let err = err.context(format!(
+                            "获取`{comic_title}`第`{ep_order}`章`{ep_title}`的第`{page}`页图片失败"
+                        ));
+                        emit_end_event(&app, ep_id, Some(err.to_string_chain()));
+                        return;
+                    }
+                };
+
                 images.lock_or_panic().push((page, image_page.docs));
             });
         }
-        // 等待所有章节图片链接获取完成
+        // 等待所有获取图片的任务完成
         join_set.join_all().await;
-        let mut images = std::mem::take(&mut *images.lock().unwrap());
+        let mut images = std::mem::take(&mut *images.lock_or_panic());
         images.sort_by_key(|(page, _)| *page);
         // 构造图片下载链接
         let urls: Vec<String> = images
@@ -134,10 +161,6 @@ impl DownloadManager {
             .map(|image| (image.media.file_server, image.media.path))
             .map(|(file_server, path)| format!("{file_server}/static/{path}"))
             .collect();
-        // 创建临时下载目录
-        let temp_download_dir = get_temp_download_dir(&self.app, &ep);
-        std::fs::create_dir_all(&temp_download_dir)
-            .context(format!("创建目录`{temp_download_dir:?}`失败"))?;
 
         let total = urls.len() as u32;
         // 记录总共需要下载的图片数量
@@ -145,7 +168,21 @@ impl DownloadManager {
         let downloaded_count = Arc::new(AtomicU32::new(0));
         let mut join_set = JoinSet::new();
         // 限制同时下载的章节数量
-        let permit = self.ep_sem.acquire().await?;
+        let permit = match self.ep_sem.acquire().await.map_err(anyhow::Error::from) {
+            Ok(permit) => permit,
+            Err(err) => {
+                let err = err.context("获取下载章节的semaphore失败");
+                emit_end_event(&self.app, ep.ep_id.clone(), Some(err.to_string_chain()));
+                return;
+            }
+        };
+        // 创建临时下载目录
+        let temp_download_dir = get_temp_download_dir(&self.app, &ep);
+        if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
+            let err = err.context(format!("创建目录`{temp_download_dir:?}`失败"));
+            emit_end_event(&self.app, ep.ep_id.clone(), Some(err.to_string_chain()));
+            return;
+        };
         emit_start_event(&self.app, ep.ep_id.clone(), ep.ep_title.clone(), total);
         for (i, url) in urls.iter().enumerate() {
             let manager = self.clone();
@@ -157,8 +194,7 @@ impl DownloadManager {
             join_set.spawn(manager.download_image(url, save_path, ep_id, downloaded_count));
         }
         // 逐一处理完成的下载任务
-        while let Some(completed_task) = join_set.join_next().await {
-            completed_task?;
+        while let Some(Ok(())) = join_set.join_next().await {
             self.downloaded_image_count.fetch_add(1, Ordering::Relaxed);
             let downloaded_image_count = self.downloaded_image_count.load(Ordering::Relaxed);
             let total_image_count = self.total_image_count.load(Ordering::Relaxed);
@@ -186,22 +222,40 @@ impl DownloadManager {
         }
         // 检查此章节的图片是否全部下载成功
         let downloaded_count = downloaded_count.load(Ordering::Relaxed);
-        if downloaded_count == total {
-            // 下载成功，则把临时目录重命名为正式目录
-            if let Some(parent) = temp_download_dir.parent() {
-                let download_dir = parent.join(&ep.ep_title);
-                std::fs::rename(&temp_download_dir, &download_dir).context(format!(
-                    "将`{temp_download_dir:?}`重命名为`{download_dir:?}`失败"
-                ))?;
-            }
-            emit_end_event(&self.app, ep.ep_id.clone(), None);
-        } else {
+        if downloaded_count != total {
+            // 此章节的图片未全部下载成功
+            let comic_title = &ep.comic_title;
             let ep_title = &ep.ep_title;
             let err_msg = Some(format!(
-                "`{ep_title}`总共有`{total}`张图片，但只下载了`{downloaded_count}`张"
+                "`{comic_title}`的`{ep_title}`章节总共有`{total}`张图片，但只下载了`{downloaded_count}`张"
             ));
             emit_end_event(&self.app, ep.ep_id.clone(), err_msg);
+            return;
+        }
+        // 此章节的图片全部下载成功
+        let err_msg = match self.save_archive(&ep, &temp_download_dir) {
+            Ok(()) => None,
+            Err(err) => Some(err.to_string_chain()),
         };
+        emit_end_event(&self.app, ep.ep_id.clone(), err_msg);
+    }
+
+    fn save_archive(&self, ep: &Episode, temp_download_dir: &PathBuf) -> anyhow::Result<()> {
+        let Some(parent) = temp_download_dir.parent() else {
+            return Err(anyhow!("无法获取 {temp_download_dir:?} 的父目录"));
+        };
+
+        let download_dir = parent.join(&ep.ep_title);
+
+        if download_dir.exists() {
+            std::fs::remove_dir_all(&download_dir)
+                .context(format!("删除 {download_dir:?} 失败"))?;
+        }
+
+        std::fs::rename(temp_download_dir, &download_dir).context(format!(
+            "将 {temp_download_dir:?} 重命名为 {download_dir:?} 失败"
+        ))?;
+
         Ok(())
     }
 
@@ -245,6 +299,7 @@ impl DownloadManager {
         emit_success_event(&self.app, ep_id, save_path, downloaded_count);
     }
 
+    // TODO: 将发送获取图片请求的逻辑移到PicaClient中
     async fn get_image_bytes(&self, url: &str) -> anyhow::Result<Bytes> {
         let http_res = self.client.get(url).send().await?;
 

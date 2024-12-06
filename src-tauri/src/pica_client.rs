@@ -36,6 +36,7 @@ impl PicaClient {
         Self { app }
     }
 
+    // TODO: 用api_client和img_client分别处理api请求和图片请求，避免每次请求都创建client
     pub fn client() -> ClientWithMiddleware {
         // TODO: 可以将retry_policy缓存起来，避免每次请求都创建
         let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
@@ -84,9 +85,16 @@ impl PicaClient {
             .header("signature", signature);
 
         let http_resp = match payload {
-            Some(body) => request.json(&body).send().await?,
-            None => request.send().await?,
-        };
+            Some(body) => request.json(&body).send().await,
+            None => request.send().await,
+        }
+        .map_err(|e| {
+            if e.is_timeout() {
+                anyhow::Error::from(e).context("连接超时，请使用代理或换条线路重试")
+            } else {
+                anyhow::Error::from(e)
+            }
+        })?;
 
         Ok(http_resp)
     }
@@ -358,7 +366,7 @@ impl PicaClient {
         Ok(get_episode_image_resp_data.pages)
     }
 
-    pub async fn get_favourite_comics(
+    pub async fn get_favorite_comics(
         &self,
         sort: Sort,
         page: i64,

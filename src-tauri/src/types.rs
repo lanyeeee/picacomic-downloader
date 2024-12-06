@@ -150,6 +150,7 @@ impl Comic {
     }
 }
 
+// TODO: 改名为EpisodeInfo
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Episode {

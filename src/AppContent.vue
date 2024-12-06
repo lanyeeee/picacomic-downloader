@@ -8,7 +8,7 @@ import EpisodePane from "./components/EpisodePane.vue";
 import DownloadingList from "./components/DownloadingList.vue";
 import {appDataDir} from "@tauri-apps/api/path";
 import {path} from "@tauri-apps/api";
-import FavouritePane from "./components/FavouritePane.vue";
+import FavoritePane from "./components/FavoritePane.vue";
 
 const message = useMessage();
 const notification = useNotification();
@@ -16,8 +16,8 @@ const notification = useNotification();
 const config = ref<Config>();
 const loginDialogShowing = ref<boolean>(false);
 const userProfile = ref<UserProfileDetailRespData>();
-const currentTabName = ref<"search" | "episode">("search");
-const selectedComic = ref<Comic>();
+const currentTabName = ref<"search" | "favorite" | "episode">("search");
+const pickedComic = ref<Comic>();
 
 watch(config, async () => {
   if (config.value === undefined) {
@@ -69,7 +69,7 @@ async function searchById(comicId: string) {
     notification.error({title: "获取章节详情失败", description: result.error});
     return;
   }
-  selectedComic.value = result.data;
+  pickedComic.value = result.data;
   currentTabName.value = "episode";
 }
 
@@ -93,19 +93,17 @@ async function searchById(comicId: string) {
         <span class="whitespace-nowrap">{{ userProfile.name }}</span>
       </div>
     </div>
-    <div class="flex overflow-hidden">
+    <div class="flex overflow-hidden flex-1">
       <!-- TODO: 可以给n-tabs加animated -->
       <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
         <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
-          <search-pane :search-by-id="searchById"
-                       v-model:current-tab-name="currentTabName"
-                       v-model:selected-comic="selectedComic"/>
+          <search-pane :search-by-id="searchById"/>
         </n-tab-pane>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="favourite" tab="漫画收藏" display-directive="show:lazy">
-          <favourite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
+        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="漫画收藏" display-directive="show:lazy">
+          <favorite-pane :search-by-id="searchById" :current-tab-name="currentTabName"/>
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
-          <episode-pane v-model:selected-comic="selectedComic"/>
+          <episode-pane v-model:picked-comic="pickedComic"/>
         </n-tab-pane>
       </n-tabs>
 
