@@ -29,6 +29,9 @@ importers:
       naive-ui:
         specifier: ^2.39.0
         version: 2.39.0(vue@3.5.6(typescript@5.6.2))
+      prettier:
+        specifier: ^3.4.2
+        version: 3.4.2
       unocss:
         specifier: ^0.62.4
         version: 0.62.4(postcss@8.4.47)(rollup@4.21.3)(vite@5.4.6)
@@ -1056,6 +1059,11 @@ packages:
   postcss@8.4.47:
     resolution: {integrity: sha512-56rxCq7G/XfB4EkXq9Egn5GCqugWvDFjafDOThIdMBsI15iqPqR5r15TfSr1YPYeEI19YeaXMCbY6u88Y76GLQ==}
     engines: {node: ^10 || ^12 || >=14}
+
+  prettier@3.4.2:
+    resolution: {integrity: sha512-e9MewbtFo+Fevyuxn/4rrcDAaq0IYxPGLvObpQjiZBMAzB9IGmzlnG9RZy3FFas+eBMu2vA0CszMeduow5dIuQ==}
+    engines: {node: '>=14'}
+    hasBin: true
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
@@ -2171,6 +2179,8 @@ snapshots:
       nanoid: 3.3.7
       picocolors: 1.1.0
       source-map-js: 1.2.1
+
+  prettier@3.4.2: {}
 
   queue-microtask@1.2.3: {}
 

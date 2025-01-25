@@ -1,138 +1,137 @@
 <script setup lang="ts">
-
-import {onMounted, ref} from "vue";
-import {commands, Config, events} from "../bindings.ts";
-import {open} from "@tauri-apps/plugin-dialog";
-import {NProgress, useNotification} from "naive-ui";
+import { onMounted, ref } from 'vue'
+import { commands, Config, events } from '../bindings.ts'
+import { open } from '@tauri-apps/plugin-dialog'
+import { NProgress, useNotification } from 'naive-ui'
 
 type ProgressData = {
-  title: string;
-  downloadedCount: number;
-  total: number;
-  percentage: number;
-  indicator: string;
+  title: string
+  downloadedCount: number
+  total: number
+  percentage: number
+  indicator: string
 }
 
-const notification = useNotification();
+const notification = useNotification()
 
-const config = defineModel<Config>("config", {required: true});
+const config = defineModel<Config>('config', { required: true })
 
-const progresses = ref<Map<string, ProgressData>>(new Map());
+const progresses = ref<Map<string, ProgressData>>(new Map())
 const overallProgress = ref<ProgressData>({
-  title: "总进度",
+  title: '总进度',
   downloadedCount: 0,
   total: 0,
   percentage: 0,
-  indicator: ""
-});
+  indicator: '',
+})
 
 onMounted(async () => {
-  await events.downloadEpisodePendingEvent.listen(({payload}) => {
+  await events.downloadEpisodePendingEvent.listen(({ payload }) => {
     let progressData: ProgressData = {
       title: `等待中 ${payload.title}`,
       downloadedCount: 0,
       total: 0,
       percentage: 0,
-      indicator: ""
-    };
-    progresses.value.set(payload.epId, progressData);
-  });
-
-  await events.downloadEpisodeStartEvent.listen(({payload}) => {
-    const progressData = progresses.value.get(payload.epId) as (ProgressData | undefined);
-    if (progressData === undefined) {
-      return;
+      indicator: '',
     }
-    progressData.total = payload.total;
-    progressData.title = payload.title;
-  });
+    progresses.value.set(payload.epId, progressData)
+  })
 
-  await events.downloadImageSuccessEvent.listen(({payload}) => {
-    const progressData = progresses.value.get(payload.epId) as (ProgressData | undefined);
+  await events.downloadEpisodeStartEvent.listen(({ payload }) => {
+    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
     if (progressData === undefined) {
-      return;
+      return
     }
-    progressData.downloadedCount = payload.downloadedCount;
-    progressData.percentage = Math.round(progressData.downloadedCount / progressData.total * 100);
-  });
+    progressData.total = payload.total
+    progressData.title = payload.title
+  })
 
-  await events.downloadImageErrorEvent.listen(({payload}) => {
-    const progressData = progresses.value.get(payload.epId) as (ProgressData | undefined);
+  await events.downloadImageSuccessEvent.listen(({ payload }) => {
+    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
     if (progressData === undefined) {
-      return;
+      return
+    }
+    progressData.downloadedCount = payload.downloadedCount
+    progressData.percentage = Math.round((progressData.downloadedCount / progressData.total) * 100)
+  })
+
+  await events.downloadImageErrorEvent.listen(({ payload }) => {
+    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
+    if (progressData === undefined) {
+      return
     }
     notification.warning({
-      title: "下载图片失败",
+      title: '下载图片失败',
       description: payload.url,
       content: payload.errMsg,
-      meta: progressData.title
-    });
-  });
+      meta: progressData.title,
+    })
+  })
 
-  await events.downloadEpisodeEndEvent.listen(({payload}) => {
-    const progressData = progresses.value.get(payload.epId) as (ProgressData | undefined);
+  await events.downloadEpisodeEndEvent.listen(({ payload }) => {
+    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
     if (progressData === undefined) {
-      return;
+      return
     }
     if (payload.errMsg !== null) {
-      notification.warning({title: "下载章节失败", content: payload.errMsg, meta: progressData.title});
+      notification.warning({ title: '下载章节失败', content: payload.errMsg, meta: progressData.title })
     }
-    progresses.value.delete(payload.epId);
-  });
+    progresses.value.delete(payload.epId)
+  })
 
-  await events.updateOverallDownloadProgressEvent.listen(({payload}) => {
-    overallProgress.value.percentage = payload.percentage;
-    overallProgress.value.downloadedCount = payload.downloadedImageCount;
-    overallProgress.value.total = payload.totalImageCount;
-    console.log(payload);
-  });
+  await events.updateOverallDownloadProgressEvent.listen(({ payload }) => {
+    overallProgress.value.percentage = payload.percentage
+    overallProgress.value.downloadedCount = payload.downloadedImageCount
+    overallProgress.value.total = payload.totalImageCount
+    console.log(payload)
+  })
 
-  await events.downloadSpeedEvent.listen(({payload}) => {
-    overallProgress.value.indicator = payload.speed;
-  });
-});
+  await events.downloadSpeedEvent.listen(({ payload }) => {
+    overallProgress.value.indicator = payload.speed
+  })
+})
 
 async function showDownloadDirInFileManager() {
   if (config.value === undefined) {
-    return;
+    return
   }
-  const result = await commands.showPathInFileManager(config.value.downloadDir);
-  if (result.status === "error") {
-    notification.error({title: "打开下载目录失败", description: result.error});
+  const result = await commands.showPathInFileManager(config.value.downloadDir)
+  if (result.status === 'error') {
+    notification.error({ title: '打开下载目录失败', description: result.error })
   }
 }
 
 async function selectDownloadDir() {
-  const selectedDirPath = await open({directory: true});
+  const selectedDirPath = await open({ directory: true })
   if (selectedDirPath === null) {
-    return;
+    return
   }
-  config.value.downloadDir = selectedDirPath;
+  config.value.downloadDir = selectedDirPath
 }
-
-
 </script>
 
 <template>
   <div class="flex flex-col gap-row-1">
     <n-h3 class="m-be-0">下载列表</n-h3>
     <div class="flex gap-col-1">
-      <n-input v-model:value="config.downloadDir"
-               :default-value="0"
-               size="tiny"
-               readonly
-               placeholder="请选择漫画目录"
-               @click="selectDownloadDir">
+      <n-input
+        v-model:value="config.downloadDir"
+        :default-value="0"
+        size="tiny"
+        readonly
+        placeholder="请选择漫画目录"
+        @click="selectDownloadDir">
         <template #prefix>下载目录：</template>
       </n-input>
       <n-button size="tiny" @click="showDownloadDirInFileManager">打开下载目录</n-button>
     </div>
-    <n-input-number v-model:value="config.episodeDownloadInterval"
-                    placeholder=""
-                    :update-value-on-input="false"
-                    :min="0"
-                    :show-button="false"
-                    size="tiny">
+    <n-input-number
+      v-model:value="config.episodeDownloadInterval"
+      placeholder=""
+      :update-value-on-input="false"
+      :min="0"
+      :show-button="false"
+      size="tiny">
       <template #prefix>每个章节下载完成后休息</template>
       <template #suffix>秒，然后才继续下载下一个章节</template>
     </n-input-number>
@@ -149,13 +148,12 @@ async function selectDownloadDir() {
       </n-progress>
       <span>{{ overallProgress.downloadedCount }}/{{ overallProgress.total }}</span>
     </div>
-    <div class="grid grid-cols-[1fr_4fr]"
-         v-for="[epId, {title, percentage, downloadedCount, total}] in progresses"
-         :key="epId">
+    <div
+      class="grid grid-cols-[1fr_4fr]"
+      v-for="[epId, { title, percentage, downloadedCount, total }] in progresses"
+      :key="epId">
       <span class="mb-1! text-ellipsis whitespace-nowrap overflow-hidden">{{ title }}</span>
-      <n-progress class="" :percentage="percentage">
-        {{ downloadedCount }}/{{ total }}
-      </n-progress>
+      <n-progress class="" :percentage="percentage">{{ downloadedCount }}/{{ total }}</n-progress>
     </div>
   </div>
 </template>
