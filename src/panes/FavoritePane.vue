@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ComicCard from './ComicCard.vue'
+import ComicCard from '../components/ComicCard.vue'
 import { computed, ref, watch } from 'vue'
 import { ComicInfo } from '../types.ts'
 import { ComicInFavoriteRespData, commands, Pagination, Sort } from '../bindings.ts'

@@ -22,7 +22,7 @@ const overallProgress = ref<ProgressData>({
   downloadedCount: 0,
   total: 0,
   percentage: 0,
-  indicator: '',
+  indicator: ''
 })
 
 onMounted(async () => {
@@ -32,7 +32,7 @@ onMounted(async () => {
       downloadedCount: 0,
       total: 0,
       percentage: 0,
-      indicator: '',
+      indicator: ''
     }
     progresses.value.set(payload.epId, progressData)
   })
@@ -64,7 +64,7 @@ onMounted(async () => {
       title: '下载图片失败',
       description: payload.url,
       content: payload.errMsg,
-      meta: progressData.title,
+      meta: progressData.title
     })
   })
 

@@ -8,9 +8,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ComicCard: typeof import('./src/components/ComicCard.vue')['default']
-    DownloadingList: typeof import('./src/components/DownloadingList.vue')['default']
-    EpisodePane: typeof import('./src/components/EpisodePane.vue')['default']
-    FavoritePane: typeof import('./src/components/FavoritePane.vue')['default']
     LoginDialog: typeof import('./src/components/LoginDialog.vue')['default']
     NAvatar: typeof import('naive-ui')['NAvatar']
     NButton: typeof import('naive-ui')['NButton']
@@ -33,6 +30,5 @@ declare module 'vue' {
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
     NTooltip: typeof import('naive-ui')['NTooltip']
-    SearchPane: typeof import('./src/components/SearchPane.vue')['default']
   }
 }
