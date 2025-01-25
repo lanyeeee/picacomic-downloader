@@ -3,12 +3,12 @@ import { onMounted, ref, watch } from 'vue'
 import { Comic, commands, Config, UserProfileDetailRespData } from './bindings.ts'
 import { useMessage, useNotification } from 'naive-ui'
 import LoginDialog from './components/LoginDialog.vue'
-import SearchPane from './components/SearchPane.vue'
-import EpisodePane from './components/EpisodePane.vue'
-import DownloadingList from './components/DownloadingList.vue'
+import SearchPane from './panes/SearchPane.vue'
+import EpisodePane from './panes/EpisodePane.vue'
+import DownloadingPane from './panes/DownloadingPane.vue'
 import { appDataDir } from '@tauri-apps/api/path'
 import { path } from '@tauri-apps/api'
-import FavoritePane from './components/FavoritePane.vue'
+import FavoritePane from './panes/FavoritePane.vue'
 
 const message = useMessage()
 const notification = useNotification()
@@ -115,7 +115,7 @@ async function searchById(comicId: string) {
       </n-tabs>
 
       <div class="basis-1/2 overflow-auto">
-        <downloading-list v-model:config="config"></downloading-list>
+        <downloading-pane v-model:config="config"></downloading-pane>
       </div>
     </div>
     <n-modal v-model:show="loginDialogShowing">
