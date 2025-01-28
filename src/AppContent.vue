@@ -4,7 +4,7 @@ import { Comic, commands, Config, UserProfileDetailRespData } from './bindings.t
 import { useMessage, useNotification } from 'naive-ui'
 import LoginDialog from './components/LoginDialog.vue'
 import SearchPane from './panes/SearchPane.vue'
-import EpisodePane from './panes/EpisodePane.vue'
+import ChapterPane from './panes/ChapterPane.vue'
 import DownloadingPane from './panes/DownloadingPane.vue'
 import { appDataDir } from '@tauri-apps/api/path'
 import { path } from '@tauri-apps/api'
@@ -16,7 +16,7 @@ const notification = useNotification()
 const config = ref<Config>()
 const loginDialogShowing = ref<boolean>(false)
 const userProfile = ref<UserProfileDetailRespData>()
-const currentTabName = ref<'search' | 'favorite' | 'episode'>('search')
+const currentTabName = ref<'search' | 'favorite' | 'chapter'>('search')
 const pickedComic = ref<Comic>()
 
 watch(
@@ -28,7 +28,7 @@ watch(
     await commands.saveConfig(config.value)
     message.success('保存配置成功')
   },
-  { deep: true },
+  { deep: true }
 )
 watch(
   () => config.value?.token,
@@ -41,7 +41,7 @@ watch(
     }
     userProfile.value = result.data
     message.success('获取用户信息成功')
-  },
+  }
 )
 
 onMounted(async () => {
@@ -77,7 +77,7 @@ async function searchById(comicId: string) {
     return
   }
   pickedComic.value = result.data
-  currentTabName.value = 'episode'
+  currentTabName.value = 'chapter'
 }
 </script>
 
@@ -109,8 +109,8 @@ async function searchById(comicId: string) {
         <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="漫画收藏" display-directive="show:lazy">
           <favorite-pane :search-by-id="searchById" :current-tab-name="currentTabName" />
         </n-tab-pane>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="episode" tab="章节详情" display-directive="show:lazy">
-          <episode-pane v-model:picked-comic="pickedComic" />
+        <n-tab-pane class="h-full overflow-auto p-0!" name="chapter" tab="章节详情" display-directive="show:lazy">
+          <chapter-pane v-model:picked-comic="pickedComic" />
         </n-tab-pane>
       </n-tabs>
 

@@ -4,7 +4,7 @@ use tauri_specta::Event;
 
 pub mod prelude {
     pub use crate::events::{
-        DownloadEpisodeEndEvent, DownloadEpisodePendingEvent, DownloadEpisodeStartEvent,
+        DownloadChapterEndEvent, DownloadChapterPendingEvent, DownloadChapterStartEvent,
         DownloadImageErrorEvent, DownloadImageSuccessEvent, DownloadSpeedEvent,
         UpdateOverallDownloadProgressEvent,
     };
@@ -12,27 +12,27 @@ pub mod prelude {
 
 #[derive(Serialize, Deserialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct DownloadEpisodePendingEventPayload {
-    pub ep_id: String,
+pub struct DownloadChapterPendingEventPayload {
+    pub chapter_id: String,
     pub title: String,
 }
 #[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadEpisodePendingEvent(pub DownloadEpisodePendingEventPayload);
+pub struct DownloadChapterPendingEvent(pub DownloadChapterPendingEventPayload);
 
 #[derive(Serialize, Deserialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct DownloadEpisodeStartEventPayload {
-    pub ep_id: String,
+pub struct DownloadChapterStartEventPayload {
+    pub chapter_id: String,
     pub title: String,
     pub total: u32,
 }
 #[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadEpisodeStartEvent(pub DownloadEpisodeStartEventPayload);
+pub struct DownloadChapterStartEvent(pub DownloadChapterStartEventPayload);
 
 #[derive(Serialize, Deserialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadImageSuccessEventPayload {
-    pub ep_id: String,
+    pub chapter_id: String,
     pub url: String,
     pub downloaded_count: u32,
 }
@@ -42,7 +42,7 @@ pub struct DownloadImageSuccessEvent(pub DownloadImageSuccessEventPayload);
 #[derive(Serialize, Deserialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadImageErrorEventPayload {
-    pub ep_id: String,
+    pub chapter_id: String,
     pub url: String,
     pub err_msg: String,
 }
@@ -51,12 +51,12 @@ pub struct DownloadImageErrorEvent(pub DownloadImageErrorEventPayload);
 
 #[derive(Serialize, Deserialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct DownloadEpisodeEndEventPayload {
-    pub ep_id: String,
+pub struct DownloadChapterEndEventPayload {
+    pub chapter_id: String,
     pub err_msg: Option<String>,
 }
 #[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadEpisodeEndEvent(pub DownloadEpisodeEndEventPayload);
+pub struct DownloadChapterEndEvent(pub DownloadChapterEndEventPayload);
 
 #[derive(Serialize, Deserialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]

@@ -115,13 +115,13 @@ pub struct ComicRespData {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GetEpisodeRespData {
-    pub eps: Pagination<EpisodeRespData>,
+pub struct GetChapterRespData {
+    pub eps: Pagination<ChapterRespData>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct EpisodeRespData {
+pub struct ChapterRespData {
     #[serde(rename = "_id")]
     pub id: String,
     pub title: String,
@@ -132,13 +132,13 @@ pub struct EpisodeRespData {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GetEpisodeImageRespData {
-    pub pages: Pagination<EpisodeImageRespData>,
+pub struct GetChapterImageRespData {
+    pub pages: Pagination<ChapterImageRespData>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct EpisodeImageRespData {
+pub struct ChapterImageRespData {
     #[serde(rename = "_id")]
     pub id: String,
     pub media: ImageRespData,

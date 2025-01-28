@@ -9,7 +9,7 @@ const notification = useNotification()
 
 const props = defineProps<{
   searchById: (comicId: string) => void
-  currentTabName: 'search' | 'favorite' | 'episode'
+  currentTabName: 'search' | 'favorite' | 'chapter'
 }>()
 
 const comicInFavoritePagination = ref<Pagination<ComicInFavoriteRespData>>()
@@ -27,8 +27,8 @@ const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
       title,
       author,
       categories,
-      thumb,
-    })),
+      thumb
+    }))
   }
 })
 
@@ -49,7 +49,7 @@ watch(
     }
     await getFavorite(sortSelected.value, 1)
   },
-  { immediate: true },
+  { immediate: true }
 )
 </script>
 

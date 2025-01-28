@@ -51,17 +51,17 @@ async getComic(comicId: string) : Promise<Result<Comic, CommandError>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getEpisodeImage(comicId: string, episodeOrder: number, page: number) : Promise<Result<Pagination<EpisodeImageRespData>, CommandError>> {
+async getChapterImage(comicId: string, chapterOrder: number, page: number) : Promise<Result<Pagination<ChapterImageRespData>, CommandError>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_episode_image", { comicId, episodeOrder, page }) };
+    return { status: "ok", data: await TAURI_INVOKE("get_chapter_image", { comicId, chapterOrder, page }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
-async downloadEpisodes(episodes: Episode[]) : Promise<Result<null, CommandError>> {
+async downloadChapters(chapters: ChapterInfo[]) : Promise<Result<null, CommandError>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("download_episodes", { episodes }) };
+    return { status: "ok", data: await TAURI_INVOKE("download_chapters", { chapters }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -97,17 +97,17 @@ async getFavoriteComics(sort: Sort, page: number) : Promise<Result<Pagination<Co
 
 
 export const events = __makeEvents__<{
-downloadEpisodeEndEvent: DownloadEpisodeEndEvent,
-downloadEpisodePendingEvent: DownloadEpisodePendingEvent,
-downloadEpisodeStartEvent: DownloadEpisodeStartEvent,
+downloadChapterEndEvent: DownloadChapterEndEvent,
+downloadChapterPendingEvent: DownloadChapterPendingEvent,
+downloadChapterStartEvent: DownloadChapterStartEvent,
 downloadImageErrorEvent: DownloadImageErrorEvent,
 downloadImageSuccessEvent: DownloadImageSuccessEvent,
 downloadSpeedEvent: DownloadSpeedEvent,
 updateOverallDownloadProgressEvent: UpdateOverallDownloadProgressEvent
 }>({
-downloadEpisodeEndEvent: "download-episode-end-event",
-downloadEpisodePendingEvent: "download-episode-pending-event",
-downloadEpisodeStartEvent: "download-episode-start-event",
+downloadChapterEndEvent: "download-chapter-end-event",
+downloadChapterPendingEvent: "download-chapter-pending-event",
+downloadChapterStartEvent: "download-chapter-start-event",
 downloadImageErrorEvent: "download-image-error-event",
 downloadImageSuccessEvent: "download-image-success-event",
 downloadSpeedEvent: "download-speed-event",
@@ -120,26 +120,26 @@ updateOverallDownloadProgressEvent: "update-overall-download-progress-event"
 
 /** user-defined types **/
 
-export type Comic = { _id: string; title: string; author?: string; pagesCount: number; episodes: Episode[]; epsCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; _creator: Creator; description?: string; chineseTeam?: string; tags: string[]; updated_at: string; created_at: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number }
+export type ChapterImageRespData = { _id: string; media: ImageRespData }
+export type ChapterInfo = { chapterId: string; chapterTitle: string; comicId: string; comicTitle: string; author: string; isDownloaded: boolean; order: number }
+export type Comic = { _id: string; title: string; author?: string; pagesCount: number; chapters: ChapterInfo[]; chapterCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; _creator: Creator; description?: string; chineseTeam?: string; tags: string[]; updated_at: string; created_at: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number }
 export type ComicInFavoriteRespData = { _id: string; title: string; author?: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number }
 export type ComicInSearchRespData = { _id: string; author?: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updated_at: string }
 export type CommandError = string
-export type Config = { token: string; downloadDir: string; episodeDownloadInterval: number; downloadWithAuthor: boolean }
+export type Config = { token: string; downloadDir: string; chapterDownloadInterval: number; downloadWithAuthor: boolean }
 export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
-export type DownloadEpisodeEndEvent = DownloadEpisodeEndEventPayload
-export type DownloadEpisodeEndEventPayload = { epId: string; errMsg: string | null }
-export type DownloadEpisodePendingEvent = DownloadEpisodePendingEventPayload
-export type DownloadEpisodePendingEventPayload = { epId: string; title: string }
-export type DownloadEpisodeStartEvent = DownloadEpisodeStartEventPayload
-export type DownloadEpisodeStartEventPayload = { epId: string; title: string; total: number }
+export type DownloadChapterEndEvent = DownloadChapterEndEventPayload
+export type DownloadChapterEndEventPayload = { chapterId: string; errMsg: string | null }
+export type DownloadChapterPendingEvent = DownloadChapterPendingEventPayload
+export type DownloadChapterPendingEventPayload = { chapterId: string; title: string }
+export type DownloadChapterStartEvent = DownloadChapterStartEventPayload
+export type DownloadChapterStartEventPayload = { chapterId: string; title: string; total: number }
 export type DownloadImageErrorEvent = DownloadImageErrorEventPayload
-export type DownloadImageErrorEventPayload = { epId: string; url: string; errMsg: string }
+export type DownloadImageErrorEventPayload = { chapterId: string; url: string; errMsg: string }
 export type DownloadImageSuccessEvent = DownloadImageSuccessEventPayload
-export type DownloadImageSuccessEventPayload = { epId: string; url: string; downloadedCount: number }
+export type DownloadImageSuccessEventPayload = { chapterId: string; url: string; downloadedCount: number }
 export type DownloadSpeedEvent = DownloadSpeedEventPayload
 export type DownloadSpeedEventPayload = { speed: string }
-export type Episode = { epId: string; epTitle: string; comicId: string; comicTitle: string; author: string; isDownloaded: boolean; order: number }
-export type EpisodeImageRespData = { _id: string; media: ImageRespData }
 export type Image = { originalName: string; path: string; fileServer: string }
 export type ImageRespData = { originalName: string; path: string; fileServer: string }
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
