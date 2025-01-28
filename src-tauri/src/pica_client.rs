@@ -14,8 +14,8 @@ use tauri::{AppHandle, Manager};
 use crate::config::Config;
 use crate::extensions::IgnoreRwLockPoison;
 use crate::responses::{
-    ComicInFavoriteRespData, ComicInSearchRespData, ComicRespData, EpisodeImageRespData,
-    EpisodeRespData, GetComicRespData, GetEpisodeImageRespData, GetEpisodeRespData,
+    ComicInFavoriteRespData, ComicInSearchRespData, ComicRespData, ChapterImageRespData,
+    ChapterRespData, GetComicRespData, GetChapterImageRespData, GetChapterRespData,
     GetFavoriteRespData, LoginRespData, Pagination, PicaResp, SearchRespData,
     UserProfileDetailRespData, UserProfileRespData,
 };
@@ -272,11 +272,11 @@ impl PicaClient {
         Ok(get_comic_resp_data.comic)
     }
 
-    pub async fn get_episode(
+    pub async fn get_chapter(
         &self,
         comic_id: &str,
         page: i64,
-    ) -> anyhow::Result<Pagination<EpisodeRespData>> {
+    ) -> anyhow::Result<Pagination<ChapterRespData>> {
         // 发送获取漫画章节分页请求
         let path = format!("comics/{comic_id}/eps?page={page}");
         let http_resp = self.pica_get(&path).await?;
@@ -308,62 +308,62 @@ impl PicaClient {
                 "获取漫画`{comic_id}`的章节分页`{page}`失败，data字段不存在: {pica_resp:?}"
             ));
         };
-        // 尝试将data解析为GetEpisodeRespData
+        // 尝试将data解析为GetChapterRespData
         let data_str = data.to_string();
-        let get_episode_resp_data = serde_json::from_str::<GetEpisodeRespData>(&data_str).context(
+        let get_chapter_resp_data = serde_json::from_str::<GetChapterRespData>(&data_str).context(
             format!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，将data解析为GetEpisodeRespData失败: {data_str}"
+                "获取漫画`{comic_id}`的章节分页`{page}`失败，将data解析为GetChapterRespData失败: {data_str}"
             ),
         )?;
 
-        Ok(get_episode_resp_data.eps)
+        Ok(get_chapter_resp_data.eps)
     }
 
-    pub async fn get_episode_image(
+    pub async fn get_chapter_image(
         &self,
         comic_id: &str,
-        ep_order: i64,
+        chapter_order: i64,
         page: i64,
-    ) -> anyhow::Result<Pagination<EpisodeImageRespData>> {
+    ) -> anyhow::Result<Pagination<ChapterImageRespData>> {
         // 发送获取漫画章节的图片分页请求
-        let path = format!("comics/{comic_id}/order/{ep_order}/pages?page={page}");
+        let path = format!("comics/{comic_id}/order/{chapter_order}/pages?page={page}");
         let http_resp = self.pica_get(&path).await?;
         // 检查http响应状态码
         let status = http_resp.status();
         let body = http_resp.text().await?;
         if status == StatusCode::UNAUTHORIZED {
             return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {body}"
+                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {body}"
             ));
         } else if status != StatusCode::OK {
             return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，预料之外的状态码({status}): {body}"
+                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，预料之外的状态码({status}): {body}"
             ));
         }
         // 尝试将body解析为PicaResp
         let pica_resp = serde_json::from_str::<PicaResp>(&body).context(format!(
-            "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，将body解析为PicaResp失败: {body}"
+            "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，将body解析为PicaResp失败: {body}"
         ))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
             return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，预料之外的code: {pica_resp:?}"
+                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，预料之外的code: {pica_resp:?}"
             ));
         }
         // 检查PicaResp的data是否存在
         let Some(data) = pica_resp.data else {
             return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，data字段不存在: {pica_resp:?}"
+                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，data字段不存在: {pica_resp:?}"
             ));
         };
-        // 尝试将data解析为GetEpisodeImageRespData
+        // 尝试将data解析为GetChapterImageRespData
         let data_str = data.to_string();
-        let get_episode_image_resp_data = serde_json::from_str::<GetEpisodeImageRespData>(&data_str)
+        let get_chapter_image_resp_data = serde_json::from_str::<GetChapterImageRespData>(&data_str)
             .context(format!(
-                "获取漫画`{comic_id}`章节`{ep_order}`的图片分页`{page}`失败，将data解析为GetEpisodeImageRespData失败: {data_str}"
+                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，将data解析为GetChapterImageRespData失败: {data_str}"
             ))?;
 
-        Ok(get_episode_image_resp_data.pages)
+        Ok(get_chapter_image_resp_data.pages)
     }
 
     pub async fn get_favorite_comics(

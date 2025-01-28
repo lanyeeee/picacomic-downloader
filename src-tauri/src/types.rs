@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::extensions::IgnoreRwLockPoison;
-use crate::responses::{ComicRespData, EpisodeRespData};
+use crate::responses::{ChapterRespData, ComicRespData};
 use crate::utils::filename_filter;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -38,8 +38,8 @@ pub struct Comic {
     #[serde(default)]
     pub author: String,
     pub pages_count: i64,
-    pub episodes: Vec<Episode>,
-    pub eps_count: i64,
+    pub chapters: Vec<ChapterInfo>,
+    pub chapter_count: i64,
     pub finished: bool,
     pub categories: Vec<String>,
     pub thumb: Image,
@@ -61,23 +61,24 @@ pub struct Comic {
     pub comments_count: i64,
 }
 impl Comic {
-    pub fn from(app: &AppHandle, comic: ComicRespData, episodes: Vec<EpisodeRespData>) -> Self {
+    pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Self {
         let comic_title = filename_filter(&comic.title);
         let author = filename_filter(&comic.author);
 
-        let episodes: Vec<Episode> = episodes
+        let chapters: Vec<ChapterInfo> = chapters
             .into_iter()
-            .map(|ep| {
-                let ep_title = filename_filter(&ep.title);
-                let is_downloaded = Self::get_is_downloaded(app, &comic_title, &ep_title, &author);
-                Episode {
-                    ep_id: ep.id,
-                    ep_title,
+            .map(|chapter| {
+                let chapter_title = filename_filter(&chapter.title);
+                let is_downloaded =
+                    Self::get_is_downloaded(app, &comic_title, &chapter_title, &author);
+                ChapterInfo {
+                    chapter_id: chapter.id,
+                    chapter_title,
                     comic_id: comic.id.clone(),
                     comic_title: comic_title.clone(),
                     author: author.clone(),
                     is_downloaded,
-                    order: ep.order,
+                    order: chapter.order,
                 }
             })
             .collect();
@@ -112,8 +113,8 @@ impl Comic {
             title: comic.title,
             author: comic.author,
             pages_count: comic.pages_count,
-            episodes,
-            eps_count: comic.eps_count,
+            chapters,
+            chapter_count: comic.eps_count,
             finished: comic.finished,
             categories: comic.categories,
             thumb,
@@ -131,7 +132,12 @@ impl Comic {
         }
     }
 
-    fn get_is_downloaded(app: &AppHandle, comic_title: &str, ep_title: &str, author: &str) -> bool {
+    fn get_is_downloaded(
+        app: &AppHandle,
+        comic_title: &str,
+        chapter_title: &str,
+        author: &str,
+    ) -> bool {
         let download_with_author = app
             .state::<RwLock<Config>>()
             .read_or_panic()
@@ -145,17 +151,16 @@ impl Comic {
             .read_or_panic()
             .download_dir
             .join(comic_title)
-            .join(ep_title)
+            .join(chapter_title)
             .exists()
     }
 }
 
-// TODO: 改名为EpisodeInfo
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct Episode {
-    pub ep_id: String,
-    pub ep_title: String,
+pub struct ChapterInfo {
+    pub chapter_id: String,
+    pub chapter_title: String,
     pub comic_id: String,
     pub comic_title: String,
     pub author: String,

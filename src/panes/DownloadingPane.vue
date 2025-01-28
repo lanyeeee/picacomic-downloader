@@ -26,7 +26,7 @@ const overallProgress = ref<ProgressData>({
 })
 
 onMounted(async () => {
-  await events.downloadEpisodePendingEvent.listen(({ payload }) => {
+  await events.downloadChapterPendingEvent.listen(({ payload }) => {
     let progressData: ProgressData = {
       title: `等待中 ${payload.title}`,
       downloadedCount: 0,
@@ -34,11 +34,11 @@ onMounted(async () => {
       percentage: 0,
       indicator: ''
     }
-    progresses.value.set(payload.epId, progressData)
+    progresses.value.set(payload.chapterId, progressData)
   })
 
-  await events.downloadEpisodeStartEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
+  await events.downloadChapterStartEvent.listen(({ payload }) => {
+    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
     if (progressData === undefined) {
       return
     }
@@ -47,7 +47,7 @@ onMounted(async () => {
   })
 
   await events.downloadImageSuccessEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
+    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
     if (progressData === undefined) {
       return
     }
@@ -56,7 +56,7 @@ onMounted(async () => {
   })
 
   await events.downloadImageErrorEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
+    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
     if (progressData === undefined) {
       return
     }
@@ -68,15 +68,15 @@ onMounted(async () => {
     })
   })
 
-  await events.downloadEpisodeEndEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.epId) as ProgressData | undefined
+  await events.downloadChapterEndEvent.listen(({ payload }) => {
+    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
     if (progressData === undefined) {
       return
     }
     if (payload.errMsg !== null) {
       notification.warning({ title: '下载章节失败', content: payload.errMsg, meta: progressData.title })
     }
-    progresses.value.delete(payload.epId)
+    progresses.value.delete(payload.chapterId)
   })
 
   await events.updateOverallDownloadProgressEvent.listen(({ payload }) => {
@@ -126,7 +126,7 @@ async function selectDownloadDir() {
       <n-button size="tiny" @click="showDownloadDirInFileManager">打开下载目录</n-button>
     </div>
     <n-input-number
-      v-model:value="config.episodeDownloadInterval"
+      v-model:value="config.chapterDownloadInterval"
       placeholder=""
       :update-value-on-input="false"
       :min="0"
@@ -150,8 +150,8 @@ async function selectDownloadDir() {
     </div>
     <div
       class="grid grid-cols-[1fr_4fr]"
-      v-for="[epId, { title, percentage, downloadedCount, total }] in progresses"
-      :key="epId">
+      v-for="[chapterId, { title, percentage, downloadedCount, total }] in progresses"
+      :key="chapterId">
       <span class="mb-1! text-ellipsis whitespace-nowrap overflow-hidden">{{ title }}</span>
       <n-progress class="" :percentage="percentage">{{ downloadedCount }}/{{ total }}</n-progress>
     </div>

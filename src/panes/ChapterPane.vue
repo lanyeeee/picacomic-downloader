@@ -15,7 +15,7 @@ const dropdownOptions = [
   { label: '勾选', key: 'check' },
   { label: '取消勾选', key: 'uncheck' },
   { label: '全选', key: 'check all' },
-  { label: '取消全选', key: 'uncheck all' },
+  { label: '取消全选', key: 'uncheck all' }
 ]
 const checkedIds = ref<string[]>([])
 const selectedIds = ref<Set<string>>(new Set())
@@ -39,11 +39,11 @@ function extractIds(elements: Element[]): string[] {
     .filter(Boolean)
     .filter((id) => id !== null)
     .filter((id) => {
-      const ep = pickedComic.value?.episodes.find((ep) => ep.epId === id)
-      if (ep === undefined) {
+      const chapter = pickedComic.value?.chapters.find((chapter) => chapter.chapterId === id)
+      if (chapter === undefined) {
         return false
       }
-      return !ep.isDownloaded
+      return !chapter.isDownloaded
     })
 }
 
@@ -72,10 +72,10 @@ function onDragStart({ event, selection }: SelectionEvent) {
 }
 
 function onDragMove({
-  store: {
-    changed: { added, removed },
-  },
-}: SelectionEvent) {
+                      store: {
+                        changed: { added, removed }
+                      }
+                    }: SelectionEvent) {
   extractIds(added).forEach((id) => selectedIds.value.add(id))
   extractIds(removed).forEach((id) => selectedIds.value.delete(id))
 }
@@ -89,9 +89,9 @@ function onDropdownSelect(key: 'check' | 'uncheck' | 'check all' | 'uncheck all'
     checkedIds.value = checkedIds.value.filter((id) => !selectedIds.value.has(id))
   } else if (key === 'check all') {
     // 只有未锁定的才会被勾选
-    pickedComic.value?.episodes
-      .filter((ep) => !ep.isDownloaded && !checkedIds.value.includes(ep.epId))
-      .forEach((ep) => checkedIds.value.push(ep.epId))
+    pickedComic.value?.chapters
+      .filter((chapter) => !chapter.isDownloaded && !checkedIds.value.includes(chapter.chapterId))
+      .forEach((chapter) => checkedIds.value.push(chapter.chapterId))
   } else if (key === 'uncheck all') {
     checkedIds.value.length = 0
   }
@@ -105,25 +105,25 @@ async function onContextMenu(e: MouseEvent) {
   dropdownY.value = e.clientY
 }
 
-async function downloadEpisodes() {
-  const episodesToDownload = pickedComic.value?.episodes.filter(
-    (ep) => !ep.isDownloaded && checkedIds.value.includes(ep.epId),
+async function downloadChapters() {
+  const chaptersToDownload = pickedComic.value?.chapters.filter(
+    (chapter) => !chapter.isDownloaded && checkedIds.value.includes(chapter.chapterId)
   )
-  if (episodesToDownload === undefined) {
+  if (chaptersToDownload === undefined) {
     return
   }
-  await commands.downloadEpisodes(episodesToDownload)
+  await commands.downloadChapters(chaptersToDownload)
 
-  for (const downloadedEp of episodesToDownload) {
-    const episode = pickedComic.value?.episodes.find((ep) => ep.epId === downloadedEp.epId)
-    if (episode !== undefined) {
-      episode.isDownloaded = true
-      checkedIds.value = checkedIds.value.filter((id) => id !== downloadedEp.epId)
+  for (const downloadedChapter of chaptersToDownload) {
+    const chapter = pickedComic.value?.chapters.find((chapter) => chapter.chapterId === downloadedChapter.chapterId)
+    if (chapter !== undefined) {
+      chapter.isDownloaded = true
+      checkedIds.value = checkedIds.value.filter((id) => id !== downloadedChapter.chapterId)
     }
   }
 }
 
-async function refreshEpisodes() {
+async function refreshChapters() {
   if (pickedComic.value === undefined) {
     return
   }
@@ -139,20 +139,20 @@ async function refreshEpisodes() {
 <template>
   <div class="h-full flex flex-col gap-row-1">
     <div class="flex flex-justify-around">
-      <span>总章数：{{ pickedComic?.episodes.length }}</span>
+      <span>总章数：{{ pickedComic?.chapters.length }}</span>
       <n-divider vertical></n-divider>
-      <span>已下载：{{ pickedComic?.episodes.filter((ep) => ep.isDownloaded).length }}</span>
+      <span>已下载：{{ pickedComic?.chapters.filter((chapter) => chapter.isDownloaded).length }}</span>
       <n-divider vertical></n-divider>
       <span>已勾选：{{ checkedIds.length }}</span>
     </div>
     <div class="flex justify-between">
       左键拖动进行框选，右键打开菜单
-      <n-button size="tiny" :disabled="pickedComic === undefined" @click="refreshEpisodes" class="w-1/6">刷新</n-button>
+      <n-button size="tiny" :disabled="pickedComic === undefined" @click="refreshChapters" class="w-1/6">刷新</n-button>
       <n-button
         size="tiny"
         :disabled="pickedComic === undefined"
         type="primary"
-        @click="downloadEpisodes"
+        @click="downloadChapters"
         class="w-1/4">
         下载勾选章节
       </n-button>
@@ -170,14 +170,14 @@ async function refreshEpisodes() {
       @start="onDragStart">
       <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 w-full">
         <n-checkbox
-          v-for="{ epId, epTitle, isDownloaded } in pickedComic.episodes"
-          :key="epId"
-          :data-key="epId"
+          v-for="{ chapterId, chapterTitle, isDownloaded } in pickedComic.chapters"
+          :key="chapterId"
+          :data-key="chapterId"
           class="selectable hover:bg-gray-200!"
-          :value="epId"
-          :label="epTitle"
+          :value="chapterId"
+          :label="chapterTitle"
           :disabled="isDownloaded"
-          :class="{ selected: selectedIds.has(epId), downloaded: isDownloaded }" />
+          :class="{ selected: selectedIds.has(chapterId), downloaded: isDownloaded }" />
       </n-checkbox-group>
     </SelectionArea>
 
