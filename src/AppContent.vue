@@ -6,15 +6,16 @@ import LoginDialog from './components/LoginDialog.vue'
 import SearchPane from './panes/SearchPane.vue'
 import ChapterPane from './panes/ChapterPane.vue'
 import DownloadingPane from './panes/DownloadingPane.vue'
-import { appDataDir } from '@tauri-apps/api/path'
-import { path } from '@tauri-apps/api'
 import FavoritePane from './panes/FavoritePane.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
+import { UserOutlined, SettingOutlined } from '@vicons/antd'
 
 const message = useMessage()
 const notification = useNotification()
 
 const config = ref<Config>()
 const loginDialogShowing = ref<boolean>(false)
+const settingsDialogShowing = ref<boolean>(false)
 const userProfile = ref<UserProfileDetailRespData>()
 const currentTabName = ref<'search' | 'favorite' | 'chapter'>('search')
 const pickedComic = ref<Comic>()
@@ -28,7 +29,7 @@ watch(
     await commands.saveConfig(config.value)
     message.success('保存配置成功')
   },
-  { deep: true }
+  { deep: true },
 )
 watch(
   () => config.value?.token,
@@ -41,7 +42,7 @@ watch(
     }
     userProfile.value = result.data
     message.success('获取用户信息成功')
-  }
+  },
 )
 
 onMounted(async () => {
@@ -52,19 +53,6 @@ onMounted(async () => {
   // 获取配置
   config.value = await commands.getConfig()
 })
-
-async function test() {
-  console.log(userProfile.value)
-}
-
-async function showConfigInFileManager() {
-  const configName = 'config.json'
-  const configPath = await path.join(await appDataDir(), configName)
-  const result = await commands.showPathInFileManager(configPath)
-  if (result.status === 'error') {
-    notification.error({ title: '打开配置文件失败', description: result.error })
-  }
-}
 
 async function searchById(comicId: string) {
   if (comicId === '') {
@@ -82,15 +70,29 @@ async function searchById(comicId: string) {
 </script>
 
 <template>
-  <div v-if="config !== undefined" class="h-screen flex flex-col overflow-auto">
-    <div class="flex gap-col-1">
-      <n-input v-model:value="config.token" placeholder="" clearable>
-        <template #prefix>Authorization：</template>
-      </n-input>
-      <n-button type="primary" @click="loginDialogShowing = true">账号登录</n-button>
-      <n-button @click="showConfigInFileManager">打开配置目录</n-button>
-      <n-button @click="test">测试用</n-button>
-      <div v-if="userProfile !== undefined" class="flex flex-justify-end">
+  <div v-if="config !== undefined" class="h-screen flex flex-col">
+    <div class="flex gap-col-1 pt-2 px-2">
+      <n-input-group>
+        <n-input-group-label>Authorization</n-input-group-label>
+        <n-input v-model:value="config.token" placeholder="手动输入或点击右侧的按钮登录" clearable />
+        <n-button type="primary" @click="loginDialogShowing = true">
+          <template #icon>
+            <n-icon>
+              <UserOutlined />
+            </n-icon>
+          </template>
+          登录
+        </n-button>
+      </n-input-group>
+      <n-button @click="settingsDialogShowing = true">
+        <template #icon>
+          <n-icon>
+            <SettingOutlined />
+          </n-icon>
+        </template>
+        配置
+      </n-button>
+      <div v-if="userProfile !== undefined" class="flex items-center">
         <n-avatar
           v-if="userProfile.avatar !== undefined"
           round
@@ -100,26 +102,40 @@ async function searchById(comicId: string) {
         <span class="whitespace-nowrap">{{ userProfile.name }}</span>
       </div>
     </div>
+
     <div class="flex overflow-hidden flex-1">
-      <!-- TODO: 可以给n-tabs加animated -->
-      <n-tabs class="basis-1/2 overflow-auto" v-model:value="currentTabName" type="line" size="small">
-        <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show:lazy">
+      <n-tabs class="h-full w-1/2" v-model:value="currentTabName" type="line" size="small" animated>
+        <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show">
           <search-pane :search-by-id="searchById" />
         </n-tab-pane>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="漫画收藏" display-directive="show:lazy">
+        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="漫画收藏" display-directive="show">
           <favorite-pane :search-by-id="searchById" :current-tab-name="currentTabName" />
         </n-tab-pane>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="chapter" tab="章节详情" display-directive="show:lazy">
+        <n-tab-pane class="h-full overflow-auto p-0!" name="chapter" tab="章节详情" display-directive="show">
           <chapter-pane v-model:picked-comic="pickedComic" />
         </n-tab-pane>
       </n-tabs>
 
-      <div class="basis-1/2 overflow-auto">
+      <div class="w-1/2 overflow-auto">
         <downloading-pane v-model:config="config"></downloading-pane>
       </div>
     </div>
-    <n-modal v-model:show="loginDialogShowing">
-      <login-dialog v-model:showing="loginDialogShowing" v-model:token="config.token" />
-    </n-modal>
+
+    <login-dialog v-model:showing="loginDialogShowing" v-model:token="config.token" />
+    <settings-dialog v-model:showing="settingsDialogShowing" v-model:config="config" />
   </div>
 </template>
+
+<style scoped>
+:global(.n-notification-main__header) {
+  @apply break-words;
+}
+
+:global(.n-tabs-pane-wrapper) {
+  @apply h-full;
+}
+
+:deep(.n-tabs-nav) {
+  @apply px-2;
+}
+</style>

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { commands, Config, events } from '../bindings.ts'
 import { open } from '@tauri-apps/plugin-dialog'
 import { NProgress, useNotification } from 'naive-ui'
+import { FolderOpenOutlined } from '@vicons/antd'
 
 type ProgressData = {
   title: string
@@ -22,7 +23,7 @@ const overallProgress = ref<ProgressData>({
   downloadedCount: 0,
   total: 0,
   percentage: 0,
-  indicator: ''
+  indicator: '',
 })
 
 onMounted(async () => {
@@ -32,7 +33,7 @@ onMounted(async () => {
       downloadedCount: 0,
       total: 0,
       percentage: 0,
-      indicator: ''
+      indicator: '',
     }
     progresses.value.set(payload.chapterId, progressData)
   })
@@ -64,7 +65,7 @@ onMounted(async () => {
       title: '下载图片失败',
       description: payload.url,
       content: payload.errMsg,
-      meta: progressData.title
+      meta: progressData.title,
     })
   })
 
@@ -111,37 +112,21 @@ async function selectDownloadDir() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-row-1">
-    <n-h3 class="m-be-0">下载列表</n-h3>
-    <div class="flex gap-col-1">
-      <n-input
-        v-model:value="config.downloadDir"
-        :default-value="0"
-        size="tiny"
-        readonly
-        placeholder="请选择漫画目录"
-        @click="selectDownloadDir">
-        <template #prefix>下载目录：</template>
-      </n-input>
-      <n-button size="tiny" @click="showDownloadDirInFileManager">打开下载目录</n-button>
-    </div>
-    <n-input-number
-      v-model:value="config.chapterDownloadInterval"
-      placeholder=""
-      :update-value-on-input="false"
-      :min="0"
-      :show-button="false"
-      size="tiny">
-      <template #prefix>每个章节下载完成后休息</template>
-      <template #suffix>秒，然后才继续下载下一个章节</template>
-    </n-input-number>
-    <n-tooltip placement="bottom" trigger="hover">
-      <template #trigger>
-        <n-checkbox v-model:checked="config.downloadWithAuthor" class="mr-auto">在漫画名前面附加作者名</n-checkbox>
-      </template>
-      [作者名] 漫画名
-    </n-tooltip>
-    <div class="grid grid-cols-[1fr_4fr_2fr]">
+  <div class="flex flex-col gap-row-2">
+    <div class="h-8.5 text-xl flex items-center font-bold px-2">下载列表</div>
+    <n-input-group class="box-border px-2">
+      <n-input-group-label size="small">下载目录</n-input-group-label>
+      <n-input v-model:value="config.downloadDir" :default-value="0" size="small" readonly @click="selectDownloadDir" />
+      <n-button size="small" @click="showDownloadDirInFileManager">
+        <template #icon>
+          <n-icon>
+            <FolderOpenOutlined />
+          </n-icon>
+        </template>
+      </n-button>
+    </n-input-group>
+
+    <div class="grid grid-cols-[1fr_4fr_2fr] h-7 items-center px-2">
       <span class="text-ellipsis whitespace-nowrap overflow-hidden">{{ overallProgress.title }}</span>
       <n-progress :percentage="overallProgress.percentage" indicator-placement="inside" :height="21">
         {{ overallProgress.indicator }}
@@ -149,7 +134,7 @@ async function selectDownloadDir() {
       <span>{{ overallProgress.downloadedCount }}/{{ overallProgress.total }}</span>
     </div>
     <div
-      class="grid grid-cols-[1fr_4fr]"
+      class="grid grid-cols-[1fr_4fr] px-2"
       v-for="[chapterId, { title, percentage, downloadedCount, total }] in progresses"
       :key="chapterId">
       <span class="mb-1! text-ellipsis whitespace-nowrap overflow-hidden">{{ title }}</span>
