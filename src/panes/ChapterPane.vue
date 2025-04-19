@@ -15,7 +15,7 @@ const dropdownOptions = [
   { label: '勾选', key: 'check' },
   { label: '取消勾选', key: 'uncheck' },
   { label: '全选', key: 'check all' },
-  { label: '取消全选', key: 'uncheck all' }
+  { label: '取消全选', key: 'uncheck all' },
 ]
 const checkedIds = ref<string[]>([])
 const selectedIds = ref<Set<string>>(new Set())
@@ -72,10 +72,10 @@ function onDragStart({ event, selection }: SelectionEvent) {
 }
 
 function onDragMove({
-                      store: {
-                        changed: { added, removed }
-                      }
-                    }: SelectionEvent) {
+  store: {
+    changed: { added, removed },
+  },
+}: SelectionEvent) {
   extractIds(added).forEach((id) => selectedIds.value.add(id))
   extractIds(removed).forEach((id) => selectedIds.value.delete(id))
 }
@@ -107,7 +107,7 @@ async function onContextMenu(e: MouseEvent) {
 
 async function downloadChapters() {
   const chaptersToDownload = pickedComic.value?.chapters.filter(
-    (chapter) => !chapter.isDownloaded && checkedIds.value.includes(chapter.chapterId)
+    (chapter) => !chapter.isDownloaded && checkedIds.value.includes(chapter.chapterId),
   )
   if (chaptersToDownload === undefined) {
     return
@@ -137,38 +137,24 @@ async function refreshChapters() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-row-1">
-    <div class="flex flex-justify-around">
-      <span>总章数：{{ pickedComic?.chapters.length }}</span>
-      <n-divider vertical></n-divider>
-      <span>已下载：{{ pickedComic?.chapters.filter((chapter) => chapter.isDownloaded).length }}</span>
-      <n-divider vertical></n-divider>
-      <span>已勾选：{{ checkedIds.length }}</span>
-    </div>
-    <div class="flex justify-between">
-      左键拖动进行框选，右键打开菜单
-      <n-button size="tiny" :disabled="pickedComic === undefined" @click="refreshChapters" class="w-1/6">刷新</n-button>
-      <n-button
-        size="tiny"
-        :disabled="pickedComic === undefined"
-        type="primary"
-        @click="downloadChapters"
-        class="w-1/4">
-        下载勾选章节
-      </n-button>
-    </div>
+  <div class="h-full flex flex-col gap-row-2 box-border">
     <n-empty v-if="pickedComic === undefined" description="请先进行漫画搜索"></n-empty>
     <SelectionArea
       v-else
       ref="selectionAreaRef"
-      class="selection-container flex-1"
+      class="selection-container flex flex-col flex-1 px-2 overflow-auto"
       :options="{ selectables: '.selectable' } as SelectionOptions"
       @contextmenu="onContextMenu"
       @mousedown="onMouseDown"
       @mouseup="onMouseUp"
       @move="onDragMove"
       @start="onDragStart">
-      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 w-full">
+      <div class="flex justify-between items-center select-none pt-2">
+        <div>左键拖动进行框选，右键打开菜单</div>
+        <n-button size="small" @click="refreshChapters">刷新</n-button>
+        <n-button size="small" type="primary" @click="downloadChapters">下载勾选章节</n-button>
+      </div>
+      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 pt-2 overflow-auto">
         <n-checkbox
           v-for="{ chapterId, chapterTitle, isDownloaded } in pickedComic.chapters"
           :key="chapterId"
@@ -181,7 +167,7 @@ async function refreshChapters() {
       </n-checkbox-group>
     </SelectionArea>
 
-    <div v-if="pickedComic !== undefined" class="flex">
+    <div v-if="pickedComic !== undefined" class="flex p-2 pt-0">
       <img
         class="w-24"
         :src="`${pickedComic.thumb.fileServer}/static/${pickedComic.thumb.path}`"
@@ -209,7 +195,7 @@ async function refreshChapters() {
 
 <style scoped>
 .selection-container {
-  @apply user-select-none overflow-auto;
+  @apply select-none;
 }
 
 .selection-container .selected {

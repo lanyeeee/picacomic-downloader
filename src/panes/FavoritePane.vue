@@ -27,8 +27,8 @@ const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
       title,
       author,
       categories,
-      thumb
-    }))
+      thumb,
+    })),
   }
 })
 
@@ -49,25 +49,23 @@ watch(
     }
     await getFavorite(sortSelected.value, 1)
   },
-  { immediate: true }
+  { immediate: true },
 )
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <div v-if="comicInfoPagination !== undefined" class="flex flex-col gap-row-1 overflow-auto p-2">
-      <div class="flex flex-col gap-row-2 overflow-auto">
-        <comic-card
-          v-for="comicInfo in comicInfoPagination.docs"
-          :key="comicInfo._id"
-          :comic-info="comicInfo"
-          :onClickItem="searchById" />
-      </div>
-      <n-pagination
-        :total="comicInfoPagination.total"
-        :page-count="comicInfoPagination.pages"
-        :page="comicInfoPagination.page"
-        @update:page="getFavorite(sortSelected, $event)" />
+  <div v-if="comicInfoPagination !== undefined" class="h-full flex flex-col gap-2">
+    <div class="flex flex-col gap-row-2 overflow-auto box-border px-2 pt-2">
+      <comic-card
+        v-for="comicInfo in comicInfoPagination.docs"
+        :key="comicInfo._id"
+        :comic-info="comicInfo"
+        :onClickItem="searchById" />
     </div>
+    <n-pagination
+      class="box-border p-2 pt-0 mt-auto"
+      :page-count="comicInfoPagination.pages"
+      :page="comicInfoPagination.page"
+      @update:page="getFavorite(sortSelected, $event)" />
   </div>
 </template>
