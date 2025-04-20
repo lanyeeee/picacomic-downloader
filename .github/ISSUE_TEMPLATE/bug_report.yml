@@ -7,11 +7,17 @@ body:
     attributes:
       value: |
         为了使我更好地帮助你，请提供以下信息。以及修改上方的标题
+  - type: checkboxes
+    attributes:
+      label: 复现步骤很重要
+      options:
+        - label: 我已经参考[这个issue](https://github.com/lanyeeee/picacomic-downloader/issues/13)写清楚了复现步骤
+          required: true
   - type: textarea
     id: desc
     attributes:
       label: 问题描述
-      description: 发生了什么情况？有什么现状？复现条件是什么？
+      description: 发生了什么情况？有什么现状？复现步骤是什么(哪部漫画，哪个章节)？
     validations:
       required: true
   - type: textarea
@@ -38,7 +44,7 @@ body:
     id: version
     attributes:
       label: 工具版本号
-      placeholder: v0.1
+      placeholder: v0.1.0
     validations:
       required: true
   - type: textarea
