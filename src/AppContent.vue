@@ -8,7 +8,8 @@ import ChapterPane from './panes/ChapterPane.vue'
 import DownloadingPane from './panes/DownloadingPane.vue'
 import FavoritePane from './panes/FavoritePane.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
-import { UserOutlined, SettingOutlined } from '@vicons/antd'
+import { QuestionCircleOutlined, UserOutlined, SettingOutlined } from '@vicons/antd'
+import AboutDialog from './components/AboutDialog.vue'
 
 const message = useMessage()
 const notification = useNotification()
@@ -16,6 +17,7 @@ const notification = useNotification()
 const config = ref<Config>()
 const loginDialogShowing = ref<boolean>(false)
 const settingsDialogShowing = ref<boolean>(false)
+const aboutDialogShowing = ref<boolean>(false)
 const userProfile = ref<UserProfileDetailRespData>()
 const currentTabName = ref<'search' | 'favorite' | 'chapter'>('search')
 const pickedComic = ref<Comic>()
@@ -92,6 +94,14 @@ async function searchById(comicId: string) {
         </template>
         配置
       </n-button>
+      <n-button @click="aboutDialogShowing = true">
+        <template #icon>
+          <n-icon>
+            <QuestionCircleOutlined />
+          </n-icon>
+        </template>
+        关于
+      </n-button>
       <div v-if="userProfile !== undefined" class="flex items-center">
         <n-avatar
           v-if="userProfile.avatar !== undefined"
@@ -123,6 +133,7 @@ async function searchById(comicId: string) {
 
     <login-dialog v-model:showing="loginDialogShowing" v-model:token="config.token" />
     <settings-dialog v-model:showing="settingsDialogShowing" v-model:config="config" />
+    <about-dialog v-model:showing="aboutDialogShowing" />
   </div>
 </template>
 
