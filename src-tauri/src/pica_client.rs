@@ -14,8 +14,8 @@ use tauri::{AppHandle, Manager};
 use crate::config::Config;
 use crate::extensions::IgnoreRwLockPoison;
 use crate::responses::{
-    ComicInFavoriteRespData, ComicInSearchRespData, ComicRespData, ChapterImageRespData,
-    ChapterRespData, GetComicRespData, GetChapterImageRespData, GetChapterRespData,
+    ChapterImageRespData, ChapterRespData, ComicInFavoriteRespData, ComicInSearchRespData,
+    ComicRespData, GetChapterImageRespData, GetChapterRespData, GetComicRespData,
     GetFavoriteRespData, LoginRespData, Pagination, PicaResp, SearchRespData,
     UserProfileDetailRespData, UserProfileRespData,
 };
@@ -144,7 +144,6 @@ impl PicaClient {
             "登录失败，将data解析为LoginRespData失败: {data_str}"
         ))?;
 
-        self.app.state::<RwLock<Config>>().write_or_panic().token = login_resp_data.token.clone(); //TODO: 改用 clone_from
         Ok(login_resp_data.token)
     }
 
