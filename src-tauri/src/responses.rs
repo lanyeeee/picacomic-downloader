@@ -66,11 +66,14 @@ pub struct ComicInSearchRespData {
     #[serde(default)]
     pub description: String,
     pub finished: bool,
+    #[serde(deserialize_with = "string_to_i64")]
     pub likes_count: i64,
     pub tags: Vec<String>,
     pub thumb: ImageRespData,
     pub title: String,
+    #[serde(default, deserialize_with = "string_to_option_i64")]
     pub total_likes: Option<i64>,
+    #[serde(default, deserialize_with = "string_to_option_i64")]
     pub total_views: Option<i64>,
     #[serde(rename = "updated_at")]
     pub updated_at: String,
@@ -95,6 +98,7 @@ pub struct ComicRespData {
     pub finished: bool,
     pub categories: Vec<String>,
     pub thumb: ImageRespData,
+    #[serde(deserialize_with = "string_to_i64")]
     pub likes_count: i64,
     #[serde(rename = "_creator")]
     pub creator: CreatorRespData,
@@ -158,12 +162,13 @@ pub struct ComicInFavoriteRespData {
     pub title: String,
     #[serde(default)]
     pub author: String,
-    pub pages_count: i32,
-    pub eps_count: i32,
+    pub pages_count: i64,
+    pub eps_count: i64,
     pub finished: bool,
     pub categories: Vec<String>,
     pub thumb: ImageRespData,
-    pub likes_count: i32,
+    #[serde(deserialize_with = "string_to_i64")]
+    pub likes_count: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -203,4 +208,38 @@ pub struct CreatorRespData {
     pub role: String,
     #[serde(default)]
     pub character: String,
+}
+
+fn string_to_i64<'de, D>(d: D) -> Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde_json::Value;
+    let value: Value = serde::Deserialize::deserialize(d)?;
+
+    match value {
+        #[allow(clippy::cast_possible_truncation)]
+        Value::Number(n) => Ok(n.as_i64().unwrap_or(0)),
+        Value::String(s) => Ok(s.parse().unwrap_or(0)),
+        _ => Err(serde::de::Error::custom(
+            "`string_to_i64` 失败，value类型不是 `Number` 或 `String`",
+        )),
+    }
+}
+
+fn string_to_option_i64<'de, D>(d: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde_json::Value;
+    let value: Value = serde::Deserialize::deserialize(d)?;
+
+    match value {
+        #[allow(clippy::cast_possible_truncation)]
+        Value::Number(n) => Ok(Some(n.as_i64().unwrap_or(0))),
+        Value::String(s) => Ok(Some(s.parse().unwrap_or(0))),
+        _ => Err(serde::de::Error::custom(
+            "`string_to_option_i64` 失败，value类型不是 `Number` 或 `String`",
+        )),
+    }
 }
