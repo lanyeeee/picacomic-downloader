@@ -1,33 +1,18 @@
-use crate::config::Config;
-use crate::extensions::IgnoreRwLockPoison;
-use crate::responses::{ChapterRespData, ComicRespData};
-use crate::utils::filename_filter;
+use std::sync::RwLock;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::sync::RwLock;
 use tauri::{AppHandle, Manager};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
-pub enum Sort {
-    Default,
-    TimeNewest,
-    TimeOldest,
-    LikeMost,
-    ViewMost,
-}
+use crate::{
+    config::Config,
+    extensions::IgnoreRwLockPoison,
+    responses::{ChapterRespData, ComicRespData},
+    utils::filename_filter,
+};
 
-impl Sort {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Sort::Default => "ua",
-            Sort::TimeNewest => "dd",
-            Sort::TimeOldest => "da",
-            Sort::LikeMost => "ld",
-            Sort::ViewMost => "vd",
-        }
-    }
-}
+use super::ChapterInfo;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -60,6 +45,7 @@ pub struct Comic {
     pub is_liked: bool,
     pub comments_count: i64,
 }
+
 impl Comic {
     pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Self {
         let comic_title = filename_filter(&comic.title);
@@ -154,18 +140,6 @@ impl Comic {
             .join(chapter_title)
             .exists()
     }
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct ChapterInfo {
-    pub chapter_id: String,
-    pub chapter_title: String,
-    pub comic_id: String,
-    pub comic_title: String,
-    pub author: String,
-    pub is_downloaded: bool,
-    pub order: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
