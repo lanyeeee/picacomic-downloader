@@ -27,68 +27,57 @@ const overallProgress = ref<ProgressData>({
 })
 
 onMounted(async () => {
-  await events.downloadChapterPendingEvent.listen(({ payload }) => {
-    let progressData: ProgressData = {
-      title: `等待中 ${payload.title}`,
-      downloadedCount: 0,
-      total: 0,
-      percentage: 0,
-      indicator: '',
+  await events.downloadEvent.listen(({ payload }) => {
+    if (payload.event === 'ChapterPending') {
+      let progressData: ProgressData = {
+        title: `等待中 ${payload.data.title}`,
+        downloadedCount: 0,
+        total: 0,
+        percentage: 0,
+        indicator: '',
+      }
+      progresses.value.set(payload.data.chapterId, progressData)
+    } else if (payload.event === 'ChapterStart') {
+      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
+      if (progressData === undefined) {
+        return
+      }
+      progressData.total = payload.data.total
+      progressData.title = payload.data.title
+    } else if (payload.event === 'ImageSuccess') {
+      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
+      if (progressData === undefined) {
+        return
+      }
+      progressData.downloadedCount = payload.data.downloadedCount
+      progressData.percentage = Math.round((progressData.downloadedCount / progressData.total) * 100)
+    } else if (payload.event === 'ImageError') {
+      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
+      if (progressData === undefined) {
+        return
+      }
+      notification.warning({
+        title: '下载图片失败',
+        description: payload.data.url,
+        content: payload.data.errMsg,
+        meta: progressData.title,
+      })
+    } else if (payload.event === 'ChapterEnd') {
+      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
+      if (progressData === undefined) {
+        return
+      }
+      if (payload.data.errMsg !== null) {
+        notification.warning({ title: '下载章节失败', content: payload.data.errMsg, meta: progressData.title })
+      }
+      progresses.value.delete(payload.data.chapterId)
+    } else if (payload.event === 'OverallUpdate') {
+      overallProgress.value.percentage = payload.data.percentage
+      overallProgress.value.downloadedCount = payload.data.downloadedImageCount
+      overallProgress.value.total = payload.data.totalImageCount
+    } else if (payload.event === 'Speed') {
+      overallProgress.value.indicator = payload.data.speed
     }
-    progresses.value.set(payload.chapterId, progressData)
-  })
-
-  await events.downloadChapterStartEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
-    if (progressData === undefined) {
-      return
-    }
-    progressData.total = payload.total
-    progressData.title = payload.title
-  })
-
-  await events.downloadImageSuccessEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
-    if (progressData === undefined) {
-      return
-    }
-    progressData.downloadedCount = payload.downloadedCount
-    progressData.percentage = Math.round((progressData.downloadedCount / progressData.total) * 100)
-  })
-
-  await events.downloadImageErrorEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
-    if (progressData === undefined) {
-      return
-    }
-    notification.warning({
-      title: '下载图片失败',
-      description: payload.url,
-      content: payload.errMsg,
-      meta: progressData.title,
-    })
-  })
-
-  await events.downloadChapterEndEvent.listen(({ payload }) => {
-    const progressData = progresses.value.get(payload.chapterId) as ProgressData | undefined
-    if (progressData === undefined) {
-      return
-    }
-    if (payload.errMsg !== null) {
-      notification.warning({ title: '下载章节失败', content: payload.errMsg, meta: progressData.title })
-    }
-    progresses.value.delete(payload.chapterId)
-  })
-
-  await events.updateOverallDownloadProgressEvent.listen(({ payload }) => {
-    overallProgress.value.percentage = payload.percentage
-    overallProgress.value.downloadedCount = payload.downloadedImageCount
-    overallProgress.value.total = payload.totalImageCount
-    console.log(payload)
-  })
-
-  await events.downloadSpeedEvent.listen(({ payload }) => {
-    overallProgress.value.indicator = payload.speed
   })
 })
 

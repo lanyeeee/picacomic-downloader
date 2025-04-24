@@ -2,76 +2,46 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri_specta::Event;
 
-pub mod prelude {
-    pub use crate::events::{
-        DownloadChapterEndEvent, DownloadChapterPendingEvent, DownloadChapterStartEvent,
-        DownloadImageErrorEvent, DownloadImageSuccessEvent, DownloadSpeedEvent,
-        UpdateOverallDownloadProgressEvent,
-    };
-}
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "event", content = "data")]
+pub enum DownloadEvent {
+    #[serde(rename_all = "camelCase")]
+    ChapterPending { chapter_id: String, title: String },
 
-#[derive(Serialize, Deserialize, Clone, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadChapterPendingEventPayload {
-    pub chapter_id: String,
-    pub title: String,
-}
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadChapterPendingEvent(pub DownloadChapterPendingEventPayload);
+    #[serde(rename_all = "camelCase")]
+    ChapterStart {
+        chapter_id: String,
+        title: String,
+        total: u32,
+    },
 
-#[derive(Serialize, Deserialize, Clone, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadChapterStartEventPayload {
-    pub chapter_id: String,
-    pub title: String,
-    pub total: u32,
-}
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadChapterStartEvent(pub DownloadChapterStartEventPayload);
+    #[serde(rename_all = "camelCase")]
+    ImageSuccess {
+        chapter_id: String,
+        url: String,
+        downloaded_count: u32,
+    },
 
-#[derive(Serialize, Deserialize, Clone, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadImageSuccessEventPayload {
-    pub chapter_id: String,
-    pub url: String,
-    pub downloaded_count: u32,
-}
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadImageSuccessEvent(pub DownloadImageSuccessEventPayload);
+    #[serde(rename_all = "camelCase")]
+    ImageError {
+        chapter_id: String,
+        url: String,
+        err_msg: String,
+    },
 
-#[derive(Serialize, Deserialize, Clone, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadImageErrorEventPayload {
-    pub chapter_id: String,
-    pub url: String,
-    pub err_msg: String,
-}
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadImageErrorEvent(pub DownloadImageErrorEventPayload);
+    #[serde(rename_all = "camelCase")]
+    ChapterEnd {
+        chapter_id: String,
+        err_msg: Option<String>,
+    },
 
-#[derive(Serialize, Deserialize, Clone, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadChapterEndEventPayload {
-    pub chapter_id: String,
-    pub err_msg: Option<String>,
-}
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadChapterEndEvent(pub DownloadChapterEndEventPayload);
+    #[serde(rename_all = "camelCase")]
+    OverallUpdate {
+        downloaded_image_count: u32,
+        total_image_count: u32,
+        percentage: f64,
+    },
 
-#[derive(Serialize, Deserialize, Clone, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateOverallDownloadProgressEventPayload {
-    pub downloaded_image_count: u32,
-    pub total_image_count: u32,
-    pub percentage: f64,
+    #[serde(rename_all = "camelCase")]
+    Speed { speed: String },
 }
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct UpdateOverallDownloadProgressEvent(pub UpdateOverallDownloadProgressEventPayload);
-
-#[derive(Serialize, Deserialize, Clone, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadSpeedEventPayload {
-    pub speed: String,
-}
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-pub struct DownloadSpeedEvent(pub DownloadSpeedEventPayload);

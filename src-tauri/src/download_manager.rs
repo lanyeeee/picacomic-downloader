@@ -17,8 +17,7 @@ use tokio::sync::{mpsc, Semaphore};
 use tokio::task::JoinSet;
 
 use crate::config::Config;
-use crate::events;
-use crate::events::{DownloadSpeedEvent, DownloadSpeedEventPayload};
+use crate::events::DownloadEvent;
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
 use crate::types::ChapterInfo;
@@ -82,7 +81,7 @@ impl DownloadManager {
             let byte_per_sec = self.byte_per_sec.swap(0, Ordering::Relaxed);
             let mega_byte_per_sec = byte_per_sec as f64 / 1024.0 / 1024.0;
             let speed = format!("{mega_byte_per_sec:.2}MB/s");
-            emit_download_speed_event(&self.app, speed);
+            let _ = DownloadEvent::Speed { speed }.emit(&self.app);
         }
     }
 
@@ -97,11 +96,12 @@ impl DownloadManager {
     #[allow(clippy::too_many_lines)]
     // TODO: 重构这个函数，减少行数
     async fn process_chapter(self, chapter_info: ChapterInfo) {
-        emit_pending_event(
-            &self.app,
-            chapter_info.chapter_id.clone(),
-            chapter_info.chapter_title.clone(),
-        );
+        // 发送章节排队事件
+        let _ = DownloadEvent::ChapterPending {
+            chapter_id: chapter_info.chapter_id.clone(),
+            title: chapter_info.chapter_title.clone(),
+        }
+        .emit(&self.app);
 
         let pica_client = self.app.state::<PicaClient>().inner().clone();
         let images = Arc::new(Mutex::new(vec![]));
@@ -118,11 +118,12 @@ impl DownloadManager {
                 let err = err.context(format!(
                     "获取`{comic_title}`第`{chapter_order}`章节`{chapter_title}`的第`1`页图片失败"
                 ));
-                emit_end_event(
-                    &self.app,
-                    chapter_info.chapter_id.clone(),
-                    Some(err.to_string_chain()),
-                );
+                // 发送章节结束事件
+                let _ = DownloadEvent::ChapterEnd {
+                    chapter_id: chapter_info.chapter_id.clone(),
+                    err_msg: Some(err.to_string_chain()),
+                }
+                .emit(&self.app);
                 return;
             }
         };
@@ -150,7 +151,12 @@ impl DownloadManager {
                         let err = err.context(format!(
                             "获取`{comic_title}`第`{chapter_order}`章`{chapter_title}`的第`{page}`页图片失败"
                         ));
-                        emit_end_event(&app, chapter_id, Some(err.to_string_chain()));
+                        // 发送章节结束事件
+                        let _ = DownloadEvent::ChapterEnd {
+                            chapter_id,
+                            err_msg: Some(err.to_string_chain()),
+                        }
+                        .emit(&app);
                         return;
                     }
                 };
@@ -185,11 +191,12 @@ impl DownloadManager {
             Ok(permit) => permit,
             Err(err) => {
                 let err = err.context("获取下载章节的semaphore失败");
-                emit_end_event(
-                    &self.app,
-                    chapter_info.chapter_id.clone(),
-                    Some(err.to_string_chain()),
-                );
+                // 发送章节结束事件
+                let _ = DownloadEvent::ChapterEnd {
+                    chapter_id: chapter_info.chapter_id.clone(),
+                    err_msg: Some(err.to_string_chain()),
+                }
+                .emit(&self.app);
                 return;
             }
         };
@@ -197,19 +204,20 @@ impl DownloadManager {
         let temp_download_dir = get_temp_download_dir(&self.app, &chapter_info);
         if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
             let err = err.context(format!("创建目录`{temp_download_dir:?}`失败"));
-            emit_end_event(
-                &self.app,
-                chapter_info.chapter_id.clone(),
-                Some(err.to_string_chain()),
-            );
+            let _ = DownloadEvent::ChapterEnd {
+                chapter_id: chapter_info.chapter_id.clone(),
+                err_msg: Some(err.to_string_chain()),
+            }
+            .emit(&self.app);
             return;
         };
-        emit_start_event(
-            &self.app,
-            chapter_info.chapter_id.clone(),
-            chapter_info.chapter_title.clone(),
+        // 发送章节开始下载事件
+        let _ = DownloadEvent::ChapterStart {
+            chapter_id: chapter_info.chapter_id.clone(),
+            title: chapter_info.chapter_title.clone(),
             total,
-        );
+        }
+        .emit(&self.app);
         for (i, url) in urls.iter().enumerate() {
             let manager = self.clone();
             let chapter_id = chapter_info.chapter_id.clone();
@@ -224,12 +232,15 @@ impl DownloadManager {
             self.downloaded_image_count.fetch_add(1, Ordering::Relaxed);
             let downloaded_image_count = self.downloaded_image_count.load(Ordering::Relaxed);
             let total_image_count = self.total_image_count.load(Ordering::Relaxed);
-            // 更新下载进度
-            emit_update_overall_progress_event(
-                &self.app,
+            // 发送整体下载进度事件
+            #[allow(clippy::cast_lossless)]
+            let percentage = downloaded_image_count as f64 / total_image_count as f64 * 100.0;
+            let _ = DownloadEvent::OverallUpdate {
                 downloaded_image_count,
                 total_image_count,
-            );
+                percentage,
+            }
+            .emit(&self.app);
         }
         let download_interval = self
             .app
@@ -255,7 +266,12 @@ impl DownloadManager {
             let err_msg = Some(format!(
                 "`{comic_title}`的`{chapter_title}`章节总共有`{total}`张图片，但只下载了`{downloaded_count}`张"
             ));
-            emit_end_event(&self.app, chapter_info.chapter_id.clone(), err_msg);
+            // 发送章节结束事件
+            let _ = DownloadEvent::ChapterEnd {
+                chapter_id: chapter_info.chapter_id.clone(),
+                err_msg,
+            }
+            .emit(&self.app);
             return;
         }
         // 此章节的图片全部下载成功
@@ -263,7 +279,12 @@ impl DownloadManager {
             Ok(()) => None,
             Err(err) => Some(err.to_string_chain()),
         };
-        emit_end_event(&self.app, chapter_info.chapter_id.clone(), err_msg);
+        // 发送章节结束事件
+        let _ = DownloadEvent::ChapterEnd {
+            chapter_id: chapter_info.chapter_id.clone(),
+            err_msg,
+        }
+        .emit(&self.app);
     }
 
     fn save_archive(
@@ -301,7 +322,13 @@ impl DownloadManager {
             Ok(permit) => permit,
             Err(err) => {
                 let err = err.context("获取下载图片的semaphore失败");
-                emit_error_event(&self.app, chapter_id, url, err.to_string_chain());
+                // 发送下载图片失败事件
+                let _ = DownloadEvent::ImageError {
+                    chapter_id,
+                    url,
+                    err_msg: err.to_string_chain(),
+                }
+                .emit(&self.app);
                 return;
             }
         };
@@ -309,7 +336,13 @@ impl DownloadManager {
             Ok(data) => data,
             Err(err) => {
                 let err = err.context(format!("下载图片`{url}`失败"));
-                emit_error_event(&self.app, chapter_id, url, err.to_string_chain());
+                // 发送下载图片失败事件
+                let _ = DownloadEvent::ImageError {
+                    chapter_id,
+                    url,
+                    err_msg: err.to_string_chain(),
+                }
+                .emit(&self.app);
                 return;
             }
         };
@@ -317,7 +350,13 @@ impl DownloadManager {
         // 保存图片
         if let Err(err) = std::fs::write(&save_path, &image_data).map_err(anyhow::Error::from) {
             let err = err.context(format!("保存图片`{save_path:?}`失败"));
-            emit_error_event(&self.app, chapter_id, url, err.to_string_chain());
+            // 发送下载图片失败事件
+            let _ = DownloadEvent::ImageError {
+                chapter_id,
+                url,
+                err_msg: err.to_string_chain(),
+            }
+            .emit(&self.app);
             return;
         }
         // 记录下载字节数
@@ -326,7 +365,13 @@ impl DownloadManager {
         // 更新章节下载进度
         let downloaded_count = downloaded_count.fetch_add(1, Ordering::Relaxed) + 1;
         let save_path = save_path.to_string_lossy().to_string();
-        emit_success_event(&self.app, chapter_id, save_path, downloaded_count);
+        // 发送下载图片成功事件
+        let _ = DownloadEvent::ImageSuccess {
+            chapter_id,
+            url: save_path,
+            downloaded_count,
+        }
+        .emit(&self.app);
     }
 
     // TODO: 将发送获取图片请求的逻辑移到PicaClient中
@@ -361,71 +406,4 @@ fn get_temp_download_dir(app: &AppHandle, chapter_info: &ChapterInfo) -> PathBuf
         .download_dir
         .join(comic_title)
         .join(format!(".下载中-{chapter_title}")) // 以 `.下载中-` 开头，表示是临时目录
-}
-
-fn emit_start_event(app: &AppHandle, chapter_id: String, title: String, total: u32) {
-    let payload = events::DownloadChapterStartEventPayload {
-        chapter_id,
-        title,
-        total,
-    };
-    let event = events::DownloadChapterStartEvent(payload);
-    let _ = event.emit(app);
-}
-
-fn emit_pending_event(app: &AppHandle, chapter_id: String, title: String) {
-    let payload = events::DownloadChapterPendingEventPayload { chapter_id, title };
-    let event = events::DownloadChapterPendingEvent(payload);
-    let _ = event.emit(app);
-}
-
-fn emit_success_event(app: &AppHandle, chapter_id: String, url: String, downloaded_count: u32) {
-    let payload = events::DownloadImageSuccessEventPayload {
-        chapter_id,
-        url,
-        downloaded_count,
-    };
-    let event = events::DownloadImageSuccessEvent(payload);
-    let _ = event.emit(app);
-}
-
-fn emit_error_event(app: &AppHandle, chapter_id: String, url: String, err_msg: String) {
-    let payload = events::DownloadImageErrorEventPayload {
-        chapter_id,
-        url,
-        err_msg,
-    };
-    let event = events::DownloadImageErrorEvent(payload);
-    let _ = event.emit(app);
-}
-
-fn emit_end_event(app: &AppHandle, chapter_id: String, err_msg: Option<String>) {
-    let payload = events::DownloadChapterEndEventPayload {
-        chapter_id,
-        err_msg,
-    };
-    let event = events::DownloadChapterEndEvent(payload);
-    let _ = event.emit(app);
-}
-
-#[allow(clippy::cast_lossless)]
-fn emit_update_overall_progress_event(
-    app: &AppHandle,
-    downloaded_image_count: u32,
-    total_image_count: u32,
-) {
-    let percentage: f64 = downloaded_image_count as f64 / total_image_count as f64 * 100.0;
-    let payload = events::UpdateOverallDownloadProgressEventPayload {
-        downloaded_image_count,
-        total_image_count,
-        percentage,
-    };
-    let event = events::UpdateOverallDownloadProgressEvent(payload);
-    let _ = event.emit(app);
-}
-
-fn emit_download_speed_event(app: &AppHandle, speed: String) {
-    let payload = DownloadSpeedEventPayload { speed };
-    let event = DownloadSpeedEvent(payload);
-    let _ = event.emit(app);
 }
