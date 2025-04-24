@@ -40,6 +40,7 @@ tokio = { version = "1.40.0", features = ["full"] }
 bytes = { version = "1.7.1" }
 showfile = { version = "0.1.1" }
 path-slash = { version = "0.2.1" }
+parking_lot = { version = "0.12.3", features = ["send_guard"] }
 
 
 [profile.release]

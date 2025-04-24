@@ -1,4 +1,5 @@
 use anyhow::Context;
+use parking_lot::RwLock;
 use tauri::{Manager, Wry};
 
 // TODO: 使用 prelude 来消除警告
@@ -80,7 +81,7 @@ pub async fn run() {
                 .context(format!("failed to create app data dir: {app_data_dir:?}"))?;
             println!("app data dir: {app_data_dir:?}");
 
-            let config = std::sync::RwLock::new(Config::new(app.handle())?);
+            let config = RwLock::new(Config::new(app.handle())?);
             let pica_client = PicaClient::new(app.handle().clone());
             let download_manager = DownloadManager::new(app.handle().clone());
 

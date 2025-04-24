@@ -1,9 +1,9 @@
-use std::sync::RwLock;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use chrono::Local;
 use hmac::{Hmac, Mac};
+use parking_lot::RwLock;
 use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
@@ -12,7 +12,6 @@ use tauri::http::StatusCode;
 use tauri::{AppHandle, Manager};
 
 use crate::config::Config;
-use crate::extensions::IgnoreRwLockPoison;
 use crate::responses::{
     ChapterImageRespData, ChapterRespData, ComicInFavoriteRespData, ComicInSearchRespData,
     ComicRespData, GetChapterImageRespData, GetChapterRespData, GetComicRespData,
@@ -60,12 +59,7 @@ impl PicaClient {
     ) -> anyhow::Result<reqwest::Response> {
         let time = Local::now().timestamp().to_string();
         let signature = create_signature(path, &method, &time)?;
-        let token = self
-            .app
-            .state::<RwLock<Config>>()
-            .read_or_panic()
-            .token
-            .clone();
+        let token = self.app.state::<RwLock<Config>>().read().token.clone();
 
         let request = Self::client()
             .request(method.clone(), format!("{HOST_URL}{path}").as_str())
