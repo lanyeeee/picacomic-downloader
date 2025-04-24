@@ -1,13 +1,11 @@
-use std::sync::RwLock;
-
 use chrono::{DateTime, Utc};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{AppHandle, Manager};
 
 use crate::{
     config::Config,
-    extensions::IgnoreRwLockPoison,
     responses::{ChapterRespData, ComicRespData},
     utils::filename_filter,
 };
@@ -124,17 +122,14 @@ impl Comic {
         chapter_title: &str,
         author: &str,
     ) -> bool {
-        let download_with_author = app
-            .state::<RwLock<Config>>()
-            .read_or_panic()
-            .download_with_author;
+        let download_with_author = app.state::<RwLock<Config>>().read().download_with_author;
         let comic_title = if download_with_author {
             &format!("[{author}] {comic_title}")
         } else {
             comic_title
         };
         app.state::<RwLock<Config>>()
-            .read_or_panic()
+            .read()
             .download_dir
             .join(comic_title)
             .join(chapter_title)

@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
+use parking_lot::{Mutex, RwLock};
 use reqwest::StatusCode;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
@@ -18,7 +19,7 @@ use tokio::task::JoinSet;
 use crate::config::Config;
 use crate::events;
 use crate::events::{DownloadSpeedEvent, DownloadSpeedEventPayload};
-use crate::extensions::{AnyhowErrorToStringChain, IgnoreLockPoison, IgnoreRwLockPoison};
+use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
 use crate::types::ChapterInfo;
 
@@ -103,7 +104,6 @@ impl DownloadManager {
         );
 
         let pica_client = self.app.state::<PicaClient>().inner().clone();
-        // TODO: 用parking_lot::Mutex替换std::Mutex
         let images = Arc::new(Mutex::new(vec![]));
         // 先获取该章节的第一页图片
         let first_page = match pica_client
@@ -126,7 +126,7 @@ impl DownloadManager {
                 return;
             }
         };
-        images.lock_or_panic().push((1, first_page.docs));
+        images.lock().push((1, first_page.docs));
         // 根据第一页返回的总页数，创建获取剩下页数图片的任务
         let total_pages = first_page.pages;
         let mut join_set = JoinSet::new();
@@ -155,12 +155,12 @@ impl DownloadManager {
                     }
                 };
 
-                images.lock_or_panic().push((page, image_page.docs));
+                images.lock().push((page, image_page.docs));
             });
         }
         // 等待所有获取图片的任务完成
         join_set.join_all().await;
-        let mut images = std::mem::take(&mut *images.lock_or_panic());
+        let mut images = std::mem::take(&mut *images.lock());
         images.sort_by_key(|(page, _)| *page);
         // 构造图片下载链接
         let urls: Vec<String> = images
@@ -234,7 +234,7 @@ impl DownloadManager {
         let download_interval = self
             .app
             .state::<RwLock<Config>>()
-            .read_or_panic()
+            .read()
             .chapter_download_interval;
         // 等待一段时间再下载下一章节
         tokio::time::sleep(Duration::from_secs(download_interval)).await;
@@ -350,17 +350,14 @@ fn get_temp_download_dir(app: &AppHandle, chapter_info: &ChapterInfo) -> PathBuf
     let author = &chapter_info.author;
     let comic_title = &chapter_info.comic_title;
     let chapter_title = &chapter_info.chapter_title;
-    let download_with_author = app
-        .state::<RwLock<Config>>()
-        .read_or_panic()
-        .download_with_author;
+    let download_with_author = app.state::<RwLock<Config>>().read().download_with_author;
     let comic_title = if download_with_author {
         &format!("[{author}] {comic_title}")
     } else {
         &chapter_info.comic_title
     };
     app.state::<RwLock<Config>>()
-        .read_or_panic()
+        .read()
         .download_dir
         .join(comic_title)
         .join(format!(".下载中-{chapter_title}")) // 以 `.下载中-` 开头，表示是临时目录

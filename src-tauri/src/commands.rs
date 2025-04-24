@@ -1,8 +1,9 @@
 #![allow(clippy::used_underscore_binding)]
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 
 use anyhow::anyhow;
+use parking_lot::{Mutex, RwLock};
 use path_slash::PathBufExt;
 use tauri::{AppHandle, State};
 use tokio::task::JoinSet;
@@ -10,7 +11,6 @@ use tokio::task::JoinSet;
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
 use crate::errors::CommandResult;
-use crate::extensions::IgnoreRwLockPoison;
 use crate::pica_client::PicaClient;
 use crate::responses::{
     ChapterImageRespData, ComicInFavoriteRespData, ComicInSearchRespData, Pagination,
@@ -28,7 +28,7 @@ pub fn greet(name: &str) -> String {
 #[specta::specta]
 #[allow(clippy::needless_pass_by_value)]
 pub fn get_config(config: State<RwLock<Config>>) -> Config {
-    config.read_or_panic().clone()
+    config.read().clone()
 }
 
 #[tauri::command(async)]
@@ -39,7 +39,7 @@ pub fn save_config(
     config_state: State<RwLock<Config>>,
     config: Config,
 ) -> CommandResult<()> {
-    let mut config_state = config_state.write_or_panic();
+    let mut config_state = config_state.write();
     *config_state = config;
     config_state.save(&app)?;
     Ok(())
@@ -95,7 +95,7 @@ pub async fn get_comic(
     // 准备根据章节的第一页获取所有章节
     // 先把第一页的章节放进去
     let chapters = Arc::new(Mutex::new(vec![]));
-    chapters.lock().unwrap().extend(first_page.docs);
+    chapters.lock().extend(first_page.docs);
     // 获取剩下的章节
     let total_pages = first_page.pages;
     let mut join_set = JoinSet::new();
@@ -106,14 +106,14 @@ pub async fn get_comic(
         // 创建获取章节的任务
         join_set.spawn(async move {
             let chapter_page = pica_client.get_chapter(&comic_id, page).await.unwrap();
-            chapters.lock().unwrap().extend(chapter_page.docs);
+            chapters.lock().extend(chapter_page.docs);
         });
     }
     // 等待所有章节获取完毕
     join_set.join_all().await;
     // 按章节顺序排序
     let chapters = {
-        let mut chapters = chapters.lock().unwrap();
+        let mut chapters = chapters.lock();
         chapters.sort_by_key(|chapter| chapter.order);
         std::mem::take(&mut *chapters)
     };
