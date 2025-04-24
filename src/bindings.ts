@@ -97,21 +97,9 @@ async getFavoriteComics(sort: Sort, page: number) : Promise<Result<Pagination<Co
 
 
 export const events = __makeEvents__<{
-downloadChapterEndEvent: DownloadChapterEndEvent,
-downloadChapterPendingEvent: DownloadChapterPendingEvent,
-downloadChapterStartEvent: DownloadChapterStartEvent,
-downloadImageErrorEvent: DownloadImageErrorEvent,
-downloadImageSuccessEvent: DownloadImageSuccessEvent,
-downloadSpeedEvent: DownloadSpeedEvent,
-updateOverallDownloadProgressEvent: UpdateOverallDownloadProgressEvent
+downloadEvent: DownloadEvent
 }>({
-downloadChapterEndEvent: "download-chapter-end-event",
-downloadChapterPendingEvent: "download-chapter-pending-event",
-downloadChapterStartEvent: "download-chapter-start-event",
-downloadImageErrorEvent: "download-image-error-event",
-downloadImageSuccessEvent: "download-image-success-event",
-downloadSpeedEvent: "download-speed-event",
-updateOverallDownloadProgressEvent: "update-overall-download-progress-event"
+downloadEvent: "download-event"
 })
 
 /** user-defined constants **/
@@ -128,24 +116,11 @@ export type ComicInSearchRespData = { _id: string; author?: string; categories: 
 export type CommandError = string
 export type Config = { token: string; downloadDir: string; chapterDownloadInterval: number; downloadWithAuthor: boolean }
 export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
-export type DownloadChapterEndEvent = DownloadChapterEndEventPayload
-export type DownloadChapterEndEventPayload = { chapterId: string; errMsg: string | null }
-export type DownloadChapterPendingEvent = DownloadChapterPendingEventPayload
-export type DownloadChapterPendingEventPayload = { chapterId: string; title: string }
-export type DownloadChapterStartEvent = DownloadChapterStartEventPayload
-export type DownloadChapterStartEventPayload = { chapterId: string; title: string; total: number }
-export type DownloadImageErrorEvent = DownloadImageErrorEventPayload
-export type DownloadImageErrorEventPayload = { chapterId: string; url: string; errMsg: string }
-export type DownloadImageSuccessEvent = DownloadImageSuccessEventPayload
-export type DownloadImageSuccessEventPayload = { chapterId: string; url: string; downloadedCount: number }
-export type DownloadSpeedEvent = DownloadSpeedEventPayload
-export type DownloadSpeedEventPayload = { speed: string }
+export type DownloadEvent = { event: "ChapterPending"; data: { chapterId: string; title: string } } | { event: "ChapterStart"; data: { chapterId: string; title: string; total: number } } | { event: "ImageSuccess"; data: { chapterId: string; url: string; downloadedCount: number } } | { event: "ImageError"; data: { chapterId: string; url: string; errMsg: string } } | { event: "ChapterEnd"; data: { chapterId: string; errMsg: string | null } } | { event: "OverallUpdate"; data: { downloadedImageCount: number; totalImageCount: number; percentage: number } } | { event: "Speed"; data: { speed: string } }
 export type Image = { originalName: string; path: string; fileServer: string }
 export type ImageRespData = { originalName: string; path: string; fileServer: string }
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
 export type Sort = "Default" | "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"
-export type UpdateOverallDownloadProgressEvent = UpdateOverallDownloadProgressEventPayload
-export type UpdateOverallDownloadProgressEventPayload = { downloadedImageCount: number; totalImageCount: number; percentage: number }
 export type UserProfileDetailRespData = { _id: string; gender: string; name: string; title: string; verified: boolean; exp: number; level: number; characters: string[]; avatar?: ImageRespData; birthday: string; email: string; created_at: string; isPunched: boolean }
 
 /** tauri-specta globals **/

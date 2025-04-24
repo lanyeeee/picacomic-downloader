@@ -6,7 +6,7 @@ use tauri::{Manager, Wry};
 use crate::commands::*;
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
-use crate::events::prelude::*;
+use crate::events::DownloadEvent;
 use crate::pica_client::PicaClient;
 
 mod commands;
@@ -43,15 +43,7 @@ pub async fn run() {
             show_path_in_file_manager,
             get_favorite_comics,
         ])
-        .events(tauri_specta::collect_events![
-            DownloadChapterEndEvent,
-            DownloadChapterPendingEvent,
-            DownloadChapterStartEvent,
-            DownloadImageErrorEvent,
-            DownloadImageSuccessEvent,
-            DownloadSpeedEvent,
-            UpdateOverallDownloadProgressEvent
-        ]);
+        .events(tauri_specta::collect_events![DownloadEvent]);
 
     #[cfg(debug_assertions)]
     builder
