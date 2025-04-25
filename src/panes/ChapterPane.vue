@@ -39,11 +39,11 @@ function extractIds(elements: Element[]): string[] {
     .filter(Boolean)
     .filter((id) => id !== null)
     .filter((id) => {
-      const chapter = pickedComic.value?.chapters.find((chapter) => chapter.chapterId === id)
+      const chapter = pickedComic.value?.chapterInfos.find((chapter) => chapter.chapterId === id)
       if (chapter === undefined) {
         return false
       }
-      return !chapter.isDownloaded
+      return chapter.isDownloaded !== true
     })
 }
 
@@ -89,8 +89,8 @@ function onDropdownSelect(key: 'check' | 'uncheck' | 'check all' | 'uncheck all'
     checkedIds.value = checkedIds.value.filter((id) => !selectedIds.value.has(id))
   } else if (key === 'check all') {
     // 只有未锁定的才会被勾选
-    pickedComic.value?.chapters
-      .filter((chapter) => !chapter.isDownloaded && !checkedIds.value.includes(chapter.chapterId))
+    pickedComic.value?.chapterInfos
+      .filter((chapter) => chapter.isDownloaded !== true && !checkedIds.value.includes(chapter.chapterId))
       .forEach((chapter) => checkedIds.value.push(chapter.chapterId))
   } else if (key === 'uncheck all') {
     checkedIds.value.length = 0
@@ -106,8 +106,8 @@ async function onContextMenu(e: MouseEvent) {
 }
 
 async function downloadChapters() {
-  const chaptersToDownload = pickedComic.value?.chapters.filter(
-    (chapter) => !chapter.isDownloaded && checkedIds.value.includes(chapter.chapterId),
+  const chaptersToDownload = pickedComic.value?.chapterInfos.filter(
+    (chapter) => chapter.isDownloaded !== true && checkedIds.value.includes(chapter.chapterId),
   )
   if (chaptersToDownload === undefined) {
     return
@@ -115,7 +115,7 @@ async function downloadChapters() {
   await commands.downloadChapters(chaptersToDownload)
 
   for (const downloadedChapter of chaptersToDownload) {
-    const chapter = pickedComic.value?.chapters.find((chapter) => chapter.chapterId === downloadedChapter.chapterId)
+    const chapter = pickedComic.value?.chapterInfos.find((chapter) => chapter.chapterId === downloadedChapter.chapterId)
     if (chapter !== undefined) {
       chapter.isDownloaded = true
       checkedIds.value = checkedIds.value.filter((id) => id !== downloadedChapter.chapterId)
@@ -156,14 +156,14 @@ async function refreshChapters() {
       </div>
       <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 pt-2 overflow-auto">
         <n-checkbox
-          v-for="{ chapterId, chapterTitle, isDownloaded } in pickedComic.chapters"
+          v-for="{ chapterId, chapterTitle, isDownloaded } in pickedComic.chapterInfos"
           :key="chapterId"
           :data-key="chapterId"
           class="selectable hover:bg-gray-200!"
           :value="chapterId"
           :label="chapterTitle"
-          :disabled="isDownloaded"
-          :class="{ selected: selectedIds.has(chapterId), downloaded: isDownloaded }" />
+          :disabled="isDownloaded === true"
+          :class="{ selected: selectedIds.has(chapterId), downloaded: isDownloaded === true }" />
       </n-checkbox-group>
     </SelectionArea>
 

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -21,7 +23,7 @@ pub struct Comic {
     #[serde(default)]
     pub author: String,
     pub pages_count: i64,
-    pub chapters: Vec<ChapterInfo>,
+    pub chapter_infos: Vec<ChapterInfo>,
     pub chapter_count: i64,
     pub finished: bool,
     pub categories: Vec<String>,
@@ -46,23 +48,19 @@ pub struct Comic {
 
 impl Comic {
     pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Self {
-        let comic_title = filename_filter(&comic.title);
-        let author = filename_filter(&comic.author);
-
-        let chapters: Vec<ChapterInfo> = chapters
+        let chapter_infos: Vec<ChapterInfo> = chapters
             .into_iter()
-            .map(|chapter| {
-                let chapter_title = filename_filter(&chapter.title);
+            .map(|chapter_info| {
                 let is_downloaded =
-                    Self::get_is_downloaded(app, &comic_title, &chapter_title, &author);
+                    Self::get_is_downloaded(app, &comic.title, &chapter_info.title, &comic.author);
                 ChapterInfo {
-                    chapter_id: chapter.id,
-                    chapter_title,
+                    chapter_id: chapter_info.id,
+                    chapter_title: chapter_info.title,
                     comic_id: comic.id.clone(),
-                    comic_title: comic_title.clone(),
-                    author: author.clone(),
-                    is_downloaded,
-                    order: chapter.order,
+                    comic_title: comic.title.clone(),
+                    author: comic.author.clone(),
+                    is_downloaded: Some(is_downloaded),
+                    order: chapter_info.order,
                 }
             })
             .collect();
@@ -97,7 +95,7 @@ impl Comic {
             title: comic.title,
             author: comic.author,
             pages_count: comic.pages_count,
-            chapters,
+            chapter_infos,
             chapter_count: comic.eps_count,
             finished: comic.finished,
             categories: comic.categories,
@@ -116,24 +114,31 @@ impl Comic {
         }
     }
 
+    pub fn get_comic_download_dir(app: &AppHandle, comic_title: &str, author: &str) -> PathBuf {
+        let author = filename_filter(author);
+        let comic_title = filename_filter(comic_title);
+
+        let download_with_author = app.state::<RwLock<Config>>().read().download_with_author;
+        let dir_name = if download_with_author {
+            format!("[{author}] {comic_title}")
+        } else {
+            comic_title
+        };
+
+        app.state::<RwLock<Config>>()
+            .read()
+            .download_dir
+            .join(dir_name)
+    }
+
     fn get_is_downloaded(
         app: &AppHandle,
         comic_title: &str,
         chapter_title: &str,
         author: &str,
     ) -> bool {
-        let download_with_author = app.state::<RwLock<Config>>().read().download_with_author;
-        let comic_title = if download_with_author {
-            &format!("[{author}] {comic_title}")
-        } else {
-            comic_title
-        };
-        app.state::<RwLock<Config>>()
-            .read()
-            .download_dir
-            .join(comic_title)
-            .join(chapter_title)
-            .exists()
+        let comic_download_dir = Self::get_comic_download_dir(app, comic_title, author);
+        comic_download_dir.join(chapter_title).exists()
     }
 }
 
