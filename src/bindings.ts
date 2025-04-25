@@ -90,6 +90,14 @@ async getFavoriteComics(sort: Sort, page: number) : Promise<Result<Pagination<Co
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async saveMetadata(comic: Comic) : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_metadata", { comic }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -109,8 +117,8 @@ downloadEvent: "download-event"
 /** user-defined types **/
 
 export type ChapterImageRespData = { _id: string; media: ImageRespData }
-export type ChapterInfo = { chapterId: string; chapterTitle: string; comicId: string; comicTitle: string; author: string; isDownloaded: boolean; order: number }
-export type Comic = { _id: string; title: string; author?: string; pagesCount: number; chapters: ChapterInfo[]; chapterCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; _creator: Creator; description?: string; chineseTeam?: string; tags: string[]; updated_at: string; created_at: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number }
+export type ChapterInfo = { chapterId: string; chapterTitle: string; comicId: string; comicTitle: string; author: string; isDownloaded?: boolean | null; order: number }
+export type Comic = { _id: string; title: string; author?: string; pagesCount: number; chapterInfos: ChapterInfo[]; chapterCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; _creator: Creator; description?: string; chineseTeam?: string; tags: string[]; updated_at: string; created_at: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number }
 export type ComicInFavoriteRespData = { _id: string; title: string; author?: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number }
 export type ComicInSearchRespData = { _id: string; author?: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes?: number | null; totalViews?: number | null; updated_at: string }
 export type CommandError = string

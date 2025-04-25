@@ -157,9 +157,9 @@ pub async fn download_comic(
 ) -> CommandResult<()> {
     let comic = get_comic(app, pica_client, comic_id).await?;
     let chapter_infos: Vec<ChapterInfo> = comic
-        .chapters
+        .chapter_infos
         .into_iter()
-        .filter(|chapter_info| !chapter_info.is_downloaded)
+        .filter(|chapter_info| chapter_info.is_downloaded != Some(true))
         .collect();
     if chapter_infos.is_empty() {
         let comic_title = comic.title;
@@ -190,4 +190,29 @@ pub async fn get_favorite_comics(
 ) -> CommandResult<Pagination<ComicInFavoriteRespData>> {
     let favorite_comics = pica_client.get_favorite_comics(sort, page).await?;
     Ok(favorite_comics)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn save_metadata(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
+    // 将所有章节的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
+    for chapter in &mut comic.chapter_infos {
+        chapter.is_downloaded = None;
+    }
+
+    let comic_title = comic.title.clone();
+    let comic_json = serde_json::to_string_pretty(&comic).context(format!(
+        "`{comic_title}`的元数据保存失败，将Comic序列化为json失败"
+    ))?;
+    let comic_download_dir = Comic::get_comic_download_dir(&app, &comic_title, &comic.author);
+    let metadata_path = comic_download_dir.join("元数据.json");
+
+    std::fs::create_dir_all(&comic_download_dir)
+        .context(format!("创建目录`{comic_download_dir:?}`失败"))?;
+
+    std::fs::write(&metadata_path, comic_json)
+        .context(format!("写入文件`{metadata_path:?}`失败"))?;
+
+    Ok(())
 }

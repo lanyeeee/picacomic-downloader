@@ -201,9 +201,11 @@ impl DownloadManager {
             }
         };
         // 创建临时下载目录
-        let temp_download_dir = get_temp_download_dir(&self.app, &chapter_info);
-        if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
-            let err = err.context(format!("创建目录`{temp_download_dir:?}`失败"));
+        let chapter_temp_download_dir = chapter_info.get_chapter_temp_download_dir(&self.app);
+        if let Err(err) =
+            std::fs::create_dir_all(&chapter_temp_download_dir).map_err(anyhow::Error::from)
+        {
+            let err = err.context(format!("创建目录`{chapter_temp_download_dir:?}`失败"));
             let _ = DownloadEvent::ChapterEnd {
                 chapter_id: chapter_info.chapter_id.clone(),
                 err_msg: Some(err.to_string_chain()),
@@ -221,7 +223,7 @@ impl DownloadManager {
         for (i, url) in urls.iter().enumerate() {
             let manager = self.clone();
             let chapter_id = chapter_info.chapter_id.clone();
-            let save_path = temp_download_dir.join(format!("{:03}.jpg", i + 1));
+            let save_path = chapter_temp_download_dir.join(format!("{:03}.jpg", i + 1));
             let url = url.clone();
             let downloaded_count = downloaded_count.clone();
             // 创建下载任务
@@ -275,7 +277,9 @@ impl DownloadManager {
             return;
         }
         // 此章节的图片全部下载成功
-        let err_msg = match self.save_archive(&chapter_info, &temp_download_dir) {
+        let err_msg = match self
+            .rename_chapter_temp_download_dir(&chapter_info, &chapter_temp_download_dir)
+        {
             Ok(()) => None,
             Err(err) => Some(err.to_string_chain()),
         };
@@ -287,24 +291,20 @@ impl DownloadManager {
         .emit(&self.app);
     }
 
-    fn save_archive(
+    fn rename_chapter_temp_download_dir(
         &self,
         chapter_info: &ChapterInfo,
-        temp_download_dir: &PathBuf,
+        chapter_temp_download_dir: &PathBuf,
     ) -> anyhow::Result<()> {
-        let Some(parent) = temp_download_dir.parent() else {
-            return Err(anyhow!("无法获取 {temp_download_dir:?} 的父目录"));
-        };
+        let chapter_download_dir = chapter_info.get_chapter_download_dir(&self.app);
 
-        let download_dir = parent.join(&chapter_info.chapter_title);
-
-        if download_dir.exists() {
-            std::fs::remove_dir_all(&download_dir)
-                .context(format!("删除 {download_dir:?} 失败"))?;
+        if chapter_download_dir.exists() {
+            std::fs::remove_dir_all(&chapter_download_dir)
+                .context(format!("删除 {chapter_download_dir:?} 失败"))?;
         }
 
-        std::fs::rename(temp_download_dir, &download_dir).context(format!(
-            "将 {temp_download_dir:?} 重命名为 {download_dir:?} 失败"
+        std::fs::rename(chapter_temp_download_dir, &chapter_download_dir).context(format!(
+            "将 {chapter_temp_download_dir:?} 重命名为 {chapter_download_dir:?} 失败"
         ))?;
 
         Ok(())
@@ -389,21 +389,4 @@ impl DownloadManager {
 
         Ok(image_data)
     }
-}
-
-fn get_temp_download_dir(app: &AppHandle, chapter_info: &ChapterInfo) -> PathBuf {
-    let author = &chapter_info.author;
-    let comic_title = &chapter_info.comic_title;
-    let chapter_title = &chapter_info.chapter_title;
-    let download_with_author = app.state::<RwLock<Config>>().read().download_with_author;
-    let comic_title = if download_with_author {
-        &format!("[{author}] {comic_title}")
-    } else {
-        &chapter_info.comic_title
-    };
-    app.state::<RwLock<Config>>()
-        .read()
-        .download_dir
-        .join(comic_title)
-        .join(format!(".下载中-{chapter_title}")) // 以 `.下载中-` 开头，表示是临时目录
 }
