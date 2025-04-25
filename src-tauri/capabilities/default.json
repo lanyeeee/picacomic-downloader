@@ -8,15 +8,6 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "dialog:allow-open",
-    "fs:default",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        {
-          "path": "$APPDATA/**"
-        }
-      ]
-    }
+    "dialog:allow-open"
   ]
 }
