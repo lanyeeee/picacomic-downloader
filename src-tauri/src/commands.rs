@@ -1,11 +1,10 @@
 #![allow(clippy::used_underscore_binding)]
-use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use parking_lot::{Mutex, RwLock};
-use path_slash::PathBufExt;
 use tauri::{AppHandle, State};
+use tauri_plugin_opener::OpenerExt;
 use tokio::task::JoinSet;
 
 use crate::config::Config;
@@ -172,14 +171,13 @@ pub async fn download_comic(
     Ok(())
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn show_path_in_file_manager(path: &str) -> CommandResult<()> {
-    let path = PathBuf::from_slash(path);
-    if !path.exists() {
-        return Err(anyhow!("路径`{path:?}`不存在").into());
-    }
-    showfile::show_path_in_file_manager(path);
+pub fn show_path_in_file_manager(app: AppHandle, path: &str) -> CommandResult<()> {
+    app.opener()
+        .reveal_item_in_dir(path)
+        .context(format!("在文件管理器中打开`{path}`失败"))?;
     Ok(())
 }
 

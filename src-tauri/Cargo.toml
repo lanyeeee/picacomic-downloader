@@ -16,7 +16,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-shell = { version = "2" }
+tauri-plugin-opener = { version = "2" }
 tauri-plugin-dialog = { version = "2" }
 tauri-plugin-fs = { version = "2" }
 
@@ -39,8 +39,6 @@ anyhow = { version = "1" }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1.40.0", features = ["full"] }
 bytes = { version = "1.7.1" }
-showfile = { version = "0.1.1" }
-path-slash = { version = "0.2.1" }
 parking_lot = { version = "0.12.3", features = ["send_guard"] }
 
 
