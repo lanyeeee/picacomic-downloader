@@ -10,6 +10,7 @@ use tokio::task::JoinSet;
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
 use crate::errors::CommandResult;
+use crate::export;
 use crate::pica_client::PicaClient;
 use crate::responses::{
     ChapterImageRespData, ComicInFavoriteRespData, ComicInSearchRespData, Pagination,
@@ -249,4 +250,13 @@ pub fn get_downloaded_comics(
         .collect::<Vec<_>>();
 
     Ok(downloaded_comics)
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+#[allow(clippy::needless_pass_by_value)]
+pub fn export_cbz(app: AppHandle, comic: Comic) -> CommandResult<()> {
+    let comic_title = &comic.title;
+    export::cbz(&app, &comic).context(format!("漫画`{comic_title}`导出cbz失败"))?;
+    Ok(())
 }

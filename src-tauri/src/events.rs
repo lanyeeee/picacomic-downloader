@@ -45,3 +45,20 @@ pub enum DownloadEvent {
     #[serde(rename_all = "camelCase")]
     Speed { speed: String },
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "event", content = "data")]
+pub enum ExportCbzEvent {
+    #[serde(rename_all = "camelCase")]
+    Start {
+        uuid: String,
+        comic_title: String,
+        total: u32,
+    },
+    #[serde(rename_all = "camelCase")]
+    Progress { uuid: String, current: u32 },
+    #[serde(rename_all = "camelCase")]
+    Error { uuid: String },
+    #[serde(rename_all = "camelCase")]
+    End { uuid: String },
+}

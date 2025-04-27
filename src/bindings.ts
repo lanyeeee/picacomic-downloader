@@ -106,6 +106,14 @@ async getDownloadedComics() : Promise<Result<Comic[], CommandError>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async exportCbz(comic: Comic) : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_cbz", { comic }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -113,9 +121,11 @@ async getDownloadedComics() : Promise<Result<Comic[], CommandError>> {
 
 
 export const events = __makeEvents__<{
-downloadEvent: DownloadEvent
+downloadEvent: DownloadEvent,
+exportCbzEvent: ExportCbzEvent
 }>({
-downloadEvent: "download-event"
+downloadEvent: "download-event",
+exportCbzEvent: "export-cbz-event"
 })
 
 /** user-defined constants **/
@@ -130,9 +140,10 @@ export type Comic = { _id: string; title: string; author?: string; pagesCount: n
 export type ComicInFavoriteRespData = { _id: string; title: string; author?: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number }
 export type ComicInSearchRespData = { _id: string; author?: string; categories: string[]; chineseTeam?: string; created_at: string; description?: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes?: number | null; totalViews?: number | null; updated_at: string }
 export type CommandError = string
-export type Config = { token: string; downloadDir: string; chapterDownloadInterval: number; downloadWithAuthor: boolean }
+export type Config = { token: string; downloadDir: string; exportDir: string; chapterDownloadInterval: number; downloadWithAuthor: boolean }
 export type Creator = { _id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar?: Image; slogan?: string; role: string; character?: string }
 export type DownloadEvent = { event: "ChapterPending"; data: { chapterId: string; title: string } } | { event: "ChapterStart"; data: { chapterId: string; title: string; total: number } } | { event: "ImageSuccess"; data: { chapterId: string; url: string; downloadedCount: number } } | { event: "ImageError"; data: { chapterId: string; url: string; errMsg: string } } | { event: "ChapterEnd"; data: { chapterId: string; errMsg: string | null } } | { event: "OverallUpdate"; data: { downloadedImageCount: number; totalImageCount: number; percentage: number } } | { event: "Speed"; data: { speed: string } }
+export type ExportCbzEvent = { event: "Start"; data: { uuid: string; comicTitle: string; total: number } } | { event: "Progress"; data: { uuid: string; current: number } } | { event: "Error"; data: { uuid: string } } | { event: "End"; data: { uuid: string } }
 export type Image = { originalName: string; path: string; fileServer: string }
 export type ImageRespData = { originalName: string; path: string; fileServer: string }
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }

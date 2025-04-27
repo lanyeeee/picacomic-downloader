@@ -51,21 +51,21 @@ impl Comic {
     pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Self {
         let chapter_infos: Vec<ChapterInfo> = chapters
             .into_iter()
-            .map(|chapter_info| {
+            .map(|chapter_resp_data| {
                 let is_downloaded = ChapterInfo::get_is_downloaded(
                     app,
                     &comic.title,
-                    &chapter_info.title,
+                    &chapter_resp_data.title,
                     &comic.author,
                 );
                 ChapterInfo {
-                    chapter_id: chapter_info.id,
-                    chapter_title: chapter_info.title,
+                    chapter_id: chapter_resp_data.id,
+                    chapter_title: chapter_resp_data.title,
                     comic_id: comic.id.clone(),
                     comic_title: comic.title.clone(),
                     author: comic.author.clone(),
                     is_downloaded: Some(is_downloaded),
-                    order: chapter_info.order,
+                    order: chapter_resp_data.order,
                 }
             })
             .collect();
@@ -139,20 +139,31 @@ impl Comic {
     }
 
     pub fn get_comic_download_dir(app: &AppHandle, comic_title: &str, author: &str) -> PathBuf {
+        let comic_dir_name = Self::comic_dir_name(app, comic_title, author);
+        app.state::<RwLock<Config>>()
+            .read()
+            .download_dir
+            .join(comic_dir_name)
+    }
+
+    pub fn get_comic_export_dir(app: &AppHandle, comic_title: &str, author: &str) -> PathBuf {
+        let comic_dir_name = Self::comic_dir_name(app, comic_title, author);
+        app.state::<RwLock<Config>>()
+            .read()
+            .export_dir
+            .join(comic_dir_name)
+    }
+
+    fn comic_dir_name(app: &AppHandle, comic_title: &str, author: &str) -> String {
         let author = filename_filter(author);
         let comic_title = filename_filter(comic_title);
 
         let download_with_author = app.state::<RwLock<Config>>().read().download_with_author;
-        let dir_name = if download_with_author {
+        if download_with_author {
             format!("[{author}] {comic_title}")
         } else {
             comic_title
-        };
-
-        app.state::<RwLock<Config>>()
-            .read()
-            .download_dir
-            .join(dir_name)
+        }
     }
 }
 
