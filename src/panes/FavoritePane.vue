@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ComicCard from '../components/ComicCard.vue'
 import { computed, ref, watch } from 'vue'
-import { ComicInfo } from '../types.ts'
+import { ComicInfo, CurrentTabName } from '../types.ts'
 import { ComicInFavoriteRespData, commands, Pagination, Sort } from '../bindings.ts'
 import { useNotification } from 'naive-ui'
 
@@ -9,7 +9,7 @@ const notification = useNotification()
 
 const props = defineProps<{
   searchById: (comicId: string) => void
-  currentTabName: 'search' | 'favorite' | 'chapter'
+  currentTabName: CurrentTabName
 }>()
 
 const comicInFavoritePagination = ref<Pagination<ComicInFavoriteRespData>>()

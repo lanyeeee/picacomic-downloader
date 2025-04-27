@@ -7,3 +7,5 @@ export type ComicInfo = {
   categories: string[]
   thumb: ImageRespData
 }
+
+export type CurrentTabName = 'search' | 'favorite' | 'downloaded' | 'chapter'
