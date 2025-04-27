@@ -10,17 +10,19 @@ use tauri::{AppHandle, Manager};
 pub struct Config {
     pub token: String,
     pub download_dir: PathBuf,
+    pub export_dir: PathBuf,
     pub chapter_download_interval: u64,
     pub download_with_author: bool,
 }
 
 impl Config {
     pub fn new(app: &AppHandle) -> anyhow::Result<Self> {
-        let resource_dir = app.path().app_data_dir()?;
-        let config_path = resource_dir.join("config.json");
+        let app_data_dir = app.path().app_data_dir()?;
+        let config_path = app_data_dir.join("config.json");
         let default_config = Config {
             token: String::new(),
-            download_dir: app.path().app_data_dir()?.join("漫画下载"),
+            download_dir: app_data_dir.join("漫画下载"),
+            export_dir: app_data_dir.join("漫画导出"),
             chapter_download_interval: 0,
             download_with_author: false,
         };

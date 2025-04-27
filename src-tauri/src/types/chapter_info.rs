@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::AppHandle;
 
+use crate::utils::filename_filter;
+
 use super::Comic;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -24,14 +26,16 @@ impl ChapterInfo {
         let comic_download_dir =
             Comic::get_comic_download_dir(app, &self.comic_title, &self.author);
 
-        let chapter_title = &self.chapter_title;
+        let chapter_title = filename_filter(&self.chapter_title);
         comic_download_dir.join(format!(".下载中-{chapter_title}")) // 以 `.下载中-` 开头，表示是临时目录
     }
 
     pub fn get_chapter_download_dir(&self, app: &AppHandle) -> PathBuf {
         let comic_download_dir =
             Comic::get_comic_download_dir(app, &self.comic_title, &self.author);
-        comic_download_dir.join(&self.chapter_title)
+
+        let chapter_title = filename_filter(&self.chapter_title);
+        comic_download_dir.join(chapter_title)
     }
 
     pub fn get_is_downloaded(
@@ -41,6 +45,8 @@ impl ChapterInfo {
         author: &str,
     ) -> bool {
         let comic_download_dir = Comic::get_comic_download_dir(app, comic_title, author);
+
+        let chapter_title = filename_filter(chapter_title);
         comic_download_dir.join(chapter_title).exists()
     }
 }

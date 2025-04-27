@@ -1,4 +1,5 @@
 use anyhow::Context;
+use events::ExportCbzEvent;
 use parking_lot::RwLock;
 use tauri::{Manager, Wry};
 
@@ -14,6 +15,7 @@ mod config;
 mod download_manager;
 mod errors;
 mod events;
+mod export;
 mod extensions;
 mod pica_client;
 mod responses;
@@ -44,8 +46,9 @@ pub async fn run() {
             get_favorite_comics,
             save_metadata,
             get_downloaded_comics,
+            export_cbz,
         ])
-        .events(tauri_specta::collect_events![DownloadEvent]);
+        .events(tauri_specta::collect_events![DownloadEvent, ExportCbzEvent]);
 
     #[cfg(debug_assertions)]
     builder
