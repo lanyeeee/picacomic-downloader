@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -51,8 +52,12 @@ impl Comic {
         let chapter_infos: Vec<ChapterInfo> = chapters
             .into_iter()
             .map(|chapter_info| {
-                let is_downloaded =
-                    Self::get_is_downloaded(app, &comic.title, &chapter_info.title, &comic.author);
+                let is_downloaded = ChapterInfo::get_is_downloaded(
+                    app,
+                    &comic.title,
+                    &chapter_info.title,
+                    &comic.author,
+                );
                 ChapterInfo {
                     chapter_id: chapter_info.id,
                     chapter_title: chapter_info.title,
@@ -114,6 +119,25 @@ impl Comic {
         }
     }
 
+    pub fn from_metadata(app: &AppHandle, metadata_path: &Path) -> anyhow::Result<Comic> {
+        let comic_json = std::fs::read_to_string(metadata_path).context(format!(
+            "从元数据转为Comic失败，读取元数据文件 {metadata_path:?} 失败"
+        ))?;
+        let mut comic = serde_json::from_str::<Comic>(&comic_json).context(format!(
+            "从元数据转为Comic失败，将 {metadata_path:?} 反序列化为Comic失败"
+        ))?;
+        // 这个comic中的is_downloaded字段是None，需要重新计算
+        for chapter_info in &mut comic.chapter_infos {
+            let comic_title = &comic.title;
+            let chapter_title = &chapter_info.chapter_title;
+            let author = &comic.author;
+            let is_downloaded =
+                ChapterInfo::get_is_downloaded(app, comic_title, chapter_title, author);
+            chapter_info.is_downloaded = Some(is_downloaded);
+        }
+        Ok(comic)
+    }
+
     pub fn get_comic_download_dir(app: &AppHandle, comic_title: &str, author: &str) -> PathBuf {
         let author = filename_filter(author);
         let comic_title = filename_filter(comic_title);
@@ -129,16 +153,6 @@ impl Comic {
             .read()
             .download_dir
             .join(dir_name)
-    }
-
-    fn get_is_downloaded(
-        app: &AppHandle,
-        comic_title: &str,
-        chapter_title: &str,
-        author: &str,
-    ) -> bool {
-        let comic_download_dir = Self::get_comic_download_dir(app, comic_title, author);
-        comic_download_dir.join(chapter_title).exists()
     }
 }
 

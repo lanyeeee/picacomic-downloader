@@ -33,4 +33,14 @@ impl ChapterInfo {
             Comic::get_comic_download_dir(app, &self.comic_title, &self.author);
         comic_download_dir.join(&self.chapter_title)
     }
+
+    pub fn get_is_downloaded(
+        app: &AppHandle,
+        comic_title: &str,
+        chapter_title: &str,
+        author: &str,
+    ) -> bool {
+        let comic_download_dir = Comic::get_comic_download_dir(app, comic_title, author);
+        comic_download_dir.join(chapter_title).exists()
+    }
 }
