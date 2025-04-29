@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { commands, Config } from '../bindings.ts'
+import { commands } from '../bindings.ts'
 import { path } from '@tauri-apps/api'
 import { appDataDir } from '@tauri-apps/api/path'
 import { useNotification } from 'naive-ui'
+import { useStore } from '../store.ts'
 
 const notification = useNotification()
 
+const store = useStore()
+
 const showing = defineModel<boolean>('showing', { required: true })
-const config = defineModel<Config>('config', { required: true })
 
 async function showConfigInFileManager() {
   const configName = 'config.json'
@@ -20,13 +22,13 @@ async function showConfigInFileManager() {
 </script>
 
 <template>
-  <n-modal v-model:show="showing">
+  <n-modal v-model:show="showing" v-if="store.config !== undefined">
     <n-dialog :showIcon="false" title="配置" @close="showing = false">
       <div class="flex flex-col gap-row-2">
         <n-input-group class="box-border">
           <n-input-group-label size="small">每个章节下载完成后休息</n-input-group-label>
           <n-input-number
-            v-model:value="config.chapterDownloadInterval"
+            v-model:value="store.config.chapterDownloadInterval"
             :update-value-on-input="false"
             :min="0"
             size="small" />
@@ -34,7 +36,9 @@ async function showConfigInFileManager() {
         </n-input-group>
         <n-tooltip placement="top" trigger="hover">
           <template #trigger>
-            <n-checkbox v-model:checked="config.downloadWithAuthor" class="mr-auto">在漫画名前面附加作者名</n-checkbox>
+            <n-checkbox v-model:checked="store.config.downloadWithAuthor" class="mr-auto">
+              在漫画名前面附加作者名
+            </n-checkbox>
           </template>
           [作者名] 漫画名
         </n-tooltip>

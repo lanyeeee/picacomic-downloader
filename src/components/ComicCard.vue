@@ -2,20 +2,32 @@
 import { ComicInfo } from '../types.ts'
 import { commands } from '../bindings.ts'
 import { useNotification } from 'naive-ui'
+import { useStore } from '../store.ts'
+
+const store = useStore()
 
 const notification = useNotification()
 
-defineProps<{
+const props = defineProps<{
   comicInfo: ComicInfo
-  onClickItem: (comicId: string) => void
 }>()
 
-async function downloadComic(comicId: string) {
-  const result = await commands.downloadComic(comicId)
+async function downloadComic() {
+  const result = await commands.downloadComic(props.comicInfo._id)
   if (result.status === 'error') {
     notification.error({ title: '下载漫画失败', description: result.error })
     return
   }
+}
+
+async function pickComic() {
+  const result = await commands.getComic(props.comicInfo._id)
+  if (result.status === 'error') {
+    notification.error({ title: '获取章节详情失败', description: result.error })
+    return
+  }
+  store.pickedComic = result.data
+  store.currentTabName = 'chapter'
 }
 </script>
 
@@ -27,18 +39,18 @@ async function downloadComic(comicId: string) {
         :src="`${comicInfo.thumb.fileServer}/static/${comicInfo.thumb.path}`"
         alt=""
         referrerpolicy="no-referrer"
-        @click="onClickItem(comicInfo._id)" />
+        @click="pickComic" />
       <div class="flex flex-col w-full justify-between">
         <div class="flex flex-col">
           <span
             class="font-bold text-xl line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
-            @click="onClickItem(comicInfo._id)">
+            @click="pickComic">
             {{ comicInfo.title }}
           </span>
           <span class="text-red">作者：{{ comicInfo.author }}</span>
           <span class="text-gray" v-html="`分类：${comicInfo.categories}`"></span>
         </div>
-        <n-button size="tiny" class="ml-auto" @click="downloadComic(comicInfo._id)">一键下载所有章节</n-button>
+        <n-button size="tiny" class="ml-auto" @click="downloadComic">一键下载所有章节</n-button>
       </div>
     </div>
   </n-card>
