@@ -223,6 +223,7 @@ impl DownloadManager {
         for (i, url) in urls.iter().enumerate() {
             let manager = self.clone();
             let chapter_id = chapter_info.chapter_id.clone();
+            // TODO: 要做图片类型检查，目前发现有些图片是png格式
             let save_path = chapter_temp_download_dir.join(format!("{:03}.jpg", i + 1));
             let url = url.clone();
             let downloaded_count = downloaded_count.clone();
