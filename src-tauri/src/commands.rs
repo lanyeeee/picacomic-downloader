@@ -252,11 +252,20 @@ pub fn get_downloaded_comics(
     Ok(downloaded_comics)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-#[allow(clippy::needless_pass_by_value)]
 pub fn export_cbz(app: AppHandle, comic: Comic) -> CommandResult<()> {
     let comic_title = &comic.title;
     export::cbz(&app, &comic).context(format!("漫画`{comic_title}`导出cbz失败"))?;
+    Ok(())
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn export_pdf(app: AppHandle, comic: Comic) -> CommandResult<()> {
+    let comic_title = &comic.title;
+    export::pdf(&app, &comic).context(format!("漫画`{comic_title}`导出pdf失败"))?;
     Ok(())
 }
