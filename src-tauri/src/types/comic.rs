@@ -57,6 +57,7 @@ impl Comic {
                     &comic.title,
                     &chapter_resp_data.title,
                     &comic.author,
+                    chapter_resp_data.order,
                 );
                 ChapterInfo {
                     chapter_id: chapter_resp_data.id,
@@ -128,11 +129,13 @@ impl Comic {
         ))?;
         // 这个comic中的is_downloaded字段是None，需要重新计算
         for chapter_info in &mut comic.chapter_infos {
-            let comic_title = &comic.title;
-            let chapter_title = &chapter_info.chapter_title;
-            let author = &comic.author;
-            let is_downloaded =
-                ChapterInfo::get_is_downloaded(app, comic_title, chapter_title, author);
+            let is_downloaded = ChapterInfo::get_is_downloaded(
+                app,
+                &chapter_info.comic_title,
+                &chapter_info.chapter_title,
+                &comic.author,
+                chapter_info.order,
+            );
             chapter_info.is_downloaded = Some(is_downloaded);
         }
         Ok(comic)

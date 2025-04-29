@@ -26,16 +26,20 @@ impl ChapterInfo {
         let comic_download_dir =
             Comic::get_comic_download_dir(app, &self.comic_title, &self.author);
 
+        let order = self.order;
         let chapter_title = filename_filter(&self.chapter_title);
-        comic_download_dir.join(format!(".下载中-{chapter_title}")) // 以 `.下载中-` 开头，表示是临时目录
+        let prefixed_chapter_title = format!("{order} {chapter_title}");
+        comic_download_dir.join(format!(".下载中-{prefixed_chapter_title}")) // 以 `.下载中-` 开头，表示是临时目录
     }
 
     pub fn get_chapter_download_dir(&self, app: &AppHandle) -> PathBuf {
         let comic_download_dir =
             Comic::get_comic_download_dir(app, &self.comic_title, &self.author);
 
+        let order = self.order;
         let chapter_title = filename_filter(&self.chapter_title);
-        comic_download_dir.join(chapter_title)
+        let prefixed_chapter_title = format!("{order} {chapter_title}");
+        comic_download_dir.join(prefixed_chapter_title)
     }
 
     pub fn get_is_downloaded(
@@ -43,10 +47,12 @@ impl ChapterInfo {
         comic_title: &str,
         chapter_title: &str,
         author: &str,
+        order: i64,
     ) -> bool {
         let comic_download_dir = Comic::get_comic_download_dir(app, comic_title, author);
 
         let chapter_title = filename_filter(chapter_title);
-        comic_download_dir.join(chapter_title).exists()
+        let prefixed_chapter_title = format!("{order} {chapter_title}");
+        comic_download_dir.join(prefixed_chapter_title).exists()
     }
 }
