@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { Comic } from '../bindings.ts'
+import { Comic, commands } from '../bindings.ts'
 import { CurrentTabName } from '../types.ts'
+import { useNotification } from 'naive-ui'
 
 const props = defineProps<{
   comic: Comic
 }>()
+
+const notification = useNotification()
 
 const pickedComic = defineModel<Comic | undefined>('pickedComic', { required: true })
 const currentTabName = defineModel<CurrentTabName>('currentTabName', { required: true })
@@ -12,6 +15,23 @@ const currentTabName = defineModel<CurrentTabName>('currentTabName', { required:
 function pickComic() {
   pickedComic.value = props.comic
   currentTabName.value = 'chapter'
+}
+
+// 导出cbz
+async function exportCbz() {
+  const result = await commands.exportCbz(props.comic)
+  if (result.status === 'error') {
+    notification.error({ title: '导出cbz失败', description: result.error })
+    return
+  }
+}
+
+async function exportPdf() {
+  const result = await commands.exportPdf(props.comic)
+  if (result.status === 'error') {
+    notification.error({ title: '导出pdf失败', description: result.error })
+    return
+  }
 }
 </script>
 
@@ -24,15 +44,17 @@ function pickComic() {
         alt=""
         referrerpolicy="no-referrer"
         @click="pickComic" />
-      <div class="flex flex-col w-full justify-between">
-        <div class="flex flex-col">
-          <span
-            class="font-bold text-xl line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
-            @click="pickComic">
-            {{ comic.title }}
-          </span>
-          <span class="text-red">作者：{{ comic.author }}</span>
-          <span class="text-gray" v-html="`分类：${comic.categories}`"></span>
+      <div class="flex flex-col w-full">
+        <span
+          class="font-bold text-xl line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
+          @click="pickComic">
+          {{ comic.title }}
+        </span>
+        <span class="text-red">作者：{{ comic.author }}</span>
+        <span class="text-gray" v-html="`分类：${comic.categories}`"></span>
+        <div class="flex ml-auto mt-auto gap-col-2">
+          <n-button size="tiny" @click="exportCbz">导出cbz</n-button>
+          <n-button size="tiny" @click="exportPdf">导出pdf</n-button>
         </div>
       </div>
     </div>
