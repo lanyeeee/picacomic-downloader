@@ -13,6 +13,7 @@ pub struct Config {
     pub export_dir: PathBuf,
     pub chapter_download_interval: u64,
     pub download_with_author: bool,
+    pub enable_file_logger: bool,
 }
 
 impl Config {
@@ -25,6 +26,7 @@ impl Config {
             export_dir: app_data_dir.join("漫画导出"),
             chapter_download_interval: 0,
             download_with_author: false,
+            enable_file_logger: true,
         };
         // 如果配置文件存在且能够解析，则使用配置文件中的配置，否则使用默认配置
         let config = if config_path.exists() {

@@ -1,5 +1,5 @@
 use anyhow::Context;
-use events::{ExportCbzEvent, ExportPdfEvent};
+use events::{ExportCbzEvent, ExportPdfEvent, LogEvent};
 use parking_lot::RwLock;
 use tauri::{Manager, Wry};
 
@@ -17,6 +17,7 @@ mod errors;
 mod events;
 mod export;
 mod extensions;
+mod logger;
 mod pica_client;
 mod responses;
 mod types;
@@ -53,6 +54,7 @@ pub async fn run() {
             DownloadEvent,
             ExportCbzEvent,
             ExportPdfEvent,
+            LogEvent,
         ]);
 
     #[cfg(debug_assertions)]
@@ -83,12 +85,15 @@ pub async fn run() {
             println!("app data dir: {app_data_dir:?}");
 
             let config = RwLock::new(Config::new(app.handle())?);
-            let pica_client = PicaClient::new(app.handle().clone());
-            let download_manager = DownloadManager::new(app.handle().clone());
-
             app.manage(config);
+
+            let pica_client = PicaClient::new(app.handle().clone());
             app.manage(pica_client);
+
+            let download_manager = DownloadManager::new(app.handle().clone());
             app.manage(download_manager);
+
+            logger::init(app.handle())?;
 
             Ok(())
         })

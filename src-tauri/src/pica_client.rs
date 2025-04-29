@@ -117,26 +117,25 @@ impl PicaClient {
         let status = http_resp.status();
         let body = http_resp.text().await?;
         if status == StatusCode::BAD_REQUEST {
-            return Err(anyhow!("登录失败，用户名或密码错误({status}): {body}"));
+            return Err(anyhow!("用户名或密码错误({status}): {body}"));
         } else if status != StatusCode::OK {
-            return Err(anyhow!("登录失败，预料之外的状态码({status}): {body}"));
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
         }
         // 尝试将body解析为PicaResp
         let pica_resp = serde_json::from_str::<PicaResp>(&body)
-            .context(format!("登录失败，将body解析为PicaResp失败: {body}"))?;
+            .context(format!("将body解析为PicaResp失败: {body}"))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
-            return Err(anyhow!("登录失败，预料之外的code: {pica_resp:?}"));
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
         }
         // 检查BiliResp的data是否存在
         let Some(data) = pica_resp.data else {
-            return Err(anyhow!("登录失败，data字段不存在: {pica_resp:?}"));
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
         };
         // 尝试将data解析为LoginRespData
         let data_str = data.to_string();
-        let login_resp_data = serde_json::from_str::<LoginRespData>(&data_str).context(format!(
-            "登录失败，将data解析为LoginRespData失败: {data_str}"
-        ))?;
+        let login_resp_data = serde_json::from_str::<LoginRespData>(&data_str)
+            .context(format!("将data解析为LoginRespData失败: {data_str}"))?;
 
         Ok(login_resp_data.token)
     }
@@ -149,31 +148,26 @@ impl PicaClient {
         let body = http_resp.text().await?;
         if status == StatusCode::UNAUTHORIZED {
             return Err(anyhow!(
-                "获取用户信息失败，Authorization无效或已过期，请重新登录({status}): {body}"
+                "Authorization无效或已过期，请重新登录({status}): {body}"
             ));
         } else if status != StatusCode::OK {
-            return Err(anyhow!(
-                "获取用户信息失败，预料之外的状态码({status}): {body}"
-            ));
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
         }
         // 尝试将body解析为PicaResp
-        let pica_resp = serde_json::from_str::<PicaResp>(&body).context(format!(
-            "获取用户信息失败，将body解析为PicaResp失败: {body}"
-        ))?;
+        let pica_resp = serde_json::from_str::<PicaResp>(&body)
+            .context(format!("将body解析为PicaResp失败: {body}"))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
-            return Err(anyhow!("获取用户信息失败，预料之外的code: {pica_resp:?}"));
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
         }
         // 检查PicaResp的data是否存在
         let Some(data) = pica_resp.data else {
-            return Err(anyhow!("获取用户信息失败，data字段不存在: {pica_resp:?}"));
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
         };
         // 尝试将data解析为UserProfileRespData
         let data_str = data.to_string();
         let user_profile_resp_data = serde_json::from_str::<UserProfileRespData>(&data_str)
-            .context(format!(
-                "获取用户信息失败，将data解析为UserProfileRespData失败: {data_str}"
-            ))?;
+            .context(format!("将data解析为UserProfileRespData失败: {data_str}"))?;
 
         Ok(user_profile_resp_data.user)
     }
@@ -198,27 +192,26 @@ impl PicaClient {
         let body = http_resp.text().await?;
         if status == StatusCode::UNAUTHORIZED {
             return Err(anyhow!(
-                "搜索漫画失败，Authorization无效或已过期，请重新登录({status}): {body}"
+                "Authorization无效或已过期，请重新登录({status}): {body}"
             ));
         } else if status != StatusCode::OK {
-            return Err(anyhow!("搜索漫画失败，预料之外的状态码({status}): {body}"));
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
         }
         // 尝试将body解析为PicaResp
         let pica_resp = serde_json::from_str::<PicaResp>(&body)
-            .context(format!("搜索漫画失败，将body解析为PicaResp失败: {body}"))?;
+            .context(format!("将body解析为PicaResp失败: {body}"))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
-            return Err(anyhow!("搜索漫画失败，预料之外的code: {pica_resp:?}"));
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
         }
         // 检查PicaResp的data是否存在
         let Some(data) = pica_resp.data else {
-            return Err(anyhow!("搜索漫画失败，data字段不存在: {pica_resp:?}"));
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
         };
         // 尝试将data解析为SearchRespData
         let data_str = data.to_string();
-        let search_resp_data = serde_json::from_str::<SearchRespData>(&data_str).context(
-            format!("搜索漫画失败，将data解析为SearchRespData失败: {data_str}"),
-        )?;
+        let search_resp_data = serde_json::from_str::<SearchRespData>(&data_str)
+            .context(format!("将data解析为SearchRespData失败: {data_str}"))?;
 
         Ok(search_resp_data.comics)
     }
@@ -231,36 +224,27 @@ impl PicaClient {
         let status = http_resp.status();
         let body = http_resp.text().await?;
         if status == StatusCode::UNAUTHORIZED {
-            //TODO: 改为 "获取漫画`{comic_id}`的信息失败，...."
             return Err(anyhow!(
-                "获取ID为 {comic_id} 的漫画失败，Authorization无效或已过期，请重新登录({status}): {body}"
+                "Authorization无效或已过期，请重新登录({status}): {body}"
             ));
         } else if status != StatusCode::OK {
-            return Err(anyhow!(
-                "获取ID为 {comic_id} 的漫画失败，预料之外的状态码({status}): {body}"
-            ));
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
         }
         // 尝试将body解析为PicaResp
-        let pica_resp = serde_json::from_str::<PicaResp>(&body).context(format!(
-            "获取ID为 {comic_id} 的漫画失败，将body解析为PicaResp失败: {body}"
-        ))?;
+        let pica_resp = serde_json::from_str::<PicaResp>(&body)
+            .context(format!("将body解析为PicaResp失败: {body}"))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
-            return Err(anyhow!(
-                "获取ID为 {comic_id} 的漫画失败，预料之外的code: {pica_resp:?}"
-            ));
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
         }
         // 检查PicaResp的data是否存在
         let Some(data) = pica_resp.data else {
-            return Err(anyhow!(
-                "获取ID为 {comic_id} 的漫画失败，data字段不存在: {pica_resp:?}"
-            ));
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
         };
         // 尝试将data解析为GetComicRespData
         let data_str = data.to_string();
-        let get_comic_resp_data = serde_json::from_str::<GetComicRespData>(&data_str).context(
-            format!("获取ID为 {comic_id} 的漫画失败，将data解析为GetComicRespData失败: {data_str}"),
-        )?;
+        let get_comic_resp_data = serde_json::from_str::<GetComicRespData>(&data_str)
+            .context(format!("将data解析为GetComicRespData失败: {data_str}"))?;
 
         Ok(get_comic_resp_data.comic)
     }
@@ -278,36 +262,26 @@ impl PicaClient {
         let body = http_resp.text().await?;
         if status == StatusCode::UNAUTHORIZED {
             return Err(anyhow!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {body}"
+                "Authorization无效或已过期，请重新登录({status}): {body}"
             ));
         } else if status != StatusCode::OK {
-            return Err(anyhow!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，预料之外的状态码({status}): {body}"
-            ));
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
         }
         // 尝试将body解析为PicaResp
-        let pica_resp = serde_json::from_str::<PicaResp>(&body).context(format!(
-            "获取漫画`{comic_id}`的章节分页`{page}`失败，将body解析为PicaResp失败: {body}"
-        ))?;
+        let pica_resp = serde_json::from_str::<PicaResp>(&body)
+            .context(format!("将body解析为PicaResp失败: {body}"))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
-            return Err(anyhow!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，预料之外的code: {pica_resp:?}"
-            ));
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
         }
         // 检查PicaResp的data是否存在
         let Some(data) = pica_resp.data else {
-            return Err(anyhow!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，data字段不存在: {pica_resp:?}"
-            ));
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
         };
         // 尝试将data解析为GetChapterRespData
         let data_str = data.to_string();
-        let get_chapter_resp_data = serde_json::from_str::<GetChapterRespData>(&data_str).context(
-            format!(
-                "获取漫画`{comic_id}`的章节分页`{page}`失败，将data解析为GetChapterRespData失败: {data_str}"
-            ),
-        )?;
+        let get_chapter_resp_data = serde_json::from_str::<GetChapterRespData>(&data_str)
+            .context(format!("将data解析为GetChapterRespData失败: {data_str}"))?;
 
         Ok(get_chapter_resp_data.eps)
     }
@@ -326,34 +300,27 @@ impl PicaClient {
         let body = http_resp.text().await?;
         if status == StatusCode::UNAUTHORIZED {
             return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，Authorization无效或已过期，请重新登录({status}): {body}"
+                "Authorization无效或已过期，请重新登录({status}): {body}"
             ));
         } else if status != StatusCode::OK {
-            return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，预料之外的状态码({status}): {body}"
-            ));
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
         }
         // 尝试将body解析为PicaResp
-        let pica_resp = serde_json::from_str::<PicaResp>(&body).context(format!(
-            "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，将body解析为PicaResp失败: {body}"
-        ))?;
+        let pica_resp = serde_json::from_str::<PicaResp>(&body)
+            .context(format!("将body解析为PicaResp失败: {body}"))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
-            return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，预料之外的code: {pica_resp:?}"
-            ));
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
         }
         // 检查PicaResp的data是否存在
         let Some(data) = pica_resp.data else {
-            return Err(anyhow!(
-                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，data字段不存在: {pica_resp:?}"
-            ));
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
         };
         // 尝试将data解析为GetChapterImageRespData
         let data_str = data.to_string();
-        let get_chapter_image_resp_data = serde_json::from_str::<GetChapterImageRespData>(&data_str)
-            .context(format!(
-                "获取漫画`{comic_id}`章节`{chapter_order}`的图片分页`{page}`失败，将data解析为GetChapterImageRespData失败: {data_str}"
+        let get_chapter_image_resp_data =
+            serde_json::from_str::<GetChapterImageRespData>(&data_str).context(format!(
+                "将data解析为GetChapterImageRespData失败: {data_str}"
             ))?;
 
         Ok(get_chapter_image_resp_data.pages)
@@ -373,31 +340,26 @@ impl PicaClient {
         let body = http_resp.text().await?;
         if status == StatusCode::UNAUTHORIZED {
             return Err(anyhow!(
-                "获取收藏的漫画失败，Authorization无效或已过期，请重新登录({status}): {body}"
+                "Authorization无效或已过期，请重新登录({status}): {body}"
             ));
         } else if status != StatusCode::OK {
-            return Err(anyhow!(
-                "获取收藏的漫画失败，预料之外的状态码({status}): {body}"
-            ));
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
         }
         // 尝试将body解析为PicaResp
-        let pica_resp: PicaResp = serde_json::from_str(&body).context(format!(
-            "获取收藏的漫画失败，将body解析为PicaResp失败: {body}"
-        ))?;
+        let pica_resp: PicaResp =
+            serde_json::from_str(&body).context(format!("将body解析为PicaResp失败: {body}"))?;
         // 检查PicaResp的code字段
         if pica_resp.code != 200 {
-            return Err(anyhow!("获取收藏的漫画失败，预料之外的code: {pica_resp:?}"));
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
         }
         // 检查PicaResp的data是否存在
         let Some(data) = pica_resp.data else {
-            return Err(anyhow!("获取收藏的漫画失败，data字段不存在: {pica_resp:?}"));
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
         };
         // 尝试将data解析为GetFavoriteRespData
         let data_str = data.to_string();
         let get_favorite_resp_data = serde_json::from_str::<GetFavoriteRespData>(&data_str)
-            .context(format!(
-                "获取收藏的漫画失败，将data解析为GetFavoriteRespData失败: {data_str}"
-            ))?;
+            .context(format!("将data解析为GetFavoriteRespData失败: {data_str}"))?;
 
         Ok(get_favorite_resp_data.comics)
     }

@@ -2,12 +2,9 @@
 import { SelectionArea, SelectionEvent, SelectionOptions } from '@viselect/vue'
 import { nextTick, ref, watch } from 'vue'
 import { commands } from '../bindings.ts'
-import { useNotification } from 'naive-ui'
 import { useStore } from '../store.ts'
 
 const store = useStore()
-
-const notification = useNotification()
 
 const dropdownX = ref<number>(0)
 const dropdownY = ref<number>(0)
@@ -113,7 +110,7 @@ async function downloadChapters() {
   // 创建下载任务前，先创建元数据
   const result = await commands.saveMetadata(store.pickedComic!)
   if (result.status === 'error') {
-    notification.error({ title: '保存元数据失败', description: result.error })
+    console.error(result.error)
     return
   }
   // 下载勾选的章节
@@ -140,7 +137,7 @@ async function refreshChapters() {
   }
   const result = await commands.getComic(store.pickedComic._id.trim())
   if (result.status === 'error') {
-    notification.error({ title: '刷新失败(获取章节详情失败)', description: result.error })
+    console.error(result.error)
     return
   }
   store.pickedComic = result.data
