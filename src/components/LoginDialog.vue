@@ -3,17 +3,23 @@ import { ref } from 'vue'
 import { commands } from '../bindings.ts'
 import { useMessage, useNotification } from 'naive-ui'
 import FloatLabelInput from './FloatLabelInput.vue'
+import { useStore } from '../store.ts'
 
 const message = useMessage()
 const notification = useNotification()
 
+const store = useStore()
+
 const showing = defineModel<boolean>('showing', { required: true })
-const token = defineModel<string>('token', { required: true })
 
 const emailInput = ref<string>('')
 const passwordInput = ref<string>('')
 
 async function onLogin(email: string, password: string) {
+  if (store.config === undefined) {
+    message.error('配置未加载')
+    return
+  }
   if (email === '') {
     message.error('请输入用户名')
     return
@@ -28,7 +34,7 @@ async function onLogin(email: string, password: string) {
     return
   }
   message.success('登录成功')
-  token.value = result.data
+  store.config.token = result.data
   showing.value = false
 }
 </script>

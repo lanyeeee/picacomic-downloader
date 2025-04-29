@@ -6,6 +6,9 @@ import ComicCard from '../components/ComicCard.vue'
 import { ComicInfo } from '../types.ts'
 import { SearchOutlined, ArrowRightOutlined } from '@vicons/antd'
 import FloatLabelInput from '../components/FloatLabelInput.vue'
+import { useStore } from '../store.ts'
+
+const store = useStore()
 
 const notification = useNotification()
 
@@ -15,10 +18,6 @@ const sortOptions = [
   { label: '最多爱心', value: 'LikeMost' },
   { label: '最多指名', value: 'ViewMost' },
 ]
-
-defineProps<{
-  searchById: (comicId: string) => void
-}>()
 
 const searchInput = ref<string>('')
 const searching = ref<boolean>(false)
@@ -54,6 +53,16 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
   searching.value = false
   comicInSearchPagination.value = result.data
 }
+
+async function pickComic() {
+  const result = await commands.getComic(comicIdInput.value.trim())
+  if (result.status === 'error') {
+    notification.error({ title: '获取章节详情失败', description: result.error })
+    return
+  }
+  store.pickedComic = result.data
+  store.currentTabName = 'chapter'
+}
 </script>
 
 <template>
@@ -87,13 +96,8 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
     </n-input-group>
 
     <n-input-group class="box-border px-2">
-      <FloatLabelInput
-        label="漫画ID"
-        size="small"
-        v-model:value="comicIdInput"
-        clearable
-        @keydown.enter="searchById(comicIdInput.trim())" />
-      <n-button type="primary" size="small" class="w-15%" @click="searchById(comicIdInput.trim())">
+      <FloatLabelInput label="漫画ID" size="small" v-model:value="comicIdInput" clearable @keydown.enter="pickComic" />
+      <n-button type="primary" size="small" class="w-15%" @click="pickComic">
         <template #icon>
           <n-icon size="20">
             <ArrowRightOutlined />
@@ -103,11 +107,7 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
     </n-input-group>
 
     <div v-if="comicInfoPagination !== undefined" class="flex flex-col gap-row-2 overflow-auto box-border px-2">
-      <comic-card
-        v-for="comicInfo in comicInfoPagination.docs"
-        :key="comicInfo._id"
-        :comic-info="comicInfo"
-        :onClickItem="searchById" />
+      <comic-card v-for="comicInfo in comicInfoPagination.docs" :key="comicInfo._id" :comic-info="comicInfo" />
     </div>
 
     <n-pagination
