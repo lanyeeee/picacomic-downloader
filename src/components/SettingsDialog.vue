@@ -2,10 +2,7 @@
 import { commands } from '../bindings.ts'
 import { path } from '@tauri-apps/api'
 import { appDataDir } from '@tauri-apps/api/path'
-import { useNotification } from 'naive-ui'
 import { useStore } from '../store.ts'
-
-const notification = useNotification()
 
 const store = useStore()
 
@@ -16,7 +13,7 @@ async function showConfigInFileManager() {
   const configPath = await path.join(await appDataDir(), configName)
   const result = await commands.showPathInFileManager(configPath)
   if (result.status === 'error') {
-    notification.error({ title: '打开配置文件失败', description: result.error })
+    console.error(result.error)
   }
 }
 </script>

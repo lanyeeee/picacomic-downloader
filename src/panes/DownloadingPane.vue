@@ -89,7 +89,7 @@ async function showDownloadDirInFileManager() {
 
   const result = await commands.showPathInFileManager(store.config.downloadDir)
   if (result.status === 'error') {
-    notification.error({ title: '打开下载目录失败', description: result.error })
+    console.error(result.error)
   }
 }
 

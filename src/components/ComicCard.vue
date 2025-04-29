@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { ComicInfo } from '../types.ts'
 import { commands } from '../bindings.ts'
-import { useNotification } from 'naive-ui'
 import { useStore } from '../store.ts'
 
 const store = useStore()
-
-const notification = useNotification()
 
 const props = defineProps<{
   comicInfo: ComicInfo
@@ -15,7 +12,7 @@ const props = defineProps<{
 async function downloadComic() {
   const result = await commands.downloadComic(props.comicInfo._id)
   if (result.status === 'error') {
-    notification.error({ title: '下载漫画失败', description: result.error })
+    console.error(result.error)
     return
   }
 }
@@ -23,7 +20,7 @@ async function downloadComic() {
 async function pickComic() {
   const result = await commands.getComic(props.comicInfo._id)
   if (result.status === 'error') {
-    notification.error({ title: '获取章节详情失败', description: result.error })
+    console.error(result.error)
     return
   }
   store.pickedComic = result.data

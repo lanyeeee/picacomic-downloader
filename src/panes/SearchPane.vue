@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ComicInSearchRespData, commands, Pagination, Sort } from '../bindings.ts'
-import { useNotification } from 'naive-ui'
 import ComicCard from '../components/ComicCard.vue'
 import { ComicInfo } from '../types.ts'
 import { SearchOutlined, ArrowRightOutlined } from '@vicons/antd'
@@ -9,8 +8,6 @@ import FloatLabelInput from '../components/FloatLabelInput.vue'
 import { useStore } from '../store.ts'
 
 const store = useStore()
-
-const notification = useNotification()
 
 const sortOptions = [
   { label: '新到旧', value: 'TimeNewest' },
@@ -47,7 +44,7 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
   const result = await commands.searchComic(keyword, sort, page, categories)
   if (result.status === 'error') {
     searching.value = false
-    notification.error({ title: '搜索失败', description: result.error })
+    console.error(result.error)
     return
   }
   searching.value = false
@@ -57,7 +54,7 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
 async function pickComic() {
   const result = await commands.getComic(comicIdInput.value.trim())
   if (result.status === 'error') {
-    notification.error({ title: '获取章节详情失败', description: result.error })
+    console.error(result.error)
     return
   }
   store.pickedComic = result.data

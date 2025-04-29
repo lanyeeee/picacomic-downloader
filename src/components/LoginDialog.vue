@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { commands } from '../bindings.ts'
-import { useMessage, useNotification } from 'naive-ui'
+import { useMessage } from 'naive-ui'
 import FloatLabelInput from './FloatLabelInput.vue'
 import { useStore } from '../store.ts'
 
 const message = useMessage()
-const notification = useNotification()
 
 const store = useStore()
 
@@ -30,7 +29,7 @@ async function onLogin(email: string, password: string) {
   }
   const result = await commands.login(email, password)
   if (result.status === 'error') {
-    notification.error({ title: '登录失败', description: result.error })
+    console.error(result.error)
     return
   }
   message.success('登录成功')

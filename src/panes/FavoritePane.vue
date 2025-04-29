@@ -3,12 +3,9 @@ import ComicCard from '../components/ComicCard.vue'
 import { computed, ref, watch } from 'vue'
 import { ComicInfo } from '../types.ts'
 import { ComicInFavoriteRespData, commands, Pagination, Sort } from '../bindings.ts'
-import { useNotification } from 'naive-ui'
 import { useStore } from '../store.ts'
 
 const store = useStore()
-
-const notification = useNotification()
 
 const comicInFavoritePagination = ref<Pagination<ComicInFavoriteRespData>>()
 const sortSelected = ref<Sort>('TimeNewest') // TODO: 添加一个选择器来控制这个值
@@ -33,7 +30,7 @@ const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
 async function getFavorite(sort: Sort, page: number) {
   const result = await commands.getFavoriteComics(sort, page)
   if (result.status === 'error') {
-    notification.error({ title: '获取收藏失败', description: result.error })
+    console.error(result.error)
     return
   }
   comicInFavoritePagination.value = result.data
