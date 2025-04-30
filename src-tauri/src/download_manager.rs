@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -5,6 +6,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
+use image::ImageFormat;
 use parking_lot::{Mutex, RwLock};
 use reqwest::StatusCode;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -20,7 +22,7 @@ use crate::config::Config;
 use crate::events::DownloadEvent;
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
-use crate::types::ChapterInfo;
+use crate::types::{ChapterInfo, DownloadFormat};
 
 /// 用于管理下载任务
 ///
@@ -221,12 +223,20 @@ impl DownloadManager {
         }
         .emit(&self.app);
         for (i, url) in urls.iter().enumerate() {
-            let manager = self.clone();
-            let chapter_id = chapter_info.chapter_id.clone();
-            // TODO: 要做图片类型检查，目前发现有些图片是png格式
-            let save_path = chapter_temp_download_dir.join(format!("{:03}.jpg", i + 1));
+            let extension = match self.get_extension_from_url(url) {
+                Ok(extension) => extension,
+                Err(err) => {
+                    let err_title = format!("获取`{url}`的后缀名失败");
+                    let string_chain = err.to_string_chain();
+                    tracing::error!(err_title, message = string_chain);
+                    return;
+                }
+            };
+            let save_path = chapter_temp_download_dir.join(format!("{:03}.{extension}", i + 1));
             let url = url.clone();
+            let chapter_id = chapter_info.chapter_id.clone();
             let downloaded_count = downloaded_count.clone();
+            let manager = self.clone();
             // 创建下载任务
             join_set.spawn(manager.download_image(url, save_path, chapter_id, downloaded_count));
         }
@@ -333,17 +343,12 @@ impl DownloadManager {
                 return;
             }
         };
-        let image_data = match self.get_image_bytes(&url).await {
+        let image_data = match self.get_image_data(&url).await {
             Ok(data) => data,
             Err(err) => {
-                let err = err.context(format!("下载图片`{url}`失败"));
-                // 发送下载图片失败事件
-                let _ = DownloadEvent::ImageError {
-                    chapter_id,
-                    url,
-                    err_msg: err.to_string_chain(),
-                }
-                .emit(&self.app);
+                let err_title = format!("下载图片`{url}`失败");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
                 return;
             }
         };
@@ -375,19 +380,74 @@ impl DownloadManager {
         .emit(&self.app);
     }
 
-    // TODO: 将发送获取图片请求的逻辑移到PicaClient中
-    async fn get_image_bytes(&self, url: &str) -> anyhow::Result<Bytes> {
-        let http_res = self.client.get(url).send().await?;
+    fn get_extension_from_url(&self, url: &str) -> anyhow::Result<String> {
+        let download_format = self.app.state::<RwLock<Config>>().read().download_format;
+        if let Some(extension) = download_format.extension() {
+            // 如果不是Original格式，直接返回
+            return Ok(extension.to_string());
+        }
+        // 如果是Original格式，从url中提取后缀名
+        let extension = url
+            .rsplit('.')
+            .next()
+            .context(format!("无法从`{url}`中提取出后缀名"))?
+            .to_string();
+        Ok(extension)
+    }
 
-        let status = http_res.status();
+    // TODO: 将发送获取图片请求的逻辑移到PicaClient中
+    async fn get_image_data(&self, url: &str) -> anyhow::Result<Bytes> {
+        let http_resp = self.client.get(url).send().await?;
+
+        let status = http_resp.status();
         if status != StatusCode::OK {
-            let text = http_res.text().await?;
+            let text = http_resp.text().await?;
             let err = anyhow!("下载图片`{url}`失败，预料之外的状态码: {text}");
             return Err(err);
         }
+        // 获取 resp headers 的 content-type 字段
+        let content_type = http_resp
+            .headers()
+            .get("content-type")
+            .ok_or(anyhow!("响应中没有content-type字段"))?
+            .to_str()
+            .context("响应中的content-type字段不是utf-8字符串")?
+            .to_string();
+        let image_data = http_resp.bytes().await?;
+        // 确定原始格式
+        let original_format = match content_type.as_str() {
+            "image/jpeg" => ImageFormat::Jpeg,
+            "image/png" => ImageFormat::Png,
+            _ => return Err(anyhow!("原图出现了意料之外的格式: {content_type}")),
+        };
+        // 确定目标格式
+        let download_format = self.app.state::<RwLock<Config>>().read().download_format;
+        let target_format = match download_format {
+            DownloadFormat::Jpeg => ImageFormat::Jpeg,
+            DownloadFormat::Png => ImageFormat::Png,
+            DownloadFormat::Original => original_format,
+        };
+        // 如果原始格式与目标格式相同，直接返回
+        if original_format == target_format {
+            return Ok(image_data);
+        }
+        // 否则需要将图片转换为目标格式
+        let img =
+            image::load_from_memory(&image_data).context("将图片数据转换为DynamicImage失败")?;
+        let mut converted_data = Vec::new();
+        match target_format {
+            ImageFormat::Jpeg => img
+                .to_rgb8()
+                .write_to(&mut Cursor::new(&mut converted_data), target_format),
+            ImageFormat::Png | ImageFormat::WebP => img
+                .to_rgba8()
+                .write_to(&mut Cursor::new(&mut converted_data), target_format),
+            _ => return Err(anyhow!("这里不应该出现目标格式`{target_format:?}`")),
+        }
+        .context(format!(
+            "将`{original_format:?}`转换为`{target_format:?}`失败"
+        ))?;
 
-        let image_data = http_res.bytes().await?;
-
-        Ok(image_data)
+        Ok(Bytes::from(converted_data))
     }
 }

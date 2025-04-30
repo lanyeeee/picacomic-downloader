@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{AppHandle, Manager};
 
+use crate::types::DownloadFormat;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
@@ -13,6 +15,7 @@ pub struct Config {
     pub chapter_download_interval: u64,
     pub download_with_author: bool,
     pub enable_file_logger: bool,
+    pub download_format: DownloadFormat,
 }
 
 impl Config {
@@ -74,6 +77,7 @@ impl Config {
             chapter_download_interval: 0,
             download_with_author: false,
             enable_file_logger: true,
+            download_format: DownloadFormat::default(),
         }
     }
 }
