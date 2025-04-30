@@ -1800,6 +1800,7 @@ dependencies = [
  "bytemuck",
  "byteorder-lite",
  "num-traits",
+ "png",
  "zune-core",
  "zune-jpeg",
 ]
