@@ -49,6 +49,7 @@ pub async fn run() {
             get_downloaded_comics,
             export_cbz,
             export_pdf,
+            get_logs_dir_size,
         ])
         .events(tauri_specta::collect_events![
             DownloadEvent,

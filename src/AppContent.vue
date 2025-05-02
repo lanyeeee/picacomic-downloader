@@ -1,26 +1,27 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { commands, events, LogEvent } from './bindings.ts'
-import { useMessage, useNotification } from 'naive-ui'
+import { commands } from './bindings.ts'
+import { useMessage } from 'naive-ui'
 import LoginDialog from './components/LoginDialog.vue'
 import SearchPane from './panes/SearchPane.vue'
 import ChapterPane from './panes/ChapterPane.vue'
 import DownloadingPane from './panes/DownloadingPane.vue'
 import FavoritePane from './panes/FavoritePane.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
-import { QuestionCircleOutlined, UserOutlined, SettingOutlined } from '@vicons/antd'
+import { QuestionCircleOutlined, UserOutlined, SettingOutlined, BarsOutlined } from '@vicons/antd'
 import AboutDialog from './components/AboutDialog.vue'
 import DownloadedPane from './panes/DownloadedPane.vue'
 import { useStore } from './store.ts'
+import LogViewer from './components/LogViewer.vue'
 
 const store = useStore()
 
 const message = useMessage()
-const notification = useNotification()
 
 const loginDialogShowing = ref<boolean>(false)
 const settingsDialogShowing = ref<boolean>(false)
 const aboutDialogShowing = ref<boolean>(false)
+const logViewerShowing = ref<boolean>(false)
 
 watch(
   () => store.config,
@@ -54,34 +55,7 @@ onMounted(async () => {
   }
   // 获取配置
   store.config = await commands.getConfig()
-
-  type LogRecord = LogEvent & { id: number; formatedLog: string }
-  const logRecords = ref<LogRecord[]>([])
-  let nextLogRecordId = 0
-  await events.logEvent.listen(async ({ payload: logEvent }) => {
-    logRecords.value.push({
-      ...logEvent,
-      id: nextLogRecordId++,
-      formatedLog: formatLogEvent(logEvent),
-    })
-    const { level, fields } = logEvent
-    if (level === 'ERROR') {
-      notification.error({
-        title: fields['err_title'] as string,
-        description: fields['message'] as string,
-        duration: 0,
-      })
-    }
-  })
 })
-
-function formatLogEvent(logEvent: LogEvent): string {
-  const { timestamp, level, fields, target, filename, line_number } = logEvent
-  const fields_str = Object.entries(fields)
-    .map(([key, value]) => `${key}=${value}`)
-    .join(' ')
-  return `${timestamp} ${level} ${target}: ${filename}:${line_number} ${fields_str}`
-}
 </script>
 
 <template>
@@ -99,22 +73,6 @@ function formatLogEvent(logEvent: LogEvent): string {
           登录
         </n-button>
       </n-input-group>
-      <n-button @click="settingsDialogShowing = true">
-        <template #icon>
-          <n-icon>
-            <SettingOutlined />
-          </n-icon>
-        </template>
-        配置
-      </n-button>
-      <n-button @click="aboutDialogShowing = true">
-        <template #icon>
-          <n-icon>
-            <QuestionCircleOutlined />
-          </n-icon>
-        </template>
-        关于
-      </n-button>
       <div v-if="store.userProfile !== undefined" class="flex items-center">
         <n-avatar
           v-if="store.userProfile.avatar !== undefined"
@@ -142,7 +100,35 @@ function formatLogEvent(logEvent: LogEvent): string {
         </n-tab-pane>
       </n-tabs>
 
-      <div class="w-1/2 overflow-auto">
+      <div class="w-1/2 overflow-auto flex flex-col">
+        <div
+          class="h-8.5 flex gap-col-1 mx-2 items-center border-solid border-0 border-b box-border border-[rgb(239,239,245)]">
+          <div class="text-xl font-bold box-border">下载列表</div>
+          <n-button class="ml-auto" size="small" @click="logViewerShowing = true">
+            <template #icon>
+              <n-icon>
+                <BarsOutlined />
+              </n-icon>
+            </template>
+            日志
+          </n-button>
+          <n-button size="small" @click="settingsDialogShowing = true">
+            <template #icon>
+              <n-icon>
+                <SettingOutlined />
+              </n-icon>
+            </template>
+            配置
+          </n-button>
+          <n-button size="small" @click="aboutDialogShowing = true">
+            <template #icon>
+              <n-icon>
+                <QuestionCircleOutlined />
+              </n-icon>
+            </template>
+            关于
+          </n-button>
+        </div>
         <downloading-pane />
       </div>
     </div>
@@ -150,6 +136,7 @@ function formatLogEvent(logEvent: LogEvent): string {
     <login-dialog v-model:showing="loginDialogShowing" />
     <settings-dialog v-model:showing="settingsDialogShowing" />
     <about-dialog v-model:showing="aboutDialogShowing" />
+    <log-viewer v-model:showing="logViewerShowing" />
   </div>
 </template>
 
