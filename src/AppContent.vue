@@ -1,7 +1,7 @@
-<script setup lang="ts">
+<script setup lang="tsx">
 import { onMounted, ref, watch } from 'vue'
 import { commands } from './bindings.ts'
-import { useMessage } from 'naive-ui'
+import { useMessage, useNotification } from 'naive-ui'
 import LoginDialog from './components/LoginDialog.vue'
 import SearchPane from './panes/SearchPane.vue'
 import ChapterPane from './panes/ChapterPane.vue'
@@ -17,6 +17,7 @@ import LogViewer from './components/LogViewer.vue'
 const store = useStore()
 
 const message = useMessage()
+const notification = useNotification()
 
 const loginDialogShowing = ref<boolean>(false)
 const settingsDialogShowing = ref<boolean>(false)
@@ -55,6 +56,31 @@ onMounted(async () => {
   }
   // 获取配置
   store.config = await commands.getConfig()
+  // 检查日志目录大小
+  const result = await commands.getLogsDirSize()
+  if (result.status === 'error') {
+    console.error(result.error)
+    return
+  }
+  if (result.data > 50 * 1024 * 1024) {
+    notification.warning({
+      title: '日志目录大小超过50MB，请及时清理日志文件',
+      description: () => (
+        <>
+          <div>
+            点击右上角的 <span class="bg-gray-2 px-1">日志</span> 按钮
+          </div>
+          <div>
+            里边有 <span class="bg-gray-2 px-1">打开日志目录</span> 按钮
+          </div>
+          <div>
+            你也可以在里边取消勾选 <span class="bg-gray-2 px-1">输出文件日志</span>
+          </div>
+          <div>这样将不再产生文件日志</div>
+        </>
+      ),
+    })
+  }
 })
 </script>
 
