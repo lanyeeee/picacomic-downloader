@@ -1,8 +1,11 @@
+use std::io::Cursor;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
+use bytes::Bytes;
 use chrono::Local;
 use hmac::{Hmac, Mac};
+use image::ImageFormat;
 use parking_lot::RwLock;
 use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
@@ -18,7 +21,7 @@ use crate::responses::{
     GetFavoriteRespData, LoginRespData, Pagination, PicaResp, SearchRespData,
     UserProfileDetailRespData, UserProfileRespData,
 };
-use crate::types::Sort;
+use crate::types::{DownloadFormat, Sort};
 
 const HOST_URL: &str = "https://picaapi.picacomic.com/";
 const API_KEY: &str = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
@@ -362,6 +365,61 @@ impl PicaClient {
             .context(format!("将data解析为GetFavoriteRespData失败: {data_str}"))?;
 
         Ok(get_favorite_resp_data.comics)
+    }
+
+    pub async fn get_image_data(&self, url: &str) -> anyhow::Result<Bytes> {
+        let http_resp = Self::client().get(url).send().await?;
+
+        let status = http_resp.status();
+        if status != StatusCode::OK {
+            let text = http_resp.text().await?;
+            let err = anyhow!("下载图片`{url}`失败，预料之外的状态码: {text}");
+            return Err(err);
+        }
+        // 获取 resp headers 的 content-type 字段
+        let content_type = http_resp
+            .headers()
+            .get("content-type")
+            .ok_or(anyhow!("响应中没有content-type字段"))?
+            .to_str()
+            .context("响应中的content-type字段不是utf-8字符串")?
+            .to_string();
+        let image_data = http_resp.bytes().await?;
+        // 确定原始格式
+        let original_format = match content_type.as_str() {
+            "image/jpeg" => ImageFormat::Jpeg,
+            "image/png" => ImageFormat::Png,
+            _ => return Err(anyhow!("原图出现了意料之外的格式: {content_type}")),
+        };
+        // 确定目标格式
+        let download_format = self.app.state::<RwLock<Config>>().read().download_format;
+        let target_format = match download_format {
+            DownloadFormat::Jpeg => ImageFormat::Jpeg,
+            DownloadFormat::Png => ImageFormat::Png,
+            DownloadFormat::Original => original_format,
+        };
+        // 如果原始格式与目标格式相同，直接返回
+        if original_format == target_format {
+            return Ok(image_data);
+        }
+        // 否则需要将图片转换为目标格式
+        let img =
+            image::load_from_memory(&image_data).context("将图片数据转换为DynamicImage失败")?;
+        let mut converted_data = Vec::new();
+        match target_format {
+            ImageFormat::Jpeg => img
+                .to_rgb8()
+                .write_to(&mut Cursor::new(&mut converted_data), target_format),
+            ImageFormat::Png | ImageFormat::WebP => img
+                .to_rgba8()
+                .write_to(&mut Cursor::new(&mut converted_data), target_format),
+            _ => return Err(anyhow!("这里不应该出现目标格式`{target_format:?}`")),
+        }
+        .context(format!(
+            "将`{original_format:?}`转换为`{target_format:?}`失败"
+        ))?;
+
+        Ok(Bytes::from(converted_data))
     }
 }
 

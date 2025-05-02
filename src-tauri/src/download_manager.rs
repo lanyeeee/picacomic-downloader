@@ -1,17 +1,10 @@
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{anyhow, Context};
-use bytes::Bytes;
-use image::ImageFormat;
+use anyhow::Context;
 use parking_lot::{Mutex, RwLock};
-use reqwest::StatusCode;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_retry::policies::ExponentialBackoff;
-use reqwest_retry::RetryTransientMiddleware;
 use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
 use tokio::sync::mpsc::Receiver;
@@ -22,7 +15,7 @@ use crate::config::Config;
 use crate::events::DownloadEvent;
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
-use crate::types::{ChapterInfo, DownloadFormat};
+use crate::types::ChapterInfo;
 
 /// 用于管理下载任务
 ///
@@ -30,11 +23,10 @@ use crate::types::{ChapterInfo, DownloadFormat};
 /// 可以放心地在多个线程中传递和使用它的克隆副本。
 ///
 /// 具体来说：
-/// - `client`和`app`的克隆开销很小。
+/// - `app`的克隆开销很小。
 /// - 其他字段都被 `Arc` 包裹，这些字段的克隆操作仅仅是增加引用计数。
 #[derive(Clone)]
 pub struct DownloadManager {
-    client: ClientWithMiddleware,
     app: AppHandle,
     sender: Arc<mpsc::Sender<ChapterInfo>>,
     chapter_sem: Arc<Semaphore>,
@@ -46,14 +38,8 @@ pub struct DownloadManager {
 
 impl DownloadManager {
     pub fn new(app: AppHandle) -> Self {
-        let retry_policy = ExponentialBackoff::builder().build_with_max_retries(2);
-        let client = ClientBuilder::new(reqwest::Client::new())
-            .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-            .build();
-
         let (sender, receiver) = mpsc::channel::<ChapterInfo>(32);
         let manager = DownloadManager {
-            client,
             app,
             sender: Arc::new(sender),
             chapter_sem: Arc::new(Semaphore::new(3)),
@@ -356,7 +342,7 @@ impl DownloadManager {
                 return;
             }
         };
-        let image_data = match self.get_image_data(&url).await {
+        let image_data = match self.pica_client().get_image_data(&url).await {
             Ok(data) => data,
             Err(err) => {
                 let err_title = format!("下载图片`{url}`失败");
@@ -448,59 +434,7 @@ impl DownloadManager {
         );
     }
 
-    // TODO: 将发送获取图片请求的逻辑移到PicaClient中
-    async fn get_image_data(&self, url: &str) -> anyhow::Result<Bytes> {
-        let http_resp = self.client.get(url).send().await?;
-
-        let status = http_resp.status();
-        if status != StatusCode::OK {
-            let text = http_resp.text().await?;
-            let err = anyhow!("下载图片`{url}`失败，预料之外的状态码: {text}");
-            return Err(err);
-        }
-        // 获取 resp headers 的 content-type 字段
-        let content_type = http_resp
-            .headers()
-            .get("content-type")
-            .ok_or(anyhow!("响应中没有content-type字段"))?
-            .to_str()
-            .context("响应中的content-type字段不是utf-8字符串")?
-            .to_string();
-        let image_data = http_resp.bytes().await?;
-        // 确定原始格式
-        let original_format = match content_type.as_str() {
-            "image/jpeg" => ImageFormat::Jpeg,
-            "image/png" => ImageFormat::Png,
-            _ => return Err(anyhow!("原图出现了意料之外的格式: {content_type}")),
-        };
-        // 确定目标格式
-        let download_format = self.app.state::<RwLock<Config>>().read().download_format;
-        let target_format = match download_format {
-            DownloadFormat::Jpeg => ImageFormat::Jpeg,
-            DownloadFormat::Png => ImageFormat::Png,
-            DownloadFormat::Original => original_format,
-        };
-        // 如果原始格式与目标格式相同，直接返回
-        if original_format == target_format {
-            return Ok(image_data);
-        }
-        // 否则需要将图片转换为目标格式
-        let img =
-            image::load_from_memory(&image_data).context("将图片数据转换为DynamicImage失败")?;
-        let mut converted_data = Vec::new();
-        match target_format {
-            ImageFormat::Jpeg => img
-                .to_rgb8()
-                .write_to(&mut Cursor::new(&mut converted_data), target_format),
-            ImageFormat::Png | ImageFormat::WebP => img
-                .to_rgba8()
-                .write_to(&mut Cursor::new(&mut converted_data), target_format),
-            _ => return Err(anyhow!("这里不应该出现目标格式`{target_format:?}`")),
-        }
-        .context(format!(
-            "将`{original_format:?}`转换为`{target_format:?}`失败"
-        ))?;
-
-        Ok(Bytes::from(converted_data))
+    fn pica_client(&self) -> PicaClient {
+        self.app.state::<PicaClient>().inner().clone()
     }
 }
