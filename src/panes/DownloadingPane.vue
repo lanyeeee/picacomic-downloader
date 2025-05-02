@@ -109,8 +109,7 @@ async function selectDownloadDir() {
 
 <template>
   <div class="flex flex-col gap-row-2" v-if="store.config !== undefined">
-    <div class="h-8.5 text-xl flex items-center font-bold px-2">下载列表</div>
-    <n-input-group class="box-border px-2">
+    <n-input-group class="box-border px-2 pt-2">
       <n-input-group-label size="small">下载目录</n-input-group-label>
       <n-input v-model:value="store.config.downloadDir" :default-value="0" size="small" readonly @click="selectDownloadDir" />
       <n-button size="small" @click="showDownloadDirInFileManager">
