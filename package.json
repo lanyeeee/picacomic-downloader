@@ -17,6 +17,7 @@
     "@vicons/antd": "^0.13.0",
     "@viselect/vanilla": "^3.5.1",
     "@viselect/vue": "^3.5.1",
+    "@vitejs/plugin-vue-jsx": "^4.1.1",
     "naive-ui": "^2.39.0",
     "pinia": "^3.0.1",
     "prettier": "^3.4.2",
