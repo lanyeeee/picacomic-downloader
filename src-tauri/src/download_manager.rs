@@ -1,5 +1,5 @@
 use std::io::Cursor;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -215,6 +215,25 @@ impl DownloadManager {
             .emit(&self.app);
             return;
         };
+        // 图片下载路径
+        let save_paths: Vec<PathBuf> = urls
+            .iter()
+            .enumerate()
+            .map(|(i, url)| {
+                let extension = match self.get_extension_from_url(url) {
+                    Ok(extension) => extension,
+                    Err(err) => {
+                        let err_title = format!("获取`{url}`的后缀名失败");
+                        let string_chain = err.to_string_chain();
+                        tracing::error!(err_title, message = string_chain);
+                        return PathBuf::new();
+                    }
+                };
+                chapter_temp_download_dir.join(format!("{:03}.{extension}", i + 1))
+            })
+            .collect();
+        // 清理临时下载目录中与`config.download_format`对不上的文件
+        Self::clean_temp_download_dir(&chapter_temp_download_dir, &chapter_info, &save_paths);
         // 发送章节开始下载事件
         let _ = DownloadEvent::ChapterStart {
             chapter_id: chapter_info.chapter_id.clone(),
@@ -222,18 +241,7 @@ impl DownloadManager {
             total,
         }
         .emit(&self.app);
-        for (i, url) in urls.iter().enumerate() {
-            let extension = match self.get_extension_from_url(url) {
-                Ok(extension) => extension,
-                Err(err) => {
-                    let err_title = format!("获取`{url}`的后缀名失败");
-                    let string_chain = err.to_string_chain();
-                    tracing::error!(err_title, message = string_chain);
-                    return;
-                }
-            };
-            let save_path = chapter_temp_download_dir.join(format!("{:03}.{extension}", i + 1));
-            let url = url.clone();
+        for (url, save_path) in urls.into_iter().zip(save_paths.into_iter()) {
             let chapter_id = chapter_info.chapter_id.clone();
             let downloaded_count = downloaded_count.clone();
             let manager = self.clone();
@@ -398,6 +406,46 @@ impl DownloadManager {
             .context(format!("无法从`{url}`中提取出后缀名"))?
             .to_string();
         Ok(extension)
+    }
+
+    /// 删除临时下载目录中与`config.download_format`对不上的文件
+    fn clean_temp_download_dir(
+        chapter_temp_download_dir: &Path,
+        chapter_info: &ChapterInfo,
+        save_paths: &[PathBuf],
+    ) {
+        let comic_id = &chapter_info.comic_id;
+        let comic_title = &chapter_info.comic_title;
+
+        let entries = match std::fs::read_dir(chapter_temp_download_dir)
+            .map_err(anyhow::Error::from)
+        {
+            Ok(entries) => entries,
+            Err(err) => {
+                let err_title =
+                    format!("`{comic_title}`读取临时下载目录`{chapter_temp_download_dir:?}`失败");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+                return;
+            }
+        };
+
+        for path in entries.filter_map(Result::ok).map(|entry| entry.path()) {
+            if !save_paths.contains(&path) {
+                // 如果entry不在save_paths中，删除
+                if let Err(err) = std::fs::remove_file(&path).map_err(anyhow::Error::from) {
+                    let err_title = format!("`{comic_title}`删除临时下载目录的`{path:?}`失败");
+                    let string_chain = err.to_string_chain();
+                    tracing::error!(err_title, message = string_chain);
+                }
+            }
+        }
+
+        tracing::trace!(
+            comic_id,
+            comic_title,
+            "清理临时下载目录`{chapter_temp_download_dir:?}`成功"
+        );
     }
 
     // TODO: 将发送获取图片请求的逻辑移到PicaClient中
