@@ -8,6 +8,7 @@ use hmac::{Hmac, Mac};
 use image::ImageFormat;
 use parking_lot::RwLock;
 use reqwest_middleware::ClientWithMiddleware;
+use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
 use sha2::Sha256;
@@ -31,27 +32,19 @@ const DIGEST_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pdd
 #[derive(Clone)]
 pub struct PicaClient {
     app: AppHandle,
+    api_client: ClientWithMiddleware,
+    img_client: ClientWithMiddleware,
 }
 
 impl PicaClient {
     pub fn new(app: AppHandle) -> Self {
-        Self { app }
-    }
-
-    // TODO: 用api_client和img_client分别处理api请求和图片请求，避免每次请求都创建client
-    pub fn client() -> ClientWithMiddleware {
-        // TODO: 可以将retry_policy缓存起来，避免每次请求都创建
-        let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
-            .base(1) // 指数为1，保证重试间隔为1秒不变
-            .jitter(Jitter::Bounded) // 重试间隔在1秒左右波动
-            .build_with_total_retry_duration(Duration::from_secs(3)); // 重试总时长为3秒
-        let client = reqwest::ClientBuilder::new()
-            .timeout(Duration::from_secs(2)) // 每个请求超过2秒就超时
-            .build()
-            .unwrap();
-        reqwest_middleware::ClientBuilder::new(client)
-            .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-            .build()
+        let api_client = create_api_client();
+        let img_client = create_img_client();
+        Self {
+            app,
+            api_client,
+            img_client,
+        }
     }
 
     async fn pica_request(
@@ -64,7 +57,8 @@ impl PicaClient {
         let signature = create_signature(path, &method, &time)?;
         let token = self.app.state::<RwLock<Config>>().read().token.clone();
 
-        let request = Self::client()
+        let request = self
+            .api_client
             .request(method.clone(), format!("{HOST_URL}{path}").as_str())
             .header("api-key", API_KEY)
             .header("accept", "application/vnd.picacomic.com.v1+json")
@@ -368,7 +362,7 @@ impl PicaClient {
     }
 
     pub async fn get_image_data(&self, url: &str) -> anyhow::Result<Bytes> {
-        let http_resp = Self::client().get(url).send().await?;
+        let http_resp = self.img_client.get(url).send().await?;
 
         let status = http_resp.status();
         if status != StatusCode::OK {
@@ -437,4 +431,28 @@ fn hmac_hex(key: &str, data: &str) -> anyhow::Result<String> {
     mac.update(data.as_bytes());
     let result = hex::encode(mac.finalize().into_bytes().as_slice());
     Ok(result)
+}
+
+pub fn create_api_client() -> ClientWithMiddleware {
+    let retry_policy = ExponentialBackoff::builder()
+        .base(1) // 指数为1，保证重试间隔为1秒不变
+        .jitter(Jitter::Bounded) // 重试间隔在1秒左右波动
+        .build_with_total_retry_duration(Duration::from_secs(3)); // 重试总时长为3秒
+    let client = reqwest::ClientBuilder::new()
+        .timeout(Duration::from_secs(2)) // 每个请求超过2秒就超时
+        .build()
+        .unwrap();
+    reqwest_middleware::ClientBuilder::new(client)
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build()
+}
+
+fn create_img_client() -> ClientWithMiddleware {
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+
+    let client = reqwest::ClientBuilder::new().build().unwrap();
+
+    reqwest_middleware::ClientBuilder::new(client)
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build()
 }
