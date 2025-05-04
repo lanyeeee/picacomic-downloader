@@ -29,8 +29,7 @@ fn generate_context() -> tauri::Context<Wry> {
 
 // TODO: 添加 Panic doc
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[tokio::main]
-pub async fn run() {
+pub fn run() {
     let builder = tauri_specta::Builder::<Wry>::new()
         .commands(tauri_specta::collect_commands![
             greet,

@@ -49,9 +49,8 @@ impl DownloadManager {
             total_image_count: Arc::new(AtomicU32::new(0)),
         };
 
-        // TODO: 改用tauri::async_runtime::spawn
-        tokio::spawn(manager.clone().log_download_speed());
-        tokio::spawn(manager.clone().receiver_loop(receiver));
+        tauri::async_runtime::spawn(manager.clone().log_download_speed());
+        tauri::async_runtime::spawn(manager.clone().receiver_loop(receiver));
 
         manager
     }
