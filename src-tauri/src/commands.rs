@@ -175,24 +175,59 @@ pub async fn get_chapter_image(
     page: i64,
 ) -> CommandResult<Pagination<ChapterImageRespData>> {
     let chapter_image_pagination = pica_client
-        .get_chapter_image(&comic_id, chapter_order, page)
+        .get_chapter_img(&comic_id, chapter_order, page)
         .await
         .map_err(|err| CommandError::from("获取章节图片失败", err))?;
     Ok(chapter_image_pagination)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn download_chapters(
-    download_manager: State<'_, DownloadManager>,
-    chapters: Vec<ChapterInfo>,
+pub fn create_download_task(download_manager: State<DownloadManager>, chapter_info: ChapterInfo) {
+    download_manager.create_download_task(chapter_info);
+    tracing::debug!("下载任务创建成功");
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn pause_download_task(
+    download_manager: State<DownloadManager>,
+    chapter_id: String,
 ) -> CommandResult<()> {
-    for chapter in chapters {
-        download_manager
-            .submit_chapter(chapter)
-            .await
-            .map_err(|err| CommandError::from("下载章节失败", err))?;
-    }
+    download_manager
+        .pause_download_task(&chapter_id)
+        .map_err(|err| CommandError::from(&format!("暂停章节ID为`{chapter_id}`的下载任务"), err))?;
+    tracing::debug!("暂停章节ID为`{chapter_id}`的下载任务成功");
+    Ok(())
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn resume_download_task(
+    download_manager: State<DownloadManager>,
+    chapter_id: String,
+) -> CommandResult<()> {
+    download_manager
+        .resume_download_task(&chapter_id)
+        .map_err(|err| CommandError::from(&format!("恢复章节ID为`{chapter_id}`的下载任务"), err))?;
+    tracing::debug!("恢复章节ID为`{chapter_id}`的下载任务成功");
+    Ok(())
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn cancel_download_task(
+    download_manager: State<DownloadManager>,
+    chapter_id: String,
+) -> CommandResult<()> {
+    download_manager
+        .cancel_download_task(&chapter_id)
+        .map_err(|err| CommandError::from(&format!("取消章节ID为`{chapter_id}`的下载任务"), err))?;
+    tracing::debug!("取消章节ID为`{chapter_id}`的下载任务成功");
     Ok(())
 }
 
@@ -213,11 +248,14 @@ pub async fn download_comic(
     if chapter_infos.is_empty() {
         let comic_title = comic.title;
         return Err(CommandError::from(
-            "下载漫画失败",
+            "一键下载漫画失败",
             anyhow!("漫画`{comic_title}`的所有章节都已存在于下载目录，无需重复下载"),
         ));
     }
-    download_chapters(download_manager, chapter_infos).await?;
+    for chapter_info in chapter_infos {
+        download_manager.create_download_task(chapter_info);
+    }
+    tracing::debug!("一键下载漫画成功，已为所有需要下载的章节创建下载任务");
     Ok(())
 }
 

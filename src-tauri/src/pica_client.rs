@@ -283,7 +283,7 @@ impl PicaClient {
         Ok(get_chapter_resp_data.eps)
     }
 
-    pub async fn get_chapter_image(
+    pub async fn get_chapter_img(
         &self,
         comic_id: &str,
         chapter_order: i64,
@@ -361,7 +361,7 @@ impl PicaClient {
         Ok(get_favorite_resp_data.comics)
     }
 
-    pub async fn get_image_data(&self, url: &str) -> anyhow::Result<Bytes> {
+    pub async fn get_img_data(&self, url: &str) -> anyhow::Result<Bytes> {
         let http_resp = self.img_client.get(url).send().await?;
 
         let status = http_resp.status();
