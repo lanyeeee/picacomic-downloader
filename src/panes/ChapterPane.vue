@@ -107,8 +107,11 @@ async function onContextMenu(e: MouseEvent) {
 }
 
 async function downloadChapters() {
+  if (store.pickedComic === undefined) {
+    return
+  }
   // 创建下载任务前，先创建元数据
-  const result = await commands.saveMetadata(store.pickedComic!)
+  const result = await commands.saveMetadata(store.pickedComic)
   if (result.status === 'error') {
     console.error(result.error)
     return
@@ -120,13 +123,15 @@ async function downloadChapters() {
   if (chaptersToDownload === undefined) {
     return
   }
-  await commands.downloadChapters(chaptersToDownload)
-  // 更新勾选状态
-  for (const downloadedChapter of chaptersToDownload) {
-    const chapter = store.pickedComic?.chapterInfos.find((chapter) => chapter.chapterId === downloadedChapter.chapterId)
+
+  for (const chapterToDownload of chaptersToDownload) {
+    // 创建下载任务
+    await commands.createDownloadTask(chapterToDownload)
+    // 更新勾选状态
+    const chapter = store.pickedComic?.chapterInfos.find((chapter) => chapter.chapterId === chapterToDownload.chapterId)
     if (chapter !== undefined) {
       chapter.isDownloaded = true
-      checkedIds.value = checkedIds.value.filter((id) => id !== downloadedChapter.chapterId)
+      checkedIds.value = checkedIds.value.filter((id) => id !== chapterToDownload.chapterId)
     }
   }
 }

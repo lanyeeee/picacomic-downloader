@@ -22,7 +22,7 @@ pub struct ChapterInfo {
 }
 
 impl ChapterInfo {
-    pub fn get_chapter_temp_download_dir(&self, app: &AppHandle) -> PathBuf {
+    pub fn get_temp_download_dir(&self, app: &AppHandle) -> PathBuf {
         let comic_download_dir =
             Comic::get_comic_download_dir(app, &self.comic_title, &self.author);
 

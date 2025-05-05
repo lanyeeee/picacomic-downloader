@@ -1,4 +1,4 @@
-import { ImageRespData } from './bindings.ts'
+import { DownloadTaskEvent, ImageRespData } from './bindings.ts'
 
 export type ComicInfo = {
   _id: string
@@ -9,3 +9,5 @@ export type ComicInfo = {
 }
 
 export type CurrentTabName = 'search' | 'favorite' | 'downloaded' | 'chapter'
+
+export type ProgressData = DownloadTaskEvent & { percentage: number; indicator: string }

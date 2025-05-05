@@ -1,5 +1,4 @@
 use anyhow::Context;
-use events::{ExportCbzEvent, ExportPdfEvent, LogEvent};
 use parking_lot::RwLock;
 use tauri::{Manager, Wry};
 
@@ -7,7 +6,9 @@ use tauri::{Manager, Wry};
 use crate::commands::*;
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
-use crate::events::DownloadEvent;
+use crate::events::{
+    DownloadSpeedEvent, DownloadTaskEvent, ExportCbzEvent, ExportPdfEvent, LogEvent,
+};
 use crate::pica_client::PicaClient;
 
 mod commands;
@@ -40,8 +41,11 @@ pub fn run() {
             search_comic,
             get_comic,
             get_chapter_image,
-            download_chapters,
             download_comic,
+            create_download_task,
+            pause_download_task,
+            resume_download_task,
+            cancel_download_task,
             show_path_in_file_manager,
             get_favorite_comics,
             save_metadata,
@@ -51,7 +55,8 @@ pub fn run() {
             get_logs_dir_size,
         ])
         .events(tauri_specta::collect_events![
-            DownloadEvent,
+            DownloadSpeedEvent,
+            DownloadTaskEvent,
             ExportCbzEvent,
             ExportPdfEvent,
             LogEvent,

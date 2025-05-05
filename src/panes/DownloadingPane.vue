@@ -2,83 +2,44 @@
 import { onMounted, ref } from 'vue'
 import { commands, events } from '../bindings.ts'
 import { open } from '@tauri-apps/plugin-dialog'
-import { NProgress, useNotification } from 'naive-ui'
+import { NProgress } from 'naive-ui'
 import { FolderOpenOutlined } from '@vicons/antd'
 import { useStore } from '../store.ts'
 
-type ProgressData = {
-  title: string
-  downloadedCount: number
-  total: number
-  percentage: number
-  indicator: string
-}
-
 const store = useStore()
 
-const notification = useNotification()
-
-const progresses = ref<Map<string, ProgressData>>(new Map())
-const overallProgress = ref<ProgressData>({
-  title: '总进度',
-  downloadedCount: 0,
-  total: 0,
-  percentage: 0,
-  indicator: '',
-})
+const downloadSpeed = ref<string>('')
 
 onMounted(async () => {
-  await events.downloadEvent.listen(({ payload }) => {
-    if (payload.event === 'ChapterPending') {
-      let progressData: ProgressData = {
-        title: `等待中 ${payload.data.title}`,
-        downloadedCount: 0,
-        total: 0,
-        percentage: 0,
-        indicator: '',
-      }
-      progresses.value.set(payload.data.chapterId, progressData)
-    } else if (payload.event === 'ChapterStart') {
-      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
-      if (progressData === undefined) {
-        return
-      }
-      progressData.total = payload.data.total
-      progressData.title = payload.data.title
-    } else if (payload.event === 'ImageSuccess') {
-      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
-      if (progressData === undefined) {
-        return
-      }
-      progressData.downloadedCount = payload.data.downloadedCount
-      progressData.percentage = Math.round((progressData.downloadedCount / progressData.total) * 100)
-    } else if (payload.event === 'ImageError') {
-      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
-      if (progressData === undefined) {
-        return
-      }
-      notification.warning({
-        title: '下载图片失败',
-        description: payload.data.url,
-        content: payload.data.errMsg,
-        meta: progressData.title,
-      })
-    } else if (payload.event === 'ChapterEnd') {
-      const progressData = progresses.value.get(payload.data.chapterId) as ProgressData | undefined
-      if (progressData === undefined) {
-        return
-      }
-      if (payload.data.errMsg !== null) {
-        notification.warning({ title: '下载章节失败', content: payload.data.errMsg, meta: progressData.title })
-      }
-      progresses.value.delete(payload.data.chapterId)
-    } else if (payload.event === 'OverallUpdate') {
-      overallProgress.value.percentage = payload.data.percentage
-      overallProgress.value.downloadedCount = payload.data.downloadedImageCount
-      overallProgress.value.total = payload.data.totalImageCount
-    } else if (payload.event === 'Speed') {
-      overallProgress.value.indicator = payload.data.speed
+  await events.downloadSpeedEvent.listen(async ({ payload: { speed } }) => {
+    downloadSpeed.value = speed
+  })
+
+  await events.downloadTaskEvent.listen(({ payload: downloadTaskEvent }) => {
+    const { state, chapterInfo, downloadedImgCount, totalImgCount } = downloadTaskEvent
+
+    const percentage = (downloadedImgCount / totalImgCount) * 100
+
+    let indicator = ''
+    if (state === 'Pending') {
+      indicator = `排队中`
+    } else if (state === 'Downloading') {
+      indicator = `下载中`
+    } else if (state === 'Paused') {
+      indicator = `已暂停`
+    } else if (state === 'Cancelled') {
+      indicator = `已取消`
+    } else if (state === 'Completed') {
+      indicator = `下载完成`
+    } else if (state === 'Failed') {
+      indicator = `下载失败`
     }
+    if (totalImgCount !== 0) {
+      indicator += ` ${downloadedImgCount}/${totalImgCount}`
+    }
+
+    const progressData = { ...downloadTaskEvent, percentage, indicator }
+    store.progresses.set(chapterInfo.chapterId, progressData)
   })
 })
 
@@ -121,19 +82,12 @@ async function selectDownloadDir() {
       </n-button>
     </n-input-group>
 
-    <div class="grid grid-cols-[1fr_4fr_2fr] h-7 items-center px-2">
-      <span class="text-ellipsis whitespace-nowrap overflow-hidden">{{ overallProgress.title }}</span>
-      <n-progress :percentage="overallProgress.percentage" indicator-placement="inside" :height="21">
-        {{ overallProgress.indicator }}
-      </n-progress>
-      <span>{{ overallProgress.downloadedCount }}/{{ overallProgress.total }}</span>
-    </div>
     <div
       class="grid grid-cols-[1fr_4fr] px-2"
-      v-for="[chapterId, { title, percentage, downloadedCount, total }] in progresses"
+      v-for="[chapterId, { chapterInfo, percentage, downloadedImgCount, totalImgCount }] in store.progresses"
       :key="chapterId">
-      <span class="mb-1! text-ellipsis whitespace-nowrap overflow-hidden">{{ title }}</span>
-      <n-progress class="" :percentage="percentage">{{ downloadedCount }}/{{ total }}</n-progress>
+      <span class="mb-1! text-ellipsis whitespace-nowrap overflow-hidden">{{ chapterInfo.comicTitle }}</span>
+      <n-progress class="" :percentage="percentage">{{ downloadedImgCount }}/{{ totalImgCount }}</n-progress>
     </div>
   </div>
 </template>
