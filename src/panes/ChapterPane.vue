@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SelectionArea, SelectionEvent, SelectionOptions } from '@viselect/vue'
+import { SelectionArea, SelectionEvent } from '@viselect/vue'
 import { nextTick, ref, watch } from 'vue'
 import { commands } from '../bindings.ts'
 import { useStore } from '../store.ts'
@@ -48,31 +48,14 @@ function extractIds(elements: Element[]): string[] {
     })
 }
 
-function onMouseDown(event: MouseEvent) {
-  if (event.ctrlKey || event.metaKey) {
-    return
-  }
-  if (event?.button === 0) {
-    selectedChanged.value = false
-  }
-}
-
-function onMouseUp(event: MouseEvent) {
-  // 如果是左键点击，且没有改动选中的元素，则清空选中
-  if (event?.button === 0 && !selectedChanged.value) {
-    selectedIds.value.clear()
-    selectionAreaRef.value?.selection?.clearSelection()
-  }
-}
-
-function onDragStart({ event, selection }: SelectionEvent) {
+function unselectAll({ event, selection }: SelectionEvent) {
   if (!event?.ctrlKey && !event?.metaKey) {
     selection.clearSelection()
     selectedIds.value.clear()
   }
 }
 
-function onDragMove({
+function updateSelectedIds({
   store: {
     changed: { added, removed },
   },
@@ -156,12 +139,10 @@ async function refreshChapters() {
       v-else
       ref="selectionAreaRef"
       class="selection-container flex flex-col flex-1 px-2 overflow-auto"
-      :options="{ selectables: '.selectable' } as SelectionOptions"
+      :options="{ selectables: '.selectable', features: { deselectOnBlur: true } }"
       @contextmenu="onContextMenu"
-      @mousedown="onMouseDown"
-      @mouseup="onMouseUp"
-      @move="onDragMove"
-      @start="onDragStart">
+      @move="updateSelectedIds"
+      @start="unselectAll">
       <div class="flex justify-between items-center select-none pt-2">
         <div>左键拖动进行框选，右键打开菜单</div>
         <n-button size="small" @click="refreshChapters">刷新</n-button>
