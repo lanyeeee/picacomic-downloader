@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import ComicCard from '../components/ComicCard.vue'
-import { computed, ref, watch } from 'vue'
-import { ComicInfo } from '../types.ts'
+import { ref, watch } from 'vue'
 import { ComicInFavoriteRespData, commands, Pagination, Sort } from '../bindings.ts'
 import { useStore } from '../store.ts'
 
@@ -9,23 +8,6 @@ const store = useStore()
 
 const comicInFavoritePagination = ref<Pagination<ComicInFavoriteRespData>>()
 const sortSelected = ref<Sort>('TimeNewest') // TODO: 添加一个选择器来控制这个值
-
-const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
-  const pagination = comicInFavoritePagination.value
-  if (pagination === undefined) {
-    return undefined
-  }
-  return {
-    ...pagination,
-    docs: pagination.docs.map(({ _id, title, author, categories, thumb }) => ({
-      _id,
-      title,
-      author,
-      categories,
-      thumb,
-    })),
-  }
-})
 
 async function getFavorite(sort: Sort, page: number) {
   const result = await commands.getFavoriteComics(sort, page)
@@ -49,14 +31,21 @@ watch(
 </script>
 
 <template>
-  <div v-if="comicInfoPagination !== undefined" class="h-full flex flex-col gap-2">
+  <div v-if="comicInFavoritePagination !== undefined" class="h-full flex flex-col gap-2">
     <div class="flex flex-col gap-row-2 overflow-auto box-border px-2 pt-2">
-      <comic-card v-for="comicInfo in comicInfoPagination.docs" :key="comicInfo._id" :comic-info="comicInfo" />
+      <comic-card
+        v-for="{ _id, title, author, categories, thumb } in comicInFavoritePagination.docs"
+        :key="_id"
+        :comic-id="_id"
+        :comic-title="title"
+        :comic-author="author"
+        :comic-categories="categories"
+        :thumb="thumb" />
     </div>
     <n-pagination
       class="box-border p-2 pt-0 mt-auto"
-      :page-count="comicInfoPagination.pages"
-      :page="comicInfoPagination.page"
+      :page-count="comicInFavoritePagination.pages"
+      :page="comicInFavoritePagination.page"
       @update:page="getFavorite(sortSelected, $event)" />
   </div>
 </template>
