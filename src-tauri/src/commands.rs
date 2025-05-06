@@ -341,8 +341,8 @@ pub fn get_downloaded_comics(
     metadata_path_with_modify_time.sort_by(|(_, a), (_, b)| b.cmp(a));
     let downloaded_comics: Vec<Comic> = metadata_path_with_modify_time
         .iter()
-        .filter_map(|(metadata_path, _)| {
-            match Comic::from_metadata(&app, metadata_path).map_err(anyhow::Error::from) {
+        .filter_map(
+            |(metadata_path, _)| match Comic::from_metadata(&app, metadata_path) {
                 Ok(comic) => Some(comic),
                 Err(err) => {
                     let err_title = format!("读取元数据文件`{metadata_path:?}`失败");
@@ -350,10 +350,16 @@ pub fn get_downloaded_comics(
                     tracing::error!(err_title, message = string_chain);
                     None
                 }
-            }
-        })
+            },
+        )
         .collect();
 
+    // 根据comicId去重
+    let mut comic_id_set = std::collections::HashSet::new();
+    let downloaded_comics = downloaded_comics
+        .into_iter()
+        .filter(|comic| comic_id_set.insert(comic.id.clone()))
+        .collect();
     Ok(downloaded_comics)
 }
 
