@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { ComicInSearchRespData, commands, Pagination, Sort } from '../bindings.ts'
 import ComicCard from '../components/ComicCard.vue'
-import { ComicInfo } from '../types.ts'
 import { SearchOutlined, ArrowRightOutlined } from '@vicons/antd'
 import FloatLabelInput from '../components/FloatLabelInput.vue'
 import { useStore } from '../store.ts'
@@ -21,23 +20,6 @@ const searching = ref<boolean>(false)
 const comicIdInput = ref<string>('')
 const sortSelected = ref<Sort>('TimeNewest')
 const comicInSearchPagination = ref<Pagination<ComicInSearchRespData>>()
-
-const comicInfoPagination = computed<Pagination<ComicInfo> | undefined>(() => {
-  const pagination = comicInSearchPagination.value
-  if (pagination === undefined) {
-    return undefined
-  }
-  return {
-    ...pagination,
-    docs: pagination.docs.map(({ _id, title, author, categories, thumb }) => ({
-      _id,
-      title,
-      author,
-      categories,
-      thumb,
-    })),
-  }
-})
 
 async function searchByKeyword(keyword: string, sort: Sort, page: number, categories: string[]) {
   searching.value = true
@@ -103,15 +85,22 @@ async function pickComic() {
       </n-button>
     </n-input-group>
 
-    <div v-if="comicInfoPagination !== undefined" class="flex flex-col gap-row-2 overflow-auto box-border px-2">
-      <comic-card v-for="comicInfo in comicInfoPagination.docs" :key="comicInfo._id" :comic-info="comicInfo" />
+    <div v-if="comicInSearchPagination !== undefined" class="flex flex-col gap-row-2 overflow-auto box-border px-2">
+      <comic-card
+        v-for="{ _id, title, author, categories, thumb } in comicInSearchPagination.docs"
+        :key="_id"
+        :comic-id="_id"
+        :comic-title="title"
+        :comic-author="author"
+        :comic-categories="categories"
+        :thumb="thumb" />
     </div>
 
     <n-pagination
-      v-if="comicInfoPagination !== undefined"
+      v-if="comicInSearchPagination !== undefined"
       class="box-border p-2 pt-0 mt-auto"
-      :page-count="comicInfoPagination.pages"
-      :page="comicInfoPagination.page"
+      :page-count="comicInSearchPagination.pages"
+      :page="comicInSearchPagination.page"
       @update:page="searchByKeyword(searchInput.trim(), sortSelected, $event, [])" />
   </div>
 </template>

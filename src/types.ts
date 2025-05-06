@@ -1,12 +1,4 @@
-import { DownloadTaskEvent, ImageRespData } from './bindings.ts'
-
-export type ComicInfo = {
-  _id: string
-  title: string
-  author?: string
-  categories: string[]
-  thumb: ImageRespData
-}
+import { DownloadTaskEvent } from './bindings.ts'
 
 export type CurrentTabName = 'search' | 'favorite' | 'downloaded' | 'chapter'
 
