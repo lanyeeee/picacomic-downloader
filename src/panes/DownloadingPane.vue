@@ -2,9 +2,10 @@
 import { onMounted, ref } from 'vue'
 import { commands, events } from '../bindings.ts'
 import { open } from '@tauri-apps/plugin-dialog'
-import { NProgress } from 'naive-ui'
 import { FolderOpenOutlined } from '@vicons/antd'
 import { useStore } from '../store.ts'
+import UncompletedProgresses from '../components/UncompletedProgresses.vue'
+import CompletedProgresses from '../components/CompletedProgresses.vue'
 
 const store = useStore()
 
@@ -69,7 +70,7 @@ async function selectDownloadDir() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-row-2" v-if="store.config !== undefined">
+  <div class="flex flex-col gap-row-2 flex-1 overflow-auto" v-if="store.config !== undefined">
     <n-input-group class="box-border px-2 pt-2">
       <n-input-group-label size="small">下载目录</n-input-group-label>
       <n-input v-model:value="store.config.downloadDir" :default-value="0" size="small" readonly @click="selectDownloadDir" />
@@ -82,12 +83,20 @@ async function selectDownloadDir() {
       </n-button>
     </n-input-group>
 
-    <div
-      class="grid grid-cols-[1fr_4fr] px-2"
-      v-for="[chapterId, { chapterInfo, percentage, downloadedImgCount, totalImgCount }] in store.progresses"
-      :key="chapterId">
-      <span class="mb-1! text-ellipsis whitespace-nowrap overflow-hidden">{{ chapterInfo.comicTitle }}</span>
-      <n-progress class="" :percentage="percentage">{{ downloadedImgCount }}/{{ totalImgCount }}</n-progress>
-    </div>
+    <n-tabs class="h-full overflow-auto" type="line" size="small">
+      <n-tab-pane class="h-full p-0! overflow-auto" name="uncompleted" tab="未完成">
+        <uncompleted-progresses />
+      </n-tab-pane>
+      <n-tab-pane class="h-full p-0! overflow-auto" name="completed" tab="已完成">
+        <completed-progresses />
+      </n-tab-pane>
+    </n-tabs>
+    <span class="ml-auto mr-2 mb-2">下载速度：{{ downloadSpeed }}</span>
   </div>
 </template>
+
+<style scoped>
+:deep(.n-tabs-tab) {
+  @apply important-py-0.75;
+}
+</style>
