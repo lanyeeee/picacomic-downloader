@@ -29,6 +29,13 @@ async function exportPdf() {
     return
   }
 }
+
+async function showComicDownloadDirInFileManager() {
+  const result = await commands.showComicDownloadDirInFileManager(props.comic.title, props.comic.author)
+  if (result.status === 'error') {
+    console.error(result.error)
+  }
+}
 </script>
 
 <template>
@@ -48,8 +55,9 @@ async function exportPdf() {
         </span>
         <span class="text-red">作者：{{ comic.author }}</span>
         <span class="text-gray" v-html="`分类：${comic.categories}`"></span>
-        <div class="flex ml-auto mt-auto gap-col-2">
-          <n-button size="tiny" @click="exportCbz">导出cbz</n-button>
+        <div class="flex mt-auto gap-col-2">
+          <n-button size="tiny" @click="showComicDownloadDirInFileManager">打开下载目录</n-button>
+          <n-button class="ml-auto" size="tiny" @click="exportCbz">导出cbz</n-button>
           <n-button size="tiny" @click="exportPdf">导出pdf</n-button>
         </div>
       </div>

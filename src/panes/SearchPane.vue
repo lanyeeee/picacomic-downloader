@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ComicInSearchRespData, commands, Pagination, Sort } from '../bindings.ts'
+import { commands, Sort } from '../bindings.ts'
 import ComicCard from '../components/ComicCard.vue'
 import { SearchOutlined, ArrowRightOutlined } from '@vicons/antd'
 import FloatLabelInput from '../components/FloatLabelInput.vue'
@@ -19,7 +19,6 @@ const searchInput = ref<string>('')
 const searching = ref<boolean>(false)
 const comicIdInput = ref<string>('')
 const sortSelected = ref<Sort>('TimeNewest')
-const comicInSearchPagination = ref<Pagination<ComicInSearchRespData>>()
 
 async function searchByKeyword(keyword: string, sort: Sort, page: number, categories: string[]) {
   searching.value = true
@@ -30,7 +29,7 @@ async function searchByKeyword(keyword: string, sort: Sort, page: number, catego
     return
   }
   searching.value = false
-  comicInSearchPagination.value = result.data
+  store.searchResult = result.data
 }
 
 async function pickComic() {
@@ -85,22 +84,23 @@ async function pickComic() {
       </n-button>
     </n-input-group>
 
-    <div v-if="comicInSearchPagination !== undefined" class="flex flex-col gap-row-2 overflow-auto box-border px-2">
+    <div v-if="store.searchResult !== undefined" class="flex flex-col gap-row-2 overflow-auto box-border px-2">
       <comic-card
-        v-for="{ _id, title, author, categories, thumb } in comicInSearchPagination.docs"
-        :key="_id"
-        :comic-id="_id"
+        v-for="{ id, title, author, categories, thumb, isDownloaded } in store.searchResult.docs"
+        :key="id"
+        :comic-id="id"
         :comic-title="title"
         :comic-author="author"
         :comic-categories="categories"
+        :comic-downloaded="isDownloaded"
         :thumb="thumb" />
     </div>
 
     <n-pagination
-      v-if="comicInSearchPagination !== undefined"
+      v-if="store.searchResult !== undefined"
       class="box-border p-2 pt-0 mt-auto"
-      :page-count="comicInSearchPagination.pages"
-      :page="comicInSearchPagination.page"
+      :page-count="store.searchResult.pages"
+      :page="store.searchResult.page"
       @update:page="searchByKeyword(searchInput.trim(), sortSelected, $event, [])" />
   </div>
 </template>

@@ -246,12 +246,7 @@ async function showExportDirInFileManager() {
       </n-button>
     </n-input-group>
     <div class="flex flex-col gap-row-2 overflow-auto box-border px-2">
-      <downloaded-comic-card
-        v-for="comic in currentPageComics"
-        :key="comic._id"
-        :comic="comic"
-        v-model:picked-comic="store.pickedComic"
-        v-model:current-tab-name="store.currentTabName" />
+      <downloaded-comic-card v-for="comic in currentPageComics" :key="comic.id" :comic="comic" />
     </div>
     <n-pagination
       class="box-border p-2 pt-0 mt-auto"

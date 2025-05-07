@@ -12,11 +12,8 @@ use crate::download_manager::DownloadManager;
 use crate::errors::{CommandError, CommandResult};
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
-use crate::responses::{
-    ChapterImageRespData, ComicInFavoriteRespData, ComicInSearchRespData, Pagination,
-    UserProfileDetailRespData,
-};
-use crate::types::{ChapterInfo, Comic, Sort};
+use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
+use crate::types::{ChapterInfo, Comic, GetFavoriteResult, SearchResult, Sort};
 use crate::{export, logger};
 
 #[tauri::command]
@@ -98,17 +95,20 @@ pub async fn get_user_profile(
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn search_comic(
+    app: AppHandle,
     pica_client: State<'_, PicaClient>,
     keyword: String,
     sort: Sort,
     page: i32,
     categories: Vec<String>,
-) -> CommandResult<Pagination<ComicInSearchRespData>> {
+) -> CommandResult<SearchResult> {
     let comic_in_search_pagination = pica_client
         .search_comic(&keyword, sort, page, categories)
         .await
         .map_err(|err| CommandError::from("搜索漫画失败", err))?;
-    Ok(comic_in_search_pagination)
+
+    let search_result = SearchResult::from_resp_data(&app, comic_in_search_pagination);
+    Ok(search_result)
 }
 
 #[tauri::command(async)]
@@ -270,25 +270,46 @@ pub fn show_path_in_file_manager(app: AppHandle, path: &str) -> CommandResult<()
     Ok(())
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_favorite_comics(
+pub fn show_comic_download_dir_in_file_manager(
+    app: AppHandle,
+    comic_title: String,
+    author: String,
+) -> CommandResult<()> {
+    let comic_download_dir = Comic::get_comic_download_dir(&app, &comic_title, &author);
+    app.opener()
+        .reveal_item_in_dir(&comic_download_dir)
+        .context(format!("在文件管理器中打开`{comic_download_dir:?}`失败"))
+        .map_err(|err| CommandError::from("在文件管理器中打开失败", err))?;
+    Ok(())
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn get_favorite(
+    app: AppHandle,
     pica_client: State<'_, PicaClient>,
     sort: Sort,
     page: i64,
-) -> CommandResult<Pagination<ComicInFavoriteRespData>> {
-    let favorite_comics = pica_client
-        .get_favorite_comics(sort, page)
+) -> CommandResult<GetFavoriteResult> {
+    let get_favorite_resp_data = pica_client
+        .get_favorite(sort, page)
         .await
         .map_err(|err| CommandError::from("获取收藏的漫画失败", err))?;
-    Ok(favorite_comics)
+
+    let get_favorite_result = GetFavoriteResult::from_resp_data(&app, get_favorite_resp_data);
+    Ok(get_favorite_result)
 }
 
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
 pub fn save_metadata(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
-    // 将所有章节的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
+    // 将Comic的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
+    comic.is_downloaded = None;
+    // 将所有ChapterInfo的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
     for chapter in &mut comic.chapter_infos {
         chapter.is_downloaded = None;
     }

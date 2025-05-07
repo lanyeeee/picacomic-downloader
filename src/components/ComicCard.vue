@@ -7,8 +7,9 @@ const store = useStore()
 const props = defineProps<{
   comicId: string
   comicTitle: string
-  comicAuthor?: string
+  comicAuthor: string
   comicCategories: string[]
+  comicDownloaded: boolean
   thumb: ImageRespData
 }>()
 
@@ -28,6 +29,13 @@ async function pickComic() {
   }
   store.pickedComic = result.data
   store.currentTabName = 'chapter'
+}
+
+async function showComicDownloadDirInFileManager() {
+  const result = await commands.showComicDownloadDirInFileManager(props.comicTitle, props.comicAuthor)
+  if (result.status === 'error') {
+    console.error(result.error)
+  }
 }
 </script>
 
@@ -50,7 +58,12 @@ async function pickComic() {
           <span class="text-red">作者：{{ comicAuthor }}</span>
           <span class="text-gray" v-html="`分类：${comicCategories}`"></span>
         </div>
-        <n-button size="tiny" class="ml-auto" @click="downloadComic">一键下载所有章节</n-button>
+        <div class="flex">
+          <n-button v-if="comicDownloaded" size="tiny" @click="showComicDownloadDirInFileManager">
+            打开下载目录
+          </n-button>
+          <n-button size="tiny" class="ml-auto" @click="downloadComic">一键下载所有章节</n-button>
+        </div>
       </div>
     </div>
   </n-card>
