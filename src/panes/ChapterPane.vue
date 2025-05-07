@@ -123,12 +123,23 @@ async function refreshChapters() {
   if (store.pickedComic === undefined) {
     return
   }
-  const result = await commands.getComic(store.pickedComic._id.trim())
+  const result = await commands.getComic(store.pickedComic.id.trim())
   if (result.status === 'error') {
     console.error(result.error)
     return
   }
   store.pickedComic = result.data
+}
+
+async function showComicDownloadDirInFileManager() {
+  if (store.pickedComic === undefined) {
+    return
+  }
+
+  const result = await commands.showComicDownloadDirInFileManager(store.pickedComic.title, store.pickedComic.author)
+  if (result.status === 'error') {
+    console.error(result.error)
+  }
 }
 </script>
 
@@ -163,15 +174,22 @@ async function refreshChapters() {
 
     <div v-if="store.pickedComic !== undefined" class="flex p-2 pt-0">
       <img
-        class="w-24"
+        class="w-24 mr-4"
         :src="`${store.pickedComic.thumb.fileServer}/static/${store.pickedComic.thumb.path}`"
         alt=""
         referrerpolicy="no-referrer" />
       <div class="flex flex-col w-full justify-between">
-        <div class="flex flex-col">
+        <div class="flex flex-col h-full">
           <span class="font-bold text-xl line-clamp-2">{{ store.pickedComic.title }}</span>
           <span class="text-red">作者：{{ store.pickedComic.author }}</span>
           <span class="text-gray" v-html="`分类：${store.pickedComic.categories}`"></span>
+          <n-button
+            v-if="store.pickedComic.isDownloaded === true"
+            class="mr-auto mt-auto"
+            size="tiny"
+            @click="showComicDownloadDirInFileManager">
+            打开下载目录
+          </n-button>
         </div>
       </div>
     </div>

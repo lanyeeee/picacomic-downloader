@@ -17,10 +17,10 @@ use tauri::{AppHandle, Manager};
 
 use crate::config::Config;
 use crate::responses::{
-    ChapterImageRespData, ChapterRespData, ComicInFavoriteRespData, ComicInSearchRespData,
-    ComicRespData, GetChapterImageRespData, GetChapterRespData, GetComicRespData,
-    GetFavoriteRespData, LoginRespData, Pagination, PicaResp, SearchRespData,
-    UserProfileDetailRespData, UserProfileRespData,
+    ChapterImageRespData, ChapterRespData, ComicRespData,
+    GetChapterImageRespData, GetChapterRespData, GetComicRespData, GetFavoriteRespData,
+    LoginRespData, Pagination, PicaResp, SearchRespData, UserProfileDetailRespData,
+    UserProfileRespData,
 };
 use crate::types::{DownloadFormat, Sort};
 
@@ -175,7 +175,7 @@ impl PicaClient {
         sort: Sort,
         page: i32,
         categories: Vec<String>,
-    ) -> anyhow::Result<Pagination<ComicInSearchRespData>> {
+    ) -> anyhow::Result<SearchRespData> {
         let payload = json!({
             "keyword": keyword,
             "sort": sort.as_str(),
@@ -210,7 +210,7 @@ impl PicaClient {
         let search_resp_data = serde_json::from_str::<SearchRespData>(&data_str)
             .context(format!("将data解析为SearchRespData失败: {data_str}"))?;
 
-        Ok(search_resp_data.comics)
+        Ok(search_resp_data)
     }
 
     pub async fn get_comic(&self, comic_id: &str) -> anyhow::Result<ComicRespData> {
@@ -323,11 +323,7 @@ impl PicaClient {
         Ok(get_chapter_image_resp_data.pages)
     }
 
-    pub async fn get_favorite_comics(
-        &self,
-        sort: Sort,
-        page: i64,
-    ) -> anyhow::Result<Pagination<ComicInFavoriteRespData>> {
+    pub async fn get_favorite(&self, sort: Sort, page: i64) -> anyhow::Result<GetFavoriteRespData> {
         // 发送获取收藏的漫画请求
         let sort = sort.as_str();
         let path = format!("users/favourite?s={sort}&page={page}");
@@ -358,7 +354,7 @@ impl PicaClient {
         let get_favorite_resp_data = serde_json::from_str::<GetFavoriteRespData>(&data_str)
             .context(format!("将data解析为GetFavoriteRespData失败: {data_str}"))?;
 
-        Ok(get_favorite_resp_data.comics)
+        Ok(get_favorite_resp_data)
     }
 
     pub async fn get_img_data(&self, url: &str) -> anyhow::Result<Bytes> {

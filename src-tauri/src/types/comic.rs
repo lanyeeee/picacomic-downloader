@@ -18,10 +18,8 @@ use super::ChapterInfo;
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Comic {
-    #[serde(rename = "_id")]
     pub id: String,
     pub title: String,
-    #[serde(default)]
     pub author: String,
     pub pages_count: i64,
     pub chapter_infos: Vec<ChapterInfo>,
@@ -30,25 +28,25 @@ pub struct Comic {
     pub categories: Vec<String>,
     pub thumb: Image,
     pub likes_count: i64,
-    #[serde(rename = "_creator")]
     pub creator: Creator,
-    #[serde(default)]
     pub description: String,
-    #[serde(default)]
     pub chinese_team: String,
     pub tags: Vec<String>,
-    #[serde(rename = "updated_at")]
     pub updated_at: DateTime<Utc>,
-    #[serde(rename = "created_at")]
     pub created_at: String,
     pub allow_download: bool,
     pub views_count: i64,
     pub is_liked: bool,
     pub comments_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_downloaded: Option<bool>,
 }
 
 impl Comic {
     pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Self {
+        let is_downloaded =
+            Comic::get_comic_download_dir(app, &comic.title, &comic.author).exists();
+
         let chapter_infos: Vec<ChapterInfo> = chapters
             .into_iter()
             .map(|chapter_resp_data| {
@@ -117,6 +115,7 @@ impl Comic {
             views_count: comic.views_count,
             is_liked: comic.is_liked,
             comments_count: comic.comments_count,
+            is_downloaded: Some(is_downloaded),
         }
     }
 
@@ -127,16 +126,19 @@ impl Comic {
         let mut comic = serde_json::from_str::<Comic>(&comic_json).context(format!(
             "从元数据转为Comic失败，将 {metadata_path:?} 反序列化为Comic失败"
         ))?;
-        // 这个comic中的is_downloaded字段是None，需要重新计算
+        // 来自metadata的Comic的is_downloaded字段都是None，需要重新计算
+        let comic_is_downloaded = Comic::get_is_downloaded(app, &comic.title, &comic.author);
+        comic.is_downloaded = Some(comic_is_downloaded);
+        // 来自metadata的ChapterInfo的is_downloaded字段都是None，需要重新计算
         for chapter_info in &mut comic.chapter_infos {
-            let is_downloaded = ChapterInfo::get_is_downloaded(
+            let chapter_is_downloaded = ChapterInfo::get_is_downloaded(
                 app,
                 &chapter_info.comic_title,
                 &chapter_info.chapter_title,
                 &comic.author,
                 chapter_info.order,
             );
-            chapter_info.is_downloaded = Some(is_downloaded);
+            chapter_info.is_downloaded = Some(chapter_is_downloaded);
         }
         Ok(comic)
     }
@@ -157,6 +159,11 @@ impl Comic {
             .join(comic_dir_name)
     }
 
+    pub fn get_is_downloaded(app: &AppHandle, comic_title: &str, author: &str) -> bool {
+        let comic_download_dir = Self::get_comic_download_dir(app, comic_title, author);
+        comic_download_dir.exists()
+    }
+
     fn comic_dir_name(app: &AppHandle, comic_title: &str, author: &str) -> String {
         let author = filename_filter(author);
         let comic_title = filename_filter(comic_title);
@@ -173,7 +180,6 @@ impl Comic {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Creator {
-    #[serde(rename = "_id")]
     pub id: String,
     pub gender: String,
     pub name: String,
@@ -182,12 +188,9 @@ pub struct Creator {
     pub exp: i64,
     pub level: i64,
     pub characters: Vec<String>,
-    #[serde(default)]
     pub avatar: Image,
-    #[serde(default)]
     pub slogan: String,
     pub role: String,
-    #[serde(default)]
     pub character: String,
 }
 

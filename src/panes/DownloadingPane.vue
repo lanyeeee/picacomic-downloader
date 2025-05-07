@@ -19,6 +19,28 @@ onMounted(async () => {
   await events.downloadTaskEvent.listen(({ payload: downloadTaskEvent }) => {
     const { state, chapterInfo, downloadedImgCount, totalImgCount } = downloadTaskEvent
 
+    if (state === 'Completed') {
+      chapterInfo.isDownloaded = true
+
+      if (store.pickedComic !== undefined) {
+        store.pickedComic.isDownloaded = true
+      }
+
+      if (store.searchResult !== undefined) {
+        const comic = store.searchResult.docs.find((comic) => comic.id === chapterInfo.comicId)
+        if (comic !== undefined) {
+          comic.isDownloaded = true
+        }
+      }
+
+      if (store.getFavoriteResult !== undefined) {
+        const comic = store.getFavoriteResult.docs.find((comic) => comic.id === chapterInfo.comicId)
+        if (comic !== undefined) {
+          comic.isDownloaded = true
+        }
+      }
+    }
+
     const percentage = (downloadedImgCount / totalImgCount) * 100
 
     let indicator = ''
