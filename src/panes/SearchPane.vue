@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { commands, Sort } from '../bindings.ts'
+import { commands, SearchSort } from '../bindings.ts'
 import ComicCard from '../components/ComicCard.vue'
 import { SearchOutlined, ArrowRightOutlined } from '@vicons/antd'
 import FloatLabelInput from '../components/FloatLabelInput.vue'
 import { useStore } from '../store.ts'
+import { SelectProps } from 'naive-ui'
 
 const store = useStore()
 
-const sortOptions = [
+const sortOptions: SelectProps['options'] = [
   { label: '新到旧', value: 'TimeNewest' },
   { label: '旧到新', value: 'TimeOldest' },
   { label: '最多爱心', value: 'LikeMost' },
@@ -18,9 +19,9 @@ const sortOptions = [
 const searchInput = ref<string>('')
 const searching = ref<boolean>(false)
 const comicIdInput = ref<string>('')
-const sortSelected = ref<Sort>('TimeNewest')
+const sortSelected = ref<SearchSort>('TimeNewest')
 
-async function searchByKeyword(keyword: string, sort: Sort, page: number, categories: string[]) {
+async function searchByKeyword(keyword: string, sort: SearchSort, page: number, categories: string[]) {
   searching.value = true
   const result = await commands.searchComic(keyword, sort, page, categories)
   if (result.status === 'error') {
@@ -53,7 +54,7 @@ async function pickComic() {
         clearable
         @keydown.enter="searchByKeyword(searchInput.trim(), sortSelected, 1, [])" />
       <n-select
-        class="w-40"
+        class="w-45%"
         v-model:value="sortSelected"
         :options="sortOptions"
         :show-checkmark="false"

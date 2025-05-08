@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import ComicCard from '../components/ComicCard.vue'
 import { ref, watch } from 'vue'
-import { commands, Sort } from '../bindings.ts'
+import { commands, GetFavoriteSort } from '../bindings.ts'
 import { useStore } from '../store.ts'
+import { SelectProps } from 'naive-ui'
 
 const store = useStore()
 
-const sortSelected = ref<Sort>('TimeNewest') // TODO: 添加一个选择器来控制这个值
+const sortOptions: SelectProps['options'] = [
+  { label: '新到旧', value: 'TimeNewest' },
+  { label: '旧到新', value: 'TimeOldest' },
+]
 
-async function getFavorite(sort: Sort, page: number) {
+const sortSelected = ref<GetFavoriteSort>('TimeNewest') // TODO: 添加一个选择器来控制这个值
+
+async function getFavorite(sort: GetFavoriteSort, page: number) {
+  console.log('getFavorite', sort, page)
   const result = await commands.getFavorite(sort, page)
   if (result.status === 'error') {
     console.error(result.error)
@@ -31,7 +38,17 @@ watch(
 
 <template>
   <div v-if="store.getFavoriteResult !== undefined" class="h-full flex flex-col gap-2">
-    <div class="flex flex-col gap-row-2 overflow-auto box-border px-2 pt-2">
+    <n-input-group class="box-border px-2 pt-2">
+      <n-input-group-label size="small">排序方式</n-input-group-label>
+      <n-select
+        class="w-25"
+        v-model:value="sortSelected"
+        :options="sortOptions"
+        :show-checkmark="false"
+        size="small"
+        @update-value="getFavorite($event, 1)" />
+    </n-input-group>
+    <div class="flex flex-col gap-row-2 overflow-auto box-border px-2">
       <comic-card
         v-for="{ id, title, author, categories, thumb, isDownloaded } in store.getFavoriteResult.docs"
         :key="id"

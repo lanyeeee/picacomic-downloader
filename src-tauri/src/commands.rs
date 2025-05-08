@@ -13,7 +13,9 @@ use crate::errors::{CommandError, CommandResult};
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
 use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
-use crate::types::{ChapterInfo, Comic, GetFavoriteResult, SearchResult, Sort};
+use crate::types::{
+    ChapterInfo, Comic, GetFavoriteResult, GetFavoriteSort, SearchResult, SearchSort,
+};
 use crate::{export, logger};
 
 #[tauri::command]
@@ -98,7 +100,7 @@ pub async fn search_comic(
     app: AppHandle,
     pica_client: State<'_, PicaClient>,
     keyword: String,
-    sort: Sort,
+    sort: SearchSort,
     page: i32,
     categories: Vec<String>,
 ) -> CommandResult<SearchResult> {
@@ -291,7 +293,7 @@ pub fn show_comic_download_dir_in_file_manager(
 pub async fn get_favorite(
     app: AppHandle,
     pica_client: State<'_, PicaClient>,
-    sort: Sort,
+    sort: GetFavoriteSort,
     page: i64,
 ) -> CommandResult<GetFavoriteResult> {
     let get_favorite_resp_data = pica_client
