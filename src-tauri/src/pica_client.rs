@@ -17,12 +17,11 @@ use tauri::{AppHandle, Manager};
 
 use crate::config::Config;
 use crate::responses::{
-    ChapterImageRespData, ChapterRespData, ComicRespData,
-    GetChapterImageRespData, GetChapterRespData, GetComicRespData, GetFavoriteRespData,
-    LoginRespData, Pagination, PicaResp, SearchRespData, UserProfileDetailRespData,
-    UserProfileRespData,
+    ChapterImageRespData, ChapterRespData, ComicRespData, GetChapterImageRespData,
+    GetChapterRespData, GetComicRespData, GetFavoriteRespData, LoginRespData, Pagination, PicaResp,
+    SearchRespData, UserProfileDetailRespData, UserProfileRespData,
 };
-use crate::types::{DownloadFormat, Sort};
+use crate::types::{DownloadFormat, GetFavoriteSort, SearchSort};
 
 const HOST_URL: &str = "https://picaapi.picacomic.com/";
 const API_KEY: &str = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
@@ -172,7 +171,7 @@ impl PicaClient {
     pub async fn search_comic(
         &self,
         keyword: &str,
-        sort: Sort,
+        sort: SearchSort,
         page: i32,
         categories: Vec<String>,
     ) -> anyhow::Result<SearchRespData> {
@@ -323,7 +322,11 @@ impl PicaClient {
         Ok(get_chapter_image_resp_data.pages)
     }
 
-    pub async fn get_favorite(&self, sort: Sort, page: i64) -> anyhow::Result<GetFavoriteRespData> {
+    pub async fn get_favorite(
+        &self,
+        sort: GetFavoriteSort,
+        page: i64,
+    ) -> anyhow::Result<GetFavoriteRespData> {
         // 发送获取收藏的漫画请求
         let sort = sort.as_str();
         let path = format!("users/favourite?s={sort}&page={page}");

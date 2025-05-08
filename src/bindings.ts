@@ -35,7 +35,7 @@ async getUserProfile() : Promise<Result<UserProfileDetailRespData, CommandError>
     else return { status: "error", error: e  as any };
 }
 },
-async searchComic(keyword: string, sort: Sort, page: number, categories: string[]) : Promise<Result<SearchResult, CommandError>> {
+async searchComic(keyword: string, sort: SearchSort, page: number, categories: string[]) : Promise<Result<SearchResult, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("search_comic", { keyword, sort, page, categories }) };
 } catch (e) {
@@ -110,7 +110,7 @@ async showComicDownloadDirInFileManager(comicTitle: string, author: string) : Pr
     else return { status: "error", error: e  as any };
 }
 },
-async getFavorite(sort: Sort, page: number) : Promise<Result<GetFavoriteResult, CommandError>> {
+async getFavorite(sort: GetFavoriteSort, page: number) : Promise<Result<GetFavoriteResult, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_favorite", { sort, page }) };
 } catch (e) {
@@ -198,6 +198,7 @@ export type DownloadTaskState = "Pending" | "Downloading" | "Paused" | "Cancelle
 export type ExportCbzEvent = { event: "Start"; data: { uuid: string; comicTitle: string; total: number } } | { event: "Progress"; data: { uuid: string; current: number } } | { event: "Error"; data: { uuid: string } } | { event: "End"; data: { uuid: string } }
 export type ExportPdfEvent = { event: "CreateStart"; data: { uuid: string; comicTitle: string; total: number } } | { event: "CreateProgress"; data: { uuid: string; current: number } } | { event: "CreateError"; data: { uuid: string } } | { event: "CreateEnd"; data: { uuid: string } } | { event: "MergeStart"; data: { uuid: string; comicTitle: string } } | { event: "MergeError"; data: { uuid: string } } | { event: "MergeEnd"; data: { uuid: string } }
 export type GetFavoriteResult = Pagination<ComicInFavorite>
+export type GetFavoriteSort = "TimeNewest" | "TimeOldest"
 export type Image = { originalName: string; path: string; fileServer: string }
 export type ImageRespData = { originalName: string; path: string; fileServer: string }
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key in string]: JsonValue }
@@ -205,7 +206,7 @@ export type LogEvent = { timestamp: string; level: LogLevel; fields: { [key in s
 export type LogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR"
 export type Pagination<T> = { total: number; limit: number; page: number; pages: number; docs: T[] }
 export type SearchResult = Pagination<ComicInSearch>
-export type Sort = "Default" | "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"
+export type SearchSort = "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"
 export type UserProfileDetailRespData = { _id: string; gender: string; name: string; title: string; verified: boolean; exp: number; level: number; characters: string[]; avatar?: ImageRespData; birthday: string; email: string; created_at: string; isPunched: boolean }
 
 /** tauri-specta globals **/
