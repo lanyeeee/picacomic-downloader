@@ -109,7 +109,7 @@ async function downloadChapters() {
 
   for (const chapterToDownload of chaptersToDownload) {
     // 创建下载任务
-    await commands.createDownloadTask(chapterToDownload)
+    await commands.createDownloadTask(store.pickedComic, chapterToDownload.chapterId)
     // 更新勾选状态
     const chapter = store.pickedComic?.chapterInfos.find((chapter) => chapter.chapterId === chapterToDownload.chapterId)
     if (chapter !== undefined) {

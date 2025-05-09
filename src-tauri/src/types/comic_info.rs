@@ -64,7 +64,7 @@ impl ComicInfo {
 
         ComicInfo {
             manga: "Yes".to_string(),
-            series: chapter_info.comic_title.clone(),
+            series: comic.title.clone(),
             publisher: "哔咔漫画".to_string(),
             writer: comic.author.clone(),
             tags: comic.tags.join(", "),

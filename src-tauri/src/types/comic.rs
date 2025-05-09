@@ -43,7 +43,7 @@ pub struct Comic {
 }
 
 impl Comic {
-    pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Self {
+    pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Comic {
         let is_downloaded =
             Comic::get_comic_download_dir(app, &comic.title, &comic.author).exists();
 
@@ -60,9 +60,6 @@ impl Comic {
                 ChapterInfo {
                     chapter_id: chapter_resp_data.id,
                     chapter_title: chapter_resp_data.title,
-                    comic_id: comic.id.clone(),
-                    comic_title: comic.title.clone(),
-                    author: comic.author.clone(),
                     is_downloaded: Some(is_downloaded),
                     order: chapter_resp_data.order,
                 }
@@ -133,7 +130,7 @@ impl Comic {
         for chapter_info in &mut comic.chapter_infos {
             let chapter_is_downloaded = ChapterInfo::get_is_downloaded(
                 app,
-                &chapter_info.comic_title,
+                &comic.title,
                 &chapter_info.chapter_title,
                 &comic.author,
                 chapter_info.order,
