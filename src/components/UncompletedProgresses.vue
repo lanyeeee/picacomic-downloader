@@ -63,8 +63,18 @@ async function handleProgressDoubleClick(state: DownloadTaskState, chapterId: st
     if (result.status === 'error') {
       console.error(result.error)
     }
-  } else {
+  } else if (state === 'Paused') {
     const result = await commands.resumeDownloadTask(chapterId)
+    if (result.status === 'error') {
+      console.error(result.error)
+    }
+  } else {
+    const progressData = store.progresses.get(chapterId)
+    if (progressData === undefined) {
+      return
+    }
+    const { comic } = progressData
+    const result = await commands.createDownloadTask(comic, chapterId)
     if (result.status === 'error') {
       console.error(result.error)
     }
@@ -117,6 +127,19 @@ function useDropdown() {
       props: {
         onClick: () => {
           selectedIds.value.forEach(async (chapterId) => {
+            const progressData = store.progresses.get(chapterId)
+            if (progressData === undefined) {
+              return
+            }
+            const { state, comic } = progressData
+            if (state === 'Cancelled' || state === 'Completed' || state === 'Failed') {
+              const result = await commands.createDownloadTask(comic, chapterId)
+              if (result.status === 'error') {
+                console.error(result.error)
+              }
+              return
+            }
+
             const result = await commands.resumeDownloadTask(chapterId)
             if (result.status === 'error') {
               console.error(result.error)
@@ -137,6 +160,15 @@ function useDropdown() {
       props: {
         onClick: () => {
           selectedIds.value.forEach(async (chapterId) => {
+            const progressData = store.progresses.get(chapterId)
+            if (progressData === undefined) {
+              return
+            }
+            const { state } = progressData
+            if (state === 'Cancelled' || state === 'Completed' || state === 'Failed') {
+              return
+            }
+
             const result = await commands.pauseDownloadTask(chapterId)
             if (result.status === 'error') {
               console.error(result.error)
@@ -157,6 +189,15 @@ function useDropdown() {
       props: {
         onClick: () => {
           selectedIds.value.forEach(async (chapterId) => {
+            const progressData = store.progresses.get(chapterId)
+            if (progressData === undefined) {
+              return
+            }
+            const { state } = progressData
+            if (state === 'Cancelled' || state === 'Completed' || state === 'Failed') {
+              return
+            }
+
             const result = await commands.cancelDownloadTask(chapterId)
             if (result.status === 'error') {
               console.error(result.error)
@@ -227,7 +268,7 @@ function stateToColorClass(state: DownloadTaskState) {
     <span class="ml-auto select-none">左键拖动进行框选，右键打开菜单，双击暂停/继续</span>
     <div class="h-full select-none">
       <div
-        v-for="[chapterId, { state, chapterInfo, percentage, indicator }] in uncompletedProgresses"
+        v-for="[chapterId, { state, chapterInfo, comic, percentage, indicator }] in uncompletedProgresses"
         :key="chapterId"
         ref="selectableRefs"
         :data-key="chapterId"
@@ -238,8 +279,8 @@ function stateToColorClass(state: DownloadTaskState) {
         @dblclick="() => handleProgressDoubleClick(state, chapterId)"
         @contextmenu="() => handleProgressContextMenu(chapterId)">
         <div class="grid grid-cols-[1fr_1fr]">
-          <div class="text-ellipsis whitespace-nowrap overflow-hidden" :title="chapterInfo.comicTitle">
-            {{ chapterInfo.comicTitle }}
+          <div class="text-ellipsis whitespace-nowrap overflow-hidden" :title="comic.title">
+            {{ comic.title }}
           </div>
           <div class="text-ellipsis whitespace-nowrap overflow-hidden" :title="chapterInfo.chapterTitle">
             {{ chapterInfo.chapterTitle }}

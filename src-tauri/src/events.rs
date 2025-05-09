@@ -6,7 +6,7 @@ use tauri_specta::Event;
 
 use crate::{
     download_manager::DownloadTaskState,
-    types::{ChapterInfo, LogLevel},
+    types::{ChapterInfo, Comic, LogLevel},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
@@ -16,12 +16,24 @@ pub struct DownloadSpeedEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadTaskEvent {
-    pub state: DownloadTaskState,
-    pub chapter_info: ChapterInfo,
-    pub downloaded_img_count: u32,
-    pub total_img_count: u32,
+#[serde(tag = "event", content = "data")]
+pub enum DownloadTaskEvent {
+    #[serde(rename_all = "camelCase")]
+    Create {
+        state: DownloadTaskState,
+        comic: Box<Comic>,
+        chapter_info: Box<ChapterInfo>,
+        downloaded_img_count: u32,
+        total_img_count: u32,
+    },
+
+    #[serde(rename_all = "camelCase")]
+    Update {
+        chapter_id: String,
+        state: DownloadTaskState,
+        downloaded_img_count: u32,
+        total_img_count: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]

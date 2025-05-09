@@ -16,53 +16,71 @@ onMounted(async () => {
     downloadSpeed.value = speed
   })
 
-  await events.downloadTaskEvent.listen(({ payload: downloadTaskEvent }) => {
-    const { state, chapterInfo, downloadedImgCount, totalImgCount } = downloadTaskEvent
+  await events.downloadTaskEvent.listen(({ payload: { event, data } }) => {
+    if (event === 'Create') {
+      const { chapterInfo, downloadedImgCount, totalImgCount } = data
 
-    if (state === 'Completed') {
-      chapterInfo.isDownloaded = true
+      store.progresses.set(chapterInfo.chapterId, {
+        ...data,
+        percentage: 0,
+        indicator: `排队中 ${downloadedImgCount}/${totalImgCount}`,
+      })
+    } else if (event === 'Update') {
+      const { chapterId, state, downloadedImgCount, totalImgCount } = data
 
-      if (store.pickedComic !== undefined) {
-        store.pickedComic.isDownloaded = true
+      const progressData = store.progresses.get(chapterId)
+      if (progressData === undefined) {
+        return
       }
 
-      if (store.searchResult !== undefined) {
-        const comic = store.searchResult.docs.find((comic) => comic.id === chapterInfo.comicId)
-        if (comic !== undefined) {
-          comic.isDownloaded = true
+      progressData.state = state
+      progressData.downloadedImgCount = downloadedImgCount
+      progressData.totalImgCount = totalImgCount
+
+      if (state === 'Completed') {
+        progressData.chapterInfo.isDownloaded = true
+
+        if (store.pickedComic !== undefined) {
+          store.pickedComic.isDownloaded = true
+        }
+
+        if (store.searchResult !== undefined) {
+          const comic = store.searchResult.docs.find((comic) => comic.id === progressData.comic.id)
+          if (comic !== undefined) {
+            comic.isDownloaded = true
+          }
+        }
+
+        if (store.getFavoriteResult !== undefined) {
+          const comic = store.getFavoriteResult.docs.find((comic) => comic.id === progressData.comic.id)
+          if (comic !== undefined) {
+            comic.isDownloaded = true
+          }
         }
       }
 
-      if (store.getFavoriteResult !== undefined) {
-        const comic = store.getFavoriteResult.docs.find((comic) => comic.id === chapterInfo.comicId)
-        if (comic !== undefined) {
-          comic.isDownloaded = true
-        }
+      progressData.percentage = (downloadedImgCount / totalImgCount) * 100
+
+      let indicator = ''
+      if (state === 'Pending') {
+        indicator = `排队中`
+      } else if (state === 'Downloading') {
+        indicator = `下载中`
+      } else if (state === 'Paused') {
+        indicator = `已暂停`
+      } else if (state === 'Cancelled') {
+        indicator = `已取消`
+      } else if (state === 'Completed') {
+        indicator = `下载完成`
+      } else if (state === 'Failed') {
+        indicator = `下载失败`
       }
-    }
+      if (totalImgCount !== 0) {
+        indicator += ` ${downloadedImgCount}/${totalImgCount}`
+      }
 
-    const percentage = (downloadedImgCount / totalImgCount) * 100
-
-    let indicator = ''
-    if (state === 'Pending') {
-      indicator = `排队中`
-    } else if (state === 'Downloading') {
-      indicator = `下载中`
-    } else if (state === 'Paused') {
-      indicator = `已暂停`
-    } else if (state === 'Cancelled') {
-      indicator = `已取消`
-    } else if (state === 'Completed') {
-      indicator = `下载完成`
-    } else if (state === 'Failed') {
-      indicator = `下载失败`
+      progressData.indicator = indicator
     }
-    if (totalImgCount !== 0) {
-      indicator += ` ${downloadedImgCount}/${totalImgCount}`
-    }
-
-    const progressData = { ...downloadTaskEvent, percentage, indicator }
-    store.progresses.set(chapterInfo.chapterId, progressData)
   })
 })
 
@@ -95,7 +113,12 @@ async function selectDownloadDir() {
   <div class="flex flex-col gap-row-2 flex-1 overflow-auto" v-if="store.config !== undefined">
     <n-input-group class="box-border px-2 pt-2">
       <n-input-group-label size="small">下载目录</n-input-group-label>
-      <n-input v-model:value="store.config.downloadDir" :default-value="0" size="small" readonly @click="selectDownloadDir" />
+      <n-input
+        v-model:value="store.config.downloadDir"
+        :default-value="0"
+        size="small"
+        readonly
+        @click="selectDownloadDir" />
       <n-button size="small" @click="showDownloadDirInFileManager">
         <template #icon>
           <n-icon>

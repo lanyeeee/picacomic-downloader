@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::events::{DownloadSpeedEvent, DownloadTaskEvent};
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
-use crate::types::ChapterInfo;
+use crate::types::{ChapterInfo, Comic};
 
 /// 用于管理下载任务
 ///
@@ -62,20 +62,26 @@ impl DownloadManager {
         manager
     }
 
-    pub fn create_download_task(&self, chapter_info: ChapterInfo) {
+    pub fn create_download_task(&self, comic: Comic, chapter_id: String) -> anyhow::Result<()> {
         use DownloadTaskState::{Downloading, Paused, Pending};
-        let chapter_id = chapter_info.chapter_id.clone();
+        let chapter_info = comic
+            .chapter_infos
+            .iter()
+            .find(|chapter| chapter.chapter_id == chapter_id)
+            .cloned()
+            .context(format!("未找到章节ID为`{chapter_id}`的章节信息"))?;
         let mut tasks = self.download_tasks.write();
         if let Some(task) = tasks.get(&chapter_id) {
-            // 如果任务已经存在，且状态是`Pending`、`Downloading`或`Paused`，则不创建新任务
             let state = *task.state_sender.borrow();
             if matches!(state, Pending | Downloading | Paused) {
-                return;
+                return Err(anyhow!("章节ID为`{chapter_id}`的下载任务已存在"));
             }
         }
-        let task = DownloadTask::new(self.app.clone(), chapter_info);
+        tasks.remove(&chapter_id);
+        let task = DownloadTask::new(self.app.clone(), comic, chapter_info);
         tauri::async_runtime::spawn(task.clone().process());
         tasks.insert(chapter_id, task);
+        Ok(())
     }
 
     pub fn pause_download_task(&self, chapter_id: &str) -> anyhow::Result<()> {
@@ -88,26 +94,11 @@ impl DownloadManager {
     }
 
     pub fn resume_download_task(&self, chapter_id: &str) -> anyhow::Result<()> {
-        use DownloadTaskState::{Cancelled, Completed, Failed, Pending};
-        let chapter_info = {
-            let tasks = self.download_tasks.read();
-            let Some(task) = tasks.get(chapter_id) else {
-                return Err(anyhow!("未找到章节ID为`{chapter_id}`的下载任务"));
-            };
-            let task_state = *task.state_sender.borrow();
-
-            if matches!(task_state, Failed | Cancelled | Completed) {
-                // 如果任务状态是`Failed`、`Cancelled`或`Completed`，则获取 chapter_info 用于重新创建下载任务
-                Some(task.chapter_info.as_ref().clone())
-            } else {
-                task.set_state(Pending);
-                None
-            }
+        let tasks = self.download_tasks.read();
+        let Some(task) = tasks.get(chapter_id) else {
+            return Err(anyhow!("未找到章节ID为`{chapter_id}`的下载任务"));
         };
-        // 如果 chapter_info 不为 None，则重新创建下载任务
-        if let Some(chapter_info) = chapter_info {
-            self.create_download_task(chapter_info);
-        }
+        task.set_state(DownloadTaskState::Pending);
         Ok(())
     }
 
@@ -138,6 +129,7 @@ impl DownloadManager {
 struct DownloadTask {
     app: AppHandle,
     download_manager: DownloadManager,
+    comic: Arc<Comic>,
     chapter_info: Arc<ChapterInfo>,
     state_sender: watch::Sender<DownloadTaskState>,
     downloaded_img_count: Arc<AtomicU32>,
@@ -145,12 +137,13 @@ struct DownloadTask {
 }
 
 impl DownloadTask {
-    pub fn new(app: AppHandle, chapter_info: ChapterInfo) -> Self {
+    pub fn new(app: AppHandle, comic: Comic, chapter_info: ChapterInfo) -> Self {
         let download_manager = app.state::<DownloadManager>().inner().clone();
         let (state_sender, _) = watch::channel(DownloadTaskState::Pending);
         Self {
             app,
             download_manager,
+            comic: Arc::new(comic),
             chapter_info: Arc::new(chapter_info),
             state_sender,
             downloaded_img_count: Arc::new(AtomicU32::new(0)),
@@ -159,11 +152,12 @@ impl DownloadTask {
     }
 
     async fn process(self) {
+        self.emit_download_task_create_event();
+
         let download_comic_task = self.download_chapter();
         tokio::pin!(download_comic_task);
 
         let mut state_receiver = self.state_sender.subscribe();
-        state_receiver.mark_changed();
         let mut permit = None;
         loop {
             let state_is_downloading = *state_receiver.borrow() == DownloadTaskState::Downloading;
@@ -187,7 +181,7 @@ impl DownloadTask {
     }
 
     async fn download_chapter(&self) {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
         // 获取图片链接
         let img_urls = match self.get_img_urls().await {
@@ -198,7 +192,7 @@ impl DownloadTask {
                 tracing::error!(err_title, message = string_chain);
 
                 self.set_state(DownloadTaskState::Failed);
-                self.emit_download_task_event();
+                self.emit_download_task_update_event();
 
                 return;
             }
@@ -222,7 +216,7 @@ impl DownloadTask {
             tracing::error!(err_title, message = string_chain);
 
             self.set_state(DownloadTaskState::Failed);
-            self.emit_download_task_event();
+            self.emit_download_task_update_event();
 
             return;
         }
@@ -254,7 +248,7 @@ impl DownloadTask {
             tracing::error!(err_title, message = err_msg);
 
             self.set_state(DownloadTaskState::Failed);
-            self.emit_download_task_event();
+            self.emit_download_task_update_event();
 
             return;
         }
@@ -265,7 +259,7 @@ impl DownloadTask {
             tracing::error!(err_title, message = string_chain);
 
             self.set_state(DownloadTaskState::Failed);
-            self.emit_download_task_event();
+            self.emit_download_task_update_event();
 
             return;
         };
@@ -273,11 +267,11 @@ impl DownloadTask {
         tracing::info!(comic_title, chapter_title, "章节下载成功");
 
         self.set_state(DownloadTaskState::Completed);
-        self.emit_download_task_event();
+        self.emit_download_task_update_event();
     }
 
     fn get_save_paths(&self, urls: &[String], temp_download_dir: &Path) -> Option<Vec<PathBuf>> {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
         let mut save_paths = Vec::with_capacity(urls.len());
@@ -292,7 +286,7 @@ impl DownloadTask {
                     tracing::error!(err_title, message = string_chain);
 
                     self.set_state(DownloadTaskState::Failed);
-                    self.emit_download_task_event();
+                    self.emit_download_task_update_event();
 
                     return None;
                 }
@@ -306,10 +300,12 @@ impl DownloadTask {
     }
 
     fn create_temp_download_dir(&self) -> Option<PathBuf> {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
-        let temp_download_dir = self.chapter_info.get_temp_download_dir(&self.app);
+        let temp_download_dir = self
+            .chapter_info
+            .get_temp_download_dir(&self.app, &self.comic);
         if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
             let err_title =
                 format!("`{comic_title} - {chapter_title}`创建目录`{temp_download_dir:?}`失败");
@@ -317,7 +313,7 @@ impl DownloadTask {
             tracing::error!(err_title, message = string_chain);
 
             self.set_state(DownloadTaskState::Failed);
-            self.emit_download_task_event();
+            self.emit_download_task_update_event();
 
             return None;
         };
@@ -332,9 +328,9 @@ impl DownloadTask {
     }
 
     async fn get_img_urls(&self) -> anyhow::Result<Vec<String>> {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
-        let comic_id = &self.chapter_info.comic_id;
+        let comic_id = &self.comic.id;
         let chapter_order = self.chapter_info.order;
 
         let pica_client = self.pica_client();
@@ -389,9 +385,11 @@ impl DownloadTask {
     }
 
     fn rename_temp_download_dir(&self, temp_download_dir: &PathBuf) -> anyhow::Result<()> {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
-        let chapter_download_dir = self.chapter_info.get_chapter_download_dir(&self.app);
+        let chapter_download_dir = self
+            .chapter_info
+            .get_chapter_download_dir(&self.app, &self.comic);
 
         if chapter_download_dir.exists() {
             std::fs::remove_dir_all(&chapter_download_dir)
@@ -432,7 +430,7 @@ impl DownloadTask {
         temp_download_dir: &Path,
         save_paths: &[PathBuf],
     ) -> anyhow::Result<()> {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
         let entries = std::fs::read_dir(temp_download_dir)
@@ -457,12 +455,12 @@ impl DownloadTask {
         &'a self,
         permit: &mut Option<SemaphorePermit<'a>>,
     ) -> ControlFlow<()> {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
         tracing::debug!(comic_title, chapter_title, "章节开始排队");
 
-        self.emit_download_task_event();
+        self.emit_download_task_update_event();
 
         *permit = match permit.take() {
             // 如果有permit，则直接用
@@ -483,7 +481,7 @@ impl DownloadTask {
                     tracing::error!(err_title, message = string_chain);
 
                     self.set_state(DownloadTaskState::Failed);
-                    self.emit_download_task_event();
+                    self.emit_download_task_update_event();
 
                     return ControlFlow::Break(());
                 }
@@ -512,10 +510,10 @@ impl DownloadTask {
         permit: &mut Option<SemaphorePermit<'a>>,
         state_receiver: &mut watch::Receiver<DownloadTaskState>,
     ) -> ControlFlow<()> {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
-        self.emit_download_task_event();
+        self.emit_download_task_update_event();
         let state = *state_receiver.borrow();
         match state {
             DownloadTaskState::Paused => {
@@ -534,7 +532,7 @@ impl DownloadTask {
     }
 
     fn set_state(&self, state: DownloadTaskState) {
-        let comic_title = &self.chapter_info.comic_title;
+        let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
         if let Err(err) = self.state_sender.send(state).map_err(anyhow::Error::from) {
@@ -544,10 +542,21 @@ impl DownloadTask {
         }
     }
 
-    fn emit_download_task_event(&self) {
-        let _ = DownloadTaskEvent {
+    fn emit_download_task_update_event(&self) {
+        let _ = DownloadTaskEvent::Update {
+            chapter_id: self.chapter_info.chapter_id.clone(),
             state: *self.state_sender.borrow(),
-            chapter_info: self.chapter_info.as_ref().clone(),
+            downloaded_img_count: self.downloaded_img_count.load(Ordering::Relaxed),
+            total_img_count: self.total_img_count.load(Ordering::Relaxed),
+        }
+        .emit(&self.app);
+    }
+
+    fn emit_download_task_create_event(&self) {
+        let _ = DownloadTaskEvent::Create {
+            state: *self.state_sender.borrow(),
+            comic: Box::new(self.comic.as_ref().clone()),
+            chapter_info: Box::new(self.chapter_info.as_ref().clone()),
             downloaded_img_count: self.downloaded_img_count.load(Ordering::Relaxed),
             total_img_count: self.total_img_count.load(Ordering::Relaxed),
         }
@@ -610,7 +619,7 @@ impl DownloadImgTask {
     async fn download_img(&self) {
         let url = &self.url;
         let save_path = &self.save_path;
-        let comic_title = &self.download_task.chapter_info.comic_title;
+        let comic_title = &self.download_task.comic.title;
         let chapter_title = &self.download_task.chapter_info.chapter_title;
 
         if save_path.exists() {
@@ -662,7 +671,7 @@ impl DownloadImgTask {
             .downloaded_img_count
             .fetch_add(1, Ordering::Relaxed);
 
-        self.download_task.emit_download_task_event();
+        self.download_task.emit_download_task_update_event();
     }
 
     async fn acquire_img_permit<'a>(
@@ -670,7 +679,7 @@ impl DownloadImgTask {
         permit: &mut Option<SemaphorePermit<'a>>,
     ) -> ControlFlow<()> {
         let url = &self.url;
-        let comic_title = &self.download_task.chapter_info.comic_title;
+        let comic_title = &self.download_task.comic.title;
         let chapter_title = &self.download_task.chapter_info.chapter_title;
 
         tracing::trace!(comic_title, chapter_title, url, "图片开始排队");
@@ -705,7 +714,7 @@ impl DownloadImgTask {
         state_receiver: &mut watch::Receiver<DownloadTaskState>,
     ) -> ControlFlow<()> {
         let url = &self.url;
-        let comic_title = &self.download_task.chapter_info.comic_title;
+        let comic_title = &self.download_task.comic.title;
         let chapter_title = &self.download_task.chapter_info.chapter_title;
 
         let state = *state_receiver.borrow();

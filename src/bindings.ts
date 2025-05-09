@@ -67,8 +67,13 @@ async downloadComic(comicId: string) : Promise<Result<null, CommandError>> {
     else return { status: "error", error: e  as any };
 }
 },
-async createDownloadTask(chapterInfo: ChapterInfo) : Promise<void> {
-    await TAURI_INVOKE("create_download_task", { chapterInfo });
+async createDownloadTask(comic: Comic, chapterId: string) : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_download_task", { comic, chapterId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 },
 async pauseDownloadTask(chapterId: string) : Promise<Result<null, CommandError>> {
     try {
@@ -184,7 +189,7 @@ logEvent: "log-event"
 /** user-defined types **/
 
 export type ChapterImageRespData = { _id: string; media: ImageRespData }
-export type ChapterInfo = { chapterId: string; chapterTitle: string; comicId: string; comicTitle: string; author: string; isDownloaded?: boolean | null; order: number }
+export type ChapterInfo = { chapterId: string; chapterTitle: string; isDownloaded?: boolean | null; order: number }
 export type Comic = { id: string; title: string; author: string; pagesCount: number; chapterInfos: ChapterInfo[]; chapterCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; creator: Creator; description: string; chineseTeam: string; tags: string[]; updatedAt: string; createdAt: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number; isDownloaded?: boolean | null }
 export type ComicInFavorite = { id: string; title: string; author: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number; isDownloaded: boolean }
 export type ComicInSearch = { id: string; author: string; categories: string[]; chineseTeam: string; createdAt: string; description: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updatedAt: string; isDownloaded: boolean }
@@ -193,7 +198,7 @@ export type Config = { token: string; downloadDir: string; exportDir: string; ch
 export type Creator = { id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar: Image; slogan: string; role: string; character: string }
 export type DownloadFormat = "Jpeg" | "Png" | "Original"
 export type DownloadSpeedEvent = { speed: string }
-export type DownloadTaskEvent = { state: DownloadTaskState; chapterInfo: ChapterInfo; downloadedImgCount: number; totalImgCount: number }
+export type DownloadTaskEvent = { event: "Create"; data: { state: DownloadTaskState; comic: Comic; chapterInfo: ChapterInfo; downloadedImgCount: number; totalImgCount: number } } | { event: "Update"; data: { chapterId: string; state: DownloadTaskState; downloadedImgCount: number; totalImgCount: number } }
 export type DownloadTaskState = "Pending" | "Downloading" | "Paused" | "Cancelled" | "Completed" | "Failed"
 export type ExportCbzEvent = { event: "Start"; data: { uuid: string; comicTitle: string; total: number } } | { event: "Progress"; data: { uuid: string; current: number } } | { event: "Error"; data: { uuid: string } } | { event: "End"; data: { uuid: string } }
 export type ExportPdfEvent = { event: "CreateStart"; data: { uuid: string; comicTitle: string; total: number } } | { event: "CreateProgress"; data: { uuid: string; current: number } } | { event: "CreateError"; data: { uuid: string } } | { event: "CreateEnd"; data: { uuid: string } } | { event: "MergeStart"; data: { uuid: string; comicTitle: string } } | { event: "MergeError"; data: { uuid: string } } | { event: "MergeEnd"; data: { uuid: string } }

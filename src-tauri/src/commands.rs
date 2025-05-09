@@ -186,9 +186,20 @@ pub async fn get_chapter_image(
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn create_download_task(download_manager: State<DownloadManager>, chapter_info: ChapterInfo) {
-    download_manager.create_download_task(chapter_info);
+pub fn create_download_task(
+    download_manager: State<DownloadManager>,
+    comic: Comic,
+    chapter_id: String,
+) -> CommandResult<()> {
+    let comic_title = comic.title.clone();
+    download_manager
+        .create_download_task(comic, chapter_id.clone())
+        .map_err(|err| {
+            let err_title = format!("`{comic_title}`的章节ID为`{chapter_id}`的下载任务创建失败");
+            CommandError::from(&err_title, err)
+        })?;
     tracing::debug!("下载任务创建成功");
+    Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -242,20 +253,22 @@ pub async fn download_comic(
     comic_id: String,
 ) -> CommandResult<()> {
     let comic = get_comic(app, pica_client, comic_id).await?;
-    let chapter_infos: Vec<ChapterInfo> = comic
+    let chapter_infos: Vec<&ChapterInfo> = comic
         .chapter_infos
-        .into_iter()
+        .iter()
         .filter(|chapter_info| chapter_info.is_downloaded != Some(true))
         .collect();
     if chapter_infos.is_empty() {
-        let comic_title = comic.title;
+        let comic_title = &comic.title;
         return Err(CommandError::from(
             "一键下载漫画失败",
             anyhow!("漫画`{comic_title}`的所有章节都已存在于下载目录，无需重复下载"),
         ));
     }
     for chapter_info in chapter_infos {
-        download_manager.create_download_task(chapter_info);
+        download_manager
+            .create_download_task(comic.clone(), chapter_info.chapter_id.clone())
+            .map_err(|err| CommandError::from("一键下载漫画失败", err))?;
     }
     tracing::debug!("一键下载漫画成功，已为所有需要下载的章节创建下载任务");
     Ok(())
