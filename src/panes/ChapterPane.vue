@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { SelectionArea, SelectionEvent } from '@viselect/vue'
-import { nextTick, ref, watch } from 'vue'
-import { commands } from '../bindings.ts'
+import { nextTick, ref, watch, watchEffect, computed } from 'vue'
+import { ChapterInfo, commands, DownloadTaskState } from '../bindings.ts'
 import { useStore } from '../store.ts'
 
 const store = useStore()
@@ -19,6 +19,29 @@ const checkedIds = ref<string[]>([])
 const selectedIds = ref<Set<string>>(new Set())
 const selectionAreaRef = ref<InstanceType<typeof SelectionArea>>()
 
+type State = DownloadTaskState | 'Idle'
+const chapterInfos = computed<(ChapterInfo & { state: State })[]>(() => {
+  const pickedComic = store.pickedComic
+
+  if (pickedComic === undefined) {
+    return []
+  }
+
+  return pickedComic.chapterInfos.map((chapterInfo) => {
+    const progressData = store.progresses.get(chapterInfo.chapterId)
+    if (progressData === undefined) {
+      return {
+        ...chapterInfo,
+        state: 'Idle',
+      }
+    }
+    return {
+      ...chapterInfo,
+      state: progressData.state,
+    }
+  })
+})
+
 watch(
   () => store.pickedComic,
   () => {
@@ -27,6 +50,17 @@ watch(
     selectionAreaRef.value?.selection?.clearSelection()
   },
 )
+
+watchEffect(() => {
+  if (store.pickedComic === undefined) {
+    return
+  }
+  // 只保留未下载的章节
+  const notDownloadedChapterIds = chapterInfos.value
+    .filter((c) => c.isDownloaded !== true && !isDownloading(c.state))
+    .map((c) => c.chapterId)
+  checkedIds.value = checkedIds.value.filter((id) => notDownloadedChapterIds.includes(id))
+})
 
 function extractIds(elements: Element[]): string[] {
   return elements
@@ -94,21 +128,18 @@ async function downloadChapters() {
     return
   }
   // 下载勾选的章节
-  const chaptersToDownload = store.pickedComic?.chapterInfos.filter(
-    (chapter) => chapter.isDownloaded !== true && checkedIds.value.includes(chapter.chapterId),
-  )
-  if (chaptersToDownload === undefined) {
+  const chapterIdsToDownload = store.pickedComic?.chapterInfos
+    .filter((chapter) => chapter.isDownloaded !== true && checkedIds.value.includes(chapter.chapterId))
+    .map((c) => c.chapterId)
+  if (chapterIdsToDownload === undefined) {
     return
   }
 
-  for (const chapterToDownload of chaptersToDownload) {
+  for (const chapterId of chapterIdsToDownload) {
     // 创建下载任务
-    await commands.createDownloadTask(store.pickedComic, chapterToDownload.chapterId)
-    // 更新勾选状态
-    const chapter = store.pickedComic?.chapterInfos.find((chapter) => chapter.chapterId === chapterToDownload.chapterId)
-    if (chapter !== undefined) {
-      chapter.isDownloaded = true
-      checkedIds.value = checkedIds.value.filter((id) => id !== chapterToDownload.chapterId)
+    const result = await commands.createDownloadTask(store.pickedComic, chapterId)
+    if (result.status === 'error') {
+      console.error(result.error)
     }
   }
 }
@@ -135,6 +166,10 @@ async function showComicDownloadDirInFileManager() {
     console.error(result.error)
   }
 }
+
+function isDownloading(state: State) {
+  return state === 'Pending' || state === 'Downloading' || state === 'Paused'
+}
 </script>
 
 <template>
@@ -155,14 +190,18 @@ async function showComicDownloadDirInFileManager() {
       </div>
       <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 pt-2 overflow-auto">
         <n-checkbox
-          v-for="{ chapterId, chapterTitle, isDownloaded } in store.pickedComic.chapterInfos"
+          v-for="{ chapterId, chapterTitle, isDownloaded, state } in chapterInfos"
           :key="chapterId"
           :data-key="chapterId"
           class="selectable hover:bg-gray-200!"
           :value="chapterId"
           :label="chapterTitle"
-          :disabled="isDownloaded === true"
-          :class="{ selected: selectedIds.has(chapterId), downloaded: isDownloaded === true }" />
+          :disabled="isDownloaded === true || isDownloading(state)"
+          :class="{
+            selected: selectedIds.has(chapterId),
+            downloaded: isDownloaded,
+            downloading: !isDownloaded && isDownloading(state),
+          }" />
       </n-checkbox-group>
     </SelectionArea>
 
@@ -210,6 +249,10 @@ async function showComicDownloadDirInFileManager() {
 
 .selection-container .downloaded {
   @apply bg-[rgba(24,160,88,0.16)];
+}
+
+.selection-container .downloading {
+  @apply bg-[rgba(114,46,209,0.16)];
 }
 
 :deep(.n-checkbox__label) {
