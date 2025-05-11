@@ -49,7 +49,6 @@ pub fn run() {
             show_path_in_file_manager,
             show_comic_download_dir_in_file_manager,
             get_favorite,
-            save_metadata,
             get_downloaded_comics,
             export_cbz,
             export_pdf,

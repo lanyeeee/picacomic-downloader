@@ -321,37 +321,6 @@ pub async fn get_favorite(
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn save_metadata(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
-    // 将Comic的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
-    comic.is_downloaded = None;
-    // 将所有ChapterInfo的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
-    for chapter in &mut comic.chapter_infos {
-        chapter.is_downloaded = None;
-    }
-
-    let comic_title = comic.title.clone();
-    let comic_json = serde_json::to_string_pretty(&comic)
-        .context(format!(
-            "`{comic_title}`的元数据保存失败，将Comic序列化为json失败"
-        ))
-        .map_err(|err| CommandError::from("保存元数据失败", err))?;
-    let comic_download_dir = Comic::get_comic_download_dir(&app, &comic_title, &comic.author);
-    let metadata_path = comic_download_dir.join("元数据.json");
-
-    std::fs::create_dir_all(&comic_download_dir)
-        .context(format!("创建目录`{comic_download_dir:?}`失败"))
-        .map_err(|err| CommandError::from("保存元数据失败", err))?;
-
-    std::fs::write(&metadata_path, comic_json)
-        .context(format!("写入文件`{metadata_path:?}`失败"))
-        .map_err(|err| CommandError::from("保存元数据失败", err))?;
-
-    Ok(())
-}
-
-#[allow(clippy::needless_pass_by_value)]
-#[tauri::command(async)]
-#[specta::specta]
 pub fn get_downloaded_comics(
     app: AppHandle,
     config: State<RwLock<Config>>,

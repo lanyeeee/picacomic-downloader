@@ -122,12 +122,6 @@ async function downloadChapters() {
   if (store.pickedComic === undefined) {
     return
   }
-  // 创建下载任务前，先创建元数据
-  const result = await commands.saveMetadata(store.pickedComic)
-  if (result.status === 'error') {
-    console.error(result.error)
-    return
-  }
   // 下载勾选的章节
   const chapterIdsToDownload = store.pickedComic?.chapterInfos
     .filter((chapter) => chapter.isDownloaded !== true && checkedIds.value.includes(chapter.chapterId))

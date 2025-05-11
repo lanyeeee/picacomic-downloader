@@ -123,14 +123,6 @@ async getFavorite(sort: GetFavoriteSort, page: number) : Promise<Result<GetFavor
     else return { status: "error", error: e  as any };
 }
 },
-async saveMetadata(comic: Comic) : Promise<Result<null, CommandError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("save_metadata", { comic }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async getDownloadedComics() : Promise<Result<Comic[], CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_downloaded_comics") };
