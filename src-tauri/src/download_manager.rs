@@ -274,6 +274,12 @@ impl DownloadTask {
             return;
         };
 
+        if let Err(err) = self.save_chapter_metadata() {
+            let err_title = format!("`{comic_title} - {chapter_title}`保存元数据失败");
+            let string_chain = err.to_string_chain();
+            tracing::error!(err_title, message = string_chain);
+        }
+
         tracing::info!(comic_title, chapter_title, "章节下载成功");
 
         self.set_state(DownloadTaskState::Completed);
@@ -479,6 +485,27 @@ impl DownloadTask {
             .context(format!("创建目录`{comic_download_dir:?}`失败"))?;
 
         std::fs::write(&metadata_path, comic_json)
+            .context(format!("写入文件`{metadata_path:?}`失败"))?;
+
+        Ok(())
+    }
+
+    fn save_chapter_metadata(&self) -> anyhow::Result<()> {
+        let mut chapter_info = self.chapter_info.as_ref().clone();
+        // 将is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
+        chapter_info.is_downloaded = None;
+
+        let chapter_download_dir = self
+            .chapter_info
+            .get_chapter_download_dir(&self.app, &self.comic);
+        let chapter_json =
+            serde_json::to_string_pretty(&chapter_info).context("将ChapterInfo序列化为json失败")?;
+        let metadata_path = chapter_download_dir.join("元数据.json");
+
+        std::fs::create_dir_all(&chapter_download_dir)
+            .context(format!("创建目录`{chapter_download_dir:?}`失败"))?;
+
+        std::fs::write(&metadata_path, chapter_json)
             .context(format!("写入文件`{metadata_path:?}`失败"))?;
 
         Ok(())
