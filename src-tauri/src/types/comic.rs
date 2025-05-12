@@ -40,6 +40,8 @@ pub struct Comic {
     pub comments_count: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_downloaded: Option<bool>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub comic_dir_name: String,
 }
 
 impl Comic {
@@ -60,8 +62,9 @@ impl Comic {
                 ChapterInfo {
                     chapter_id: chapter_resp_data.id,
                     chapter_title: chapter_resp_data.title,
-                    is_downloaded: Some(is_downloaded),
                     order: chapter_resp_data.order,
+                    is_downloaded: Some(is_downloaded),
+                    chapter_dir_name: String::new(),
                 }
             })
             .collect();
@@ -113,6 +116,7 @@ impl Comic {
             is_liked: comic.is_liked,
             comments_count: comic.comments_count,
             is_downloaded: Some(is_downloaded),
+            comic_dir_name: String::new(),
         }
     }
 

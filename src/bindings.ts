@@ -181,8 +181,8 @@ logEvent: "log-event"
 /** user-defined types **/
 
 export type ChapterImageRespData = { _id: string; media: ImageRespData }
-export type ChapterInfo = { chapterId: string; chapterTitle: string; isDownloaded?: boolean | null; order: number }
-export type Comic = { id: string; title: string; author: string; pagesCount: number; chapterInfos: ChapterInfo[]; chapterCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; creator: Creator; description: string; chineseTeam: string; tags: string[]; updatedAt: string; createdAt: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number; isDownloaded?: boolean | null }
+export type ChapterInfo = { chapterId: string; chapterTitle: string; order: number; isDownloaded?: boolean | null; chapterDirName: string }
+export type Comic = { id: string; title: string; author: string; pagesCount: number; chapterInfos: ChapterInfo[]; chapterCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; creator: Creator; description: string; chineseTeam: string; tags: string[]; updatedAt: string; createdAt: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number; isDownloaded?: boolean | null; comicDirName: string }
 export type ComicInFavorite = { id: string; title: string; author: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number; isDownloaded: boolean }
 export type ComicInSearch = { id: string; author: string; categories: string[]; chineseTeam: string; createdAt: string; description: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updatedAt: string; isDownloaded: boolean }
 export type CommandError = { err_title: string; err_message: string }
