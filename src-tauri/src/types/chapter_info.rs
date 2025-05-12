@@ -13,9 +13,11 @@ use super::Comic;
 pub struct ChapterInfo {
     pub chapter_id: String,
     pub chapter_title: String,
+    pub order: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_downloaded: Option<bool>,
-    pub order: i64,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub chapter_dir_name: String,
 }
 
 impl ChapterInfo {
