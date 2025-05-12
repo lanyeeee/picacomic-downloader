@@ -10,14 +10,15 @@ body:
   - type: checkboxes
     attributes:
       label: 复现步骤很重要
+      description: 仅提供错误信息或截图而没有复现步骤，问题难以被定位，也就难以被解决。详细的复现步骤也是对项目维护工作的尊重
       options:
-        - label: 我已经参考[这个issue](https://github.com/lanyeeee/picacomic-downloader/issues/13)写清楚了复现步骤
+        - label: 我已经参考[这个issue](https://github.com/lanyeeee/picacomic-downloader/issues/13)在**问题描述**中写清楚了复现步骤
           required: true
   - type: textarea
     id: desc
     attributes:
       label: 问题描述
-      description: 发生了什么情况？有什么现状？复现步骤是什么(哪部漫画，哪个章节)？
+      description: 发生了什么情况？有什么现状？复现步骤是什么(哪部漫画，哪个章节)？问题能稳定触发吗？
     validations:
       required: true
   - type: textarea
