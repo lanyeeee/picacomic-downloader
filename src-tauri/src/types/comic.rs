@@ -17,6 +17,7 @@ use super::ChapterInfo;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_field_names)]
 pub struct Comic {
     pub id: String,
     pub title: String,
@@ -142,6 +143,99 @@ impl Comic {
             chapter_info.is_downloaded = Some(chapter_is_downloaded);
         }
         Ok(comic)
+    }
+
+    /// 根据下载目录中的元数据文件更新字段
+    ///
+    /// 修改字段及逻辑：
+    /// - `comic_dir_name`: 通过匹配当前漫画id，更新为元数据文件所在目录名
+    /// - `is_downloaded`: 若找到对应漫画元数据，设为 true
+    /// - 章节的 `chapter_dir_name`: 通过匹配章节id，更新为章节元数据所在目录名
+    /// - 章节的 `is_downloaded`: 若找到对应章节元数据，设为 true
+    ///
+    /// 仅当元数据文件存在且id匹配时才会更新字段
+    pub fn update_fields(&mut self, app: &AppHandle) -> anyhow::Result<()> {
+        let download_dir = app.state::<RwLock<Config>>().read().download_dir.clone();
+        if !download_dir.exists() {
+            return Ok(());
+        }
+
+        let mut found_comic = false;
+        for entry in std::fs::read_dir(&download_dir)
+            .context(format!("读取下载目录`{download_dir:?}`失败"))?
+            .filter_map(Result::ok)
+        {
+            let metadata_path = entry.path().join("元数据.json");
+            if !metadata_path.exists() {
+                continue;
+            }
+
+            let metadata_str = std::fs::read_to_string(&metadata_path)
+                .context(format!("读取`{metadata_path:?}`失败"))?;
+
+            let comic_json: serde_json::Value = serde_json::from_str(&metadata_str).context(
+                format!("将`{metadata_path:?}`反序列化为serde_json::Value失败"),
+            )?;
+
+            let id = comic_json
+                .get("id")
+                .and_then(|id| id.as_str())
+                .context(format!("`{metadata_path:?}`没有`id`字段"))?
+                .to_string();
+
+            if id != self.id {
+                continue;
+            }
+
+            self.comic_dir_name = entry.file_name().to_string_lossy().to_string();
+            self.is_downloaded = Some(true);
+            found_comic = true;
+            break;
+        }
+
+        if !found_comic {
+            return Ok(());
+        }
+
+        let comic_dir = download_dir.join(&self.comic_dir_name);
+        if !comic_dir.exists() {
+            return Ok(());
+        }
+
+        for entry in std::fs::read_dir(&comic_dir)
+            .context(format!("读取漫画目录`{comic_dir:?}`失败"))?
+            .filter_map(Result::ok)
+        {
+            let metadata_path = entry.path().join("元数据.json");
+            if !metadata_path.exists() {
+                continue;
+            }
+
+            let metadata_str = std::fs::read_to_string(&metadata_path)
+                .context(format!("读取`{metadata_path:?}`失败"))?;
+
+            let chapter_json: serde_json::Value = serde_json::from_str(&metadata_str).context(
+                format!("将`{metadata_path:?}`反序列化为serde_json::Value失败"),
+            )?;
+
+            let chapter_id = chapter_json
+                .get("chapterId")
+                .and_then(|id| id.as_str())
+                .context(format!("`{metadata_path:?}`没有`chapterId`字段"))?
+                .to_string();
+
+            if let Some(chapter_info) = self
+                .chapter_infos
+                .iter_mut()
+                .find(|chapter| chapter.chapter_id == chapter_id)
+            {
+                let chapter_dir_name = entry.file_name().to_string_lossy().to_string();
+                chapter_info.chapter_dir_name = chapter_dir_name;
+                chapter_info.is_downloaded = Some(true);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn get_comic_download_dir(app: &AppHandle, comic_title: &str, author: &str) -> PathBuf {
