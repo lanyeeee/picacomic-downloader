@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { path } from '@tauri-apps/api'
 import { Comic, commands } from '../bindings.ts'
 import { useStore } from '../store.ts'
 
@@ -31,7 +32,11 @@ async function exportPdf() {
 }
 
 async function showComicDownloadDirInFileManager() {
-  const result = await commands.showComicDownloadDirInFileManager(props.comic.title, props.comic.author)
+  if (store.config === undefined) {
+    return
+  }
+  const comicDir = await path.join(store.config.downloadDir, props.comic.comicDirName)
+  const result = await commands.showPathInFileManager(comicDir)
   if (result.status === 'error') {
     console.error(result.error)
   }

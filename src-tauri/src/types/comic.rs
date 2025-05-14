@@ -10,7 +10,6 @@ use tauri::{AppHandle, Manager};
 use crate::{
     config::Config,
     responses::{ChapterRespData, ComicRespData},
-    utils::filename_filter,
 };
 
 use super::ChapterInfo;
@@ -46,27 +45,20 @@ pub struct Comic {
 }
 
 impl Comic {
-    pub fn from(app: &AppHandle, comic: ComicRespData, chapters: Vec<ChapterRespData>) -> Comic {
-        let is_downloaded =
-            Comic::get_comic_download_dir(app, &comic.title, &comic.author).exists();
-
-        let chapter_infos: Vec<ChapterInfo> = chapters
+    // TODO: 改名为`from_resp_data`
+    pub fn from(
+        app: &AppHandle,
+        comic: ComicRespData,
+        chapters: Vec<ChapterRespData>,
+    ) -> anyhow::Result<Comic> {
+        let chapter_infos = chapters
             .into_iter()
-            .map(|chapter_resp_data| {
-                let is_downloaded = ChapterInfo::get_is_downloaded(
-                    app,
-                    &comic.title,
-                    &chapter_resp_data.title,
-                    &comic.author,
-                    chapter_resp_data.order,
-                );
-                ChapterInfo {
-                    chapter_id: chapter_resp_data.id,
-                    chapter_title: chapter_resp_data.title,
-                    order: chapter_resp_data.order,
-                    is_downloaded: Some(is_downloaded),
-                    chapter_dir_name: String::new(),
-                }
+            .map(|chapter| ChapterInfo {
+                chapter_id: chapter.id,
+                chapter_title: chapter.title,
+                order: chapter.order,
+                is_downloaded: None,
+                chapter_dir_name: String::new(),
             })
             .collect();
 
@@ -95,7 +87,7 @@ impl Comic {
             character: comic.creator.character,
         };
 
-        Self {
+        let mut comic = Self {
             id: comic.id,
             title: comic.title,
             author: comic.author,
@@ -116,32 +108,14 @@ impl Comic {
             views_count: comic.views_count,
             is_liked: comic.is_liked,
             comments_count: comic.comments_count,
-            is_downloaded: Some(is_downloaded),
+            is_downloaded: None,
             comic_dir_name: String::new(),
-        }
-    }
+        };
 
-    pub fn from_metadata(app: &AppHandle, metadata_path: &Path) -> anyhow::Result<Comic> {
-        let comic_json = std::fs::read_to_string(metadata_path).context(format!(
-            "从元数据转为Comic失败，读取元数据文件 {metadata_path:?} 失败"
-        ))?;
-        let mut comic = serde_json::from_str::<Comic>(&comic_json).context(format!(
-            "从元数据转为Comic失败，将 {metadata_path:?} 反序列化为Comic失败"
-        ))?;
-        // 来自metadata的Comic的is_downloaded字段都是None，需要重新计算
-        let comic_is_downloaded = Comic::get_is_downloaded(app, &comic.title, &comic.author);
-        comic.is_downloaded = Some(comic_is_downloaded);
-        // 来自metadata的ChapterInfo的is_downloaded字段都是None，需要重新计算
-        for chapter_info in &mut comic.chapter_infos {
-            let chapter_is_downloaded = ChapterInfo::get_is_downloaded(
-                app,
-                &comic.title,
-                &chapter_info.chapter_title,
-                &comic.author,
-                chapter_info.order,
-            );
-            chapter_info.is_downloaded = Some(chapter_is_downloaded);
-        }
+        comic
+            .update_fields(app)
+            .context(format!("`{}`更新Comic的字段失败", comic.title))?;
+
         Ok(comic)
     }
 
@@ -238,37 +212,31 @@ impl Comic {
         Ok(())
     }
 
-    pub fn get_comic_download_dir(app: &AppHandle, comic_title: &str, author: &str) -> PathBuf {
-        let comic_dir_name = Self::comic_dir_name(app, comic_title, author);
+    pub fn from_metadata(app: &AppHandle, metadata_path: &Path) -> anyhow::Result<Comic> {
+        let comic_json = std::fs::read_to_string(metadata_path)
+            .context(format!("读取`{metadata_path:?}`失败"))?;
+        let mut comic = serde_json::from_str::<Comic>(&comic_json)
+            .context(format!("将`{metadata_path:?}`反序列化为Comic失败"))?;
+        // 来自元数据的章节信息没有`dir_name`和`is_downloaded`字段，需要更新
+        comic
+            .update_fields(app)
+            .context(format!("`{}`更新Comic的字段失败", comic.title))?;
+
+        Ok(comic)
+    }
+
+    pub fn get_comic_download_dir(&self, app: &AppHandle) -> PathBuf {
         app.state::<RwLock<Config>>()
             .read()
             .download_dir
-            .join(comic_dir_name)
+            .join(&self.comic_dir_name)
     }
 
-    pub fn get_comic_export_dir(app: &AppHandle, comic_title: &str, author: &str) -> PathBuf {
-        let comic_dir_name = Self::comic_dir_name(app, comic_title, author);
+    pub fn get_comic_export_dir(&self, app: &AppHandle) -> PathBuf {
         app.state::<RwLock<Config>>()
             .read()
             .export_dir
-            .join(comic_dir_name)
-    }
-
-    pub fn get_is_downloaded(app: &AppHandle, comic_title: &str, author: &str) -> bool {
-        let comic_download_dir = Self::get_comic_download_dir(app, comic_title, author);
-        comic_download_dir.exists()
-    }
-
-    fn comic_dir_name(app: &AppHandle, comic_title: &str, author: &str) -> String {
-        let author = filename_filter(author);
-        let comic_title = filename_filter(comic_title);
-
-        let download_with_author = app.state::<RwLock<Config>>().read().download_with_author;
-        if download_with_author {
-            format!("[{author}] {comic_title}")
-        } else {
-            comic_title
-        }
+            .join(&self.comic_dir_name)
     }
 }
 
