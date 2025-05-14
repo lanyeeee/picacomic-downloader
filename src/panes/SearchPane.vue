@@ -87,13 +87,14 @@ async function pickComic() {
 
     <div v-if="store.searchResult !== undefined" class="flex flex-col gap-row-2 overflow-auto box-border px-2">
       <comic-card
-        v-for="{ id, title, author, categories, thumb, isDownloaded } in store.searchResult.docs"
+        v-for="{ id, title, author, categories, thumb, isDownloaded, comicDirName } in store.searchResult.docs"
         :key="id"
         :comic-id="id"
         :comic-title="title"
         :comic-author="author"
         :comic-categories="categories"
         :comic-downloaded="isDownloaded"
+        :comic-dir-name="comicDirName"
         :thumb="thumb" />
     </div>
 

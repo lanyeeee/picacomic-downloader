@@ -84,7 +84,7 @@ pub fn cbz(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
     let current = Arc::new(AtomicU32::new(0));
 
     let extension = ExportArchive::Cbz.extension();
-    let comic_export_dir = Comic::get_comic_export_dir(app, comic_title, &comic.author);
+    let comic_export_dir = comic.get_comic_export_dir(app);
     let chapter_export_dir = comic_export_dir.join(ExportArchive::Cbz.extension());
     // 保证导出目录存在
     std::fs::create_dir_all(&chapter_export_dir).context(format!(
@@ -227,7 +227,7 @@ pub fn pdf(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
     let current = Arc::new(AtomicU32::new(0));
 
     let extension = ExportArchive::Pdf.extension();
-    let comic_export_dir = Comic::get_comic_export_dir(app, comic_title, &comic.author);
+    let comic_export_dir = comic.get_comic_export_dir(app);
     let chapter_export_dir = comic_export_dir.join(ExportArchive::Pdf.extension());
     // 保证导出目录存在
     std::fs::create_dir_all(&chapter_export_dir).context(format!(

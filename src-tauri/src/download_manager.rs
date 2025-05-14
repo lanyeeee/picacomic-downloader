@@ -19,6 +19,7 @@ use crate::events::{DownloadSpeedEvent, DownloadTaskEvent};
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
 use crate::types::{ChapterInfo, Comic};
+use crate::utils::filename_filter;
 
 /// 用于管理下载任务
 ///
@@ -64,12 +65,6 @@ impl DownloadManager {
 
     pub fn create_download_task(&self, comic: Comic, chapter_id: String) -> anyhow::Result<()> {
         use DownloadTaskState::{Downloading, Paused, Pending};
-        let chapter_info = comic
-            .chapter_infos
-            .iter()
-            .find(|chapter| chapter.chapter_id == chapter_id)
-            .cloned()
-            .context(format!("未找到章节ID为`{chapter_id}`的章节信息"))?;
         let mut tasks = self.download_tasks.write();
         if let Some(task) = tasks.get(&chapter_id) {
             let state = *task.state_sender.borrow();
@@ -78,7 +73,8 @@ impl DownloadManager {
             }
         }
         tasks.remove(&chapter_id);
-        let task = DownloadTask::new(self.app.clone(), comic, chapter_info);
+        let task = DownloadTask::new(self.app.clone(), comic, &chapter_id)
+            .context(format!("创建章节ID为`{chapter_id}`的下载任务失败"))?;
         tauri::async_runtime::spawn(task.clone().process());
         tasks.insert(chapter_id, task);
         Ok(())
@@ -137,10 +133,22 @@ struct DownloadTask {
 }
 
 impl DownloadTask {
-    pub fn new(app: AppHandle, comic: Comic, chapter_info: ChapterInfo) -> Self {
+    pub fn new(app: AppHandle, mut comic: Comic, chapter_id: &str) -> anyhow::Result<Self> {
+        comic
+            .update_dir_name_fields_by_fmt(&app)
+            .context(format!("`{}`更新`dir_name`字段失败", comic.title))?;
+
+        let chapter_info = comic
+            .chapter_infos
+            .iter()
+            .find(|chapter| chapter.chapter_id == chapter_id)
+            .cloned()
+            .context(format!("未找到章节ID为`{chapter_id}`的章节信息"))?;
+
         let download_manager = app.state::<DownloadManager>().inner().clone();
         let (state_sender, _) = watch::channel(DownloadTaskState::Pending);
-        Self {
+
+        let task = Self {
             app,
             download_manager,
             comic: Arc::new(comic),
@@ -148,7 +156,9 @@ impl DownloadTask {
             state_sender,
             downloaded_img_count: Arc::new(AtomicU32::new(0)),
             total_img_count: Arc::new(AtomicU32::new(0)),
-        }
+        };
+
+        Ok(task)
     }
 
     async fn process(self) {
@@ -319,12 +329,27 @@ impl DownloadTask {
         let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
-        let temp_download_dir = self
+        let temp_download_dir = match self
             .chapter_info
-            .get_temp_download_dir(&self.app, &self.comic);
+            .get_temp_download_dir_by_fmt(&self.app, &self.comic)
+        {
+            Ok(temp_download_dir) => temp_download_dir,
+            Err(err) => {
+                let err_title = format!("`{comic_title} - {chapter_title}`获取临时下载目录失败");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+
+                self.set_state(DownloadTaskState::Failed);
+                self.emit_download_task_update_event();
+
+                return None;
+            }
+        };
+
         if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
-            let err_title =
-                format!("`{comic_title} - {chapter_title}`创建目录`{temp_download_dir:?}`失败");
+            let err_title = format!(
+                "`{comic_title} - {chapter_title}`创建临时下载目录`{temp_download_dir:?}`失败"
+            );
             let string_chain = err.to_string_chain();
             tracing::error!(err_title, message = string_chain);
 
@@ -469,20 +494,26 @@ impl DownloadTask {
 
     fn save_comic_metadata(&self) -> anyhow::Result<()> {
         let mut comic = self.comic.as_ref().clone();
-        // 将Comic的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
+        // 将is_downloaded字段设置为None，comic_dir_name和chapter_dir_name设置为空字符串
+        // 这样能使这些字段在序列化时被忽略
         comic.is_downloaded = None;
-        // 将所有ChapterInfo的is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
+        comic.comic_dir_name = String::new();
         for chapter in &mut comic.chapter_infos {
             chapter.is_downloaded = None;
+            chapter.chapter_dir_name = String::new();
         }
 
-        let comic_json = serde_json::to_string_pretty(&comic).context("将Comic序列化为json失败")?;
-        let comic_download_dir =
-            Comic::get_comic_download_dir(&self.app, &comic.title, &comic.author);
+        let comic_title = &self.comic.title;
+        let comic_download_dir = self
+            .comic
+            .get_comic_download_dir_by_fmt(&self.app)
+            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
         let metadata_path = comic_download_dir.join("元数据.json");
 
         std::fs::create_dir_all(&comic_download_dir)
             .context(format!("创建目录`{comic_download_dir:?}`失败"))?;
+
+        let comic_json = serde_json::to_string_pretty(&comic).context("将Comic序列化为json失败")?;
 
         std::fs::write(&metadata_path, comic_json)
             .context(format!("写入文件`{metadata_path:?}`失败"))?;
@@ -492,18 +523,24 @@ impl DownloadTask {
 
     fn save_chapter_metadata(&self) -> anyhow::Result<()> {
         let mut chapter_info = self.chapter_info.as_ref().clone();
-        // 将is_downloaded字段设置为None，这样能使is_downloaded字段在序列化时被忽略
+        // 将is_downloaded字段设置为None，chapter_dir_name设置为空字符串
+        // 这样能使这些字段在序列化时被忽略
         chapter_info.is_downloaded = None;
+        chapter_info.chapter_dir_name = String::new();
 
+        let comic_title = &self.comic.title;
+        let chapter_title = &self.chapter_info.chapter_title;
         let chapter_download_dir = self
             .chapter_info
-            .get_chapter_download_dir(&self.app, &self.comic);
-        let chapter_json =
-            serde_json::to_string_pretty(&chapter_info).context("将ChapterInfo序列化为json失败")?;
+            .get_chapter_download_dir_by_fmt(&self.app, &self.comic)
+            .context(format!("`{comic_title} - {chapter_title}`获取下载目录失败"))?;
         let metadata_path = chapter_download_dir.join("元数据.json");
 
         std::fs::create_dir_all(&chapter_download_dir)
             .context(format!("创建目录`{chapter_download_dir:?}`失败"))?;
+
+        let chapter_json =
+            serde_json::to_string_pretty(&chapter_info).context("将ChapterInfo序列化为json失败")?;
 
         std::fs::write(&metadata_path, chapter_json)
             .context(format!("写入文件`{metadata_path:?}`失败"))?;
@@ -796,5 +833,182 @@ impl DownloadImgTask {
 
     fn pica_client(&self) -> PicaClient {
         self.app.state::<PicaClient>().inner().clone()
+    }
+}
+
+#[derive(Default, Debug, PartialEq, Clone, Serialize, Deserialize, Type)]
+pub struct ComicDirNameFmtParams {
+    pub comic_id: String,
+    pub comic_title: String,
+    pub author: String,
+}
+
+impl Comic {
+    /// 根据fmt更新`comic_dir_name`和`chapter_infos.chapter_dir_name`字段
+    fn update_dir_name_fields_by_fmt(&mut self, app: &AppHandle) -> anyhow::Result<()> {
+        let comic_title = &self.title;
+        let comic_fmt_params = ComicDirNameFmtParams {
+            comic_id: self.id.clone(),
+            comic_title: comic_title.clone(),
+            author: self.author.clone(),
+        };
+        self.comic_dir_name = Comic::get_comic_dir_name_by_fmt(app, &comic_fmt_params)
+            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
+
+        for chapter_info in &mut self.chapter_infos {
+            let chapter_title = &chapter_info.chapter_title;
+
+            let chapter_fmt_params = ChapterDirNameFmtParams {
+                comic_id: self.id.clone(),
+                comic_title: self.title.clone(),
+                author: self.author.clone(),
+                chapter_id: chapter_info.chapter_id.clone(),
+                chapter_title: chapter_info.chapter_title.clone(),
+                order: chapter_info.order,
+            };
+
+            chapter_info.chapter_dir_name =
+                ChapterInfo::get_chapter_dir_name_by_fmt(app, &chapter_fmt_params).context(
+                    format!("`{comic_title} - {chapter_title}`根据fmt获取目录名失败"),
+                )?;
+        }
+
+        Ok(())
+    }
+
+    fn get_comic_download_dir_by_fmt(&self, app: &AppHandle) -> anyhow::Result<PathBuf> {
+        let comic_title = &self.title;
+        let comic_fmt_params = ComicDirNameFmtParams {
+            comic_id: self.id.clone(),
+            comic_title: comic_title.clone(),
+            author: self.author.clone(),
+        };
+        let comic_dir_name = Comic::get_comic_dir_name_by_fmt(app, &comic_fmt_params)
+            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
+
+        let comic_download_dir = app
+            .state::<RwLock<Config>>()
+            .read()
+            .download_dir
+            .join(comic_dir_name);
+
+        Ok(comic_download_dir)
+    }
+
+    fn get_comic_dir_name_by_fmt(
+        app: &AppHandle,
+        comic_fmt_params: &ComicDirNameFmtParams,
+    ) -> anyhow::Result<String> {
+        use strfmt::strfmt;
+
+        let fmt = app
+            .state::<RwLock<Config>>()
+            .read()
+            .comic_dir_name_fmt
+            .clone();
+
+        let json_value = serde_json::to_value(comic_fmt_params)
+            .context("将ComicDirNameFmtParams转为serde_json::Value失败")?;
+
+        let json_map = json_value
+            .as_object()
+            .context("ComicDirNameFmtParams不是JSON对象")?;
+
+        let vars: HashMap<String, String> = json_map
+            .into_iter()
+            .map(|(k, v)| {
+                let key = k.clone();
+                let value = match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => v.to_string(),
+                };
+                (key, value)
+            })
+            .collect();
+
+        let comic_dir_name = strfmt(&fmt, &vars).context("格式化漫画目录名失败")?;
+        let comic_dir_name = filename_filter(&comic_dir_name);
+
+        Ok(comic_dir_name)
+    }
+}
+
+#[derive(Default, Debug, PartialEq, Clone, Serialize, Deserialize, Type)]
+pub struct ChapterDirNameFmtParams {
+    pub comic_id: String,
+    pub comic_title: String,
+    pub author: String,
+    pub chapter_id: String,
+    pub chapter_title: String,
+    pub order: i64,
+}
+
+impl ChapterInfo {
+    fn get_temp_download_dir_by_fmt(
+        &self,
+        app: &AppHandle,
+        comic: &Comic,
+    ) -> anyhow::Result<PathBuf> {
+        let comic_title = &comic.title;
+        let comic_download_dir = comic
+            .get_comic_download_dir_by_fmt(app)
+            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
+
+        let chapter_dir_name = &self.chapter_dir_name;
+        let temp_download_dir = comic_download_dir.join(format!(".下载中-{chapter_dir_name}")); // 以 `.下载中-` 开头，表示是临时目录
+
+        Ok(temp_download_dir)
+    }
+
+    fn get_chapter_download_dir_by_fmt(
+        &self,
+        app: &AppHandle,
+        comic: &Comic,
+    ) -> anyhow::Result<PathBuf> {
+        let comic_title = &comic.title;
+        let comic_download_dir = comic
+            .get_comic_download_dir_by_fmt(app)
+            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
+
+        let chapter_download_dir = comic_download_dir.join(&self.chapter_dir_name);
+
+        Ok(chapter_download_dir)
+    }
+
+    fn get_chapter_dir_name_by_fmt(
+        app: &AppHandle,
+        chapter_fmt_params: &ChapterDirNameFmtParams,
+    ) -> anyhow::Result<String> {
+        use strfmt::strfmt;
+
+        let fmt = app
+            .state::<RwLock<Config>>()
+            .read()
+            .chapter_dir_name_fmt
+            .clone();
+
+        let json_value = serde_json::to_value(chapter_fmt_params)
+            .context("将ChapterDirNameFmtParams转为serde_json::Value失败")?;
+
+        let json_map = json_value
+            .as_object()
+            .context("ChapterDirNameFmtParams不是JSON对象")?;
+
+        let vars: HashMap<String, String> = json_map
+            .into_iter()
+            .map(|(k, v)| {
+                let key = k.clone();
+                let value = match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => v.to_string(),
+                };
+                (key, value)
+            })
+            .collect();
+
+        let chapter_dir_name = strfmt(&fmt, &vars).context("格式化章节目录名失败")?;
+        let chapter_dir_name = filename_filter(&chapter_dir_name);
+
+        Ok(chapter_dir_name)
     }
 }

@@ -3,6 +3,7 @@ import { SelectionArea, SelectionEvent } from '@viselect/vue'
 import { nextTick, ref, watch, watchEffect, computed } from 'vue'
 import { ChapterInfo, commands, DownloadTaskState } from '../bindings.ts'
 import { useStore } from '../store.ts'
+import { path } from '@tauri-apps/api'
 
 const store = useStore()
 
@@ -152,11 +153,11 @@ async function refreshChapters() {
 }
 
 async function showComicDownloadDirInFileManager() {
-  if (store.pickedComic === undefined) {
+  if (store.pickedComic === undefined || store.config === undefined) {
     return
   }
-
-  const result = await commands.showComicDownloadDirInFileManager(store.pickedComic.title, store.pickedComic.author)
+  const comicDir = await path.join(store.config.downloadDir, store.pickedComic.comicDirName)
+  const result = await commands.showPathInFileManager(comicDir)
   if (result.status === 'error') {
     console.error(result.error)
   }

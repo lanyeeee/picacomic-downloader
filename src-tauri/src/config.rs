@@ -16,6 +16,8 @@ pub struct Config {
     pub download_with_author: bool,
     pub enable_file_logger: bool,
     pub download_format: DownloadFormat,
+    pub comic_dir_name_fmt: String,
+    pub chapter_dir_name_fmt: String,
 }
 
 impl Config {
@@ -78,6 +80,8 @@ impl Config {
             download_with_author: false,
             enable_file_logger: true,
             download_format: DownloadFormat::default(),
+            comic_dir_name_fmt: "{comic_title}".to_string(),
+            chapter_dir_name_fmt: "{order} {chapter_title}".to_string(),
         }
     }
 }

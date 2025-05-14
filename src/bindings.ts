@@ -107,14 +107,6 @@ async showPathInFileManager(path: string) : Promise<Result<null, CommandError>> 
     else return { status: "error", error: e  as any };
 }
 },
-async showComicDownloadDirInFileManager(comicTitle: string, author: string) : Promise<Result<null, CommandError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("show_comic_download_dir_in_file_manager", { comicTitle, author }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async getFavorite(sort: GetFavoriteSort, page: number) : Promise<Result<GetFavoriteResult, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_favorite", { sort, page }) };
@@ -183,10 +175,10 @@ logEvent: "log-event"
 export type ChapterImageRespData = { _id: string; media: ImageRespData }
 export type ChapterInfo = { chapterId: string; chapterTitle: string; order: number; isDownloaded?: boolean | null; chapterDirName: string }
 export type Comic = { id: string; title: string; author: string; pagesCount: number; chapterInfos: ChapterInfo[]; chapterCount: number; finished: boolean; categories: string[]; thumb: Image; likesCount: number; creator: Creator; description: string; chineseTeam: string; tags: string[]; updatedAt: string; createdAt: string; allowDownload: boolean; viewsCount: number; isLiked: boolean; commentsCount: number; isDownloaded?: boolean | null; comicDirName: string }
-export type ComicInFavorite = { id: string; title: string; author: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number; isDownloaded: boolean }
-export type ComicInSearch = { id: string; author: string; categories: string[]; chineseTeam: string; createdAt: string; description: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updatedAt: string; isDownloaded: boolean }
+export type ComicInFavorite = { id: string; title: string; author: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number; isDownloaded: boolean; comicDirName: string }
+export type ComicInSearch = { id: string; author: string; categories: string[]; chineseTeam: string; createdAt: string; description: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updatedAt: string; isDownloaded: boolean; comicDirName: string }
 export type CommandError = { err_title: string; err_message: string }
-export type Config = { token: string; downloadDir: string; exportDir: string; chapterDownloadInterval: number; downloadWithAuthor: boolean; enableFileLogger: boolean; downloadFormat: DownloadFormat }
+export type Config = { token: string; downloadDir: string; exportDir: string; chapterDownloadInterval: number; downloadWithAuthor: boolean; enableFileLogger: boolean; downloadFormat: DownloadFormat; comicDirNameFmt: string; chapterDirNameFmt: string }
 export type Creator = { id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar: Image; slogan: string; role: string; character: string }
 export type DownloadFormat = "Jpeg" | "Png" | "Original"
 export type DownloadSpeedEvent = { speed: string }

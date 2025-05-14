@@ -47,7 +47,6 @@ pub fn run() {
             resume_download_task,
             cancel_download_task,
             show_path_in_file_manager,
-            show_comic_download_dir_in_file_manager,
             get_favorite,
             get_downloaded_comics,
             export_cbz,
