@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { path } from '@tauri-apps/api'
 import { commands, ImageRespData } from '../bindings.ts'
 import { useStore } from '../store.ts'
 
@@ -10,6 +11,7 @@ const props = defineProps<{
   comicAuthor: string
   comicCategories: string[]
   comicDownloaded: boolean
+  comicDirName: string
   thumb: ImageRespData
 }>()
 
@@ -32,7 +34,11 @@ async function pickComic() {
 }
 
 async function showComicDownloadDirInFileManager() {
-  const result = await commands.showComicDownloadDirInFileManager(props.comicTitle, props.comicAuthor)
+  if (store.config === undefined) {
+    return
+  }
+  const comicDir = await path.join(store.config.downloadDir, props.comicDirName)
+  const result = await commands.showPathInFileManager(comicDir)
   if (result.status === 'error') {
     console.error(result.error)
   }

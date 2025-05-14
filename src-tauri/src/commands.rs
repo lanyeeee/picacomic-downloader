@@ -104,12 +104,15 @@ pub async fn search_comic(
     page: i32,
     categories: Vec<String>,
 ) -> CommandResult<SearchResult> {
+    // TODO: 把变量名改为search_resp_data
     let comic_in_search_pagination = pica_client
         .search_comic(&keyword, sort, page, categories)
         .await
         .map_err(|err| CommandError::from("搜索漫画失败", err))?;
 
-    let search_result = SearchResult::from_resp_data(&app, comic_in_search_pagination);
+    let search_result = SearchResult::from_resp_data(&app, comic_in_search_pagination)
+        .map_err(|err| CommandError::from("搜索漫画失败", err))?;
+
     Ok(search_result)
 }
 
@@ -163,7 +166,12 @@ pub async fn get_comic(
         chapters.sort_by_key(|chapter| chapter.order);
         std::mem::take(&mut *chapters)
     };
-    let comic = Comic::from(&app, comic, chapters);
+    let comic = Comic::from(&app, comic, chapters)
+        .context("从RespData转为Comic失败")
+        .map_err(|err| {
+            let err_title = format!("获取漫画`{comic_id}`的详情失败");
+            CommandError::from(&err_title, err)
+        })?;
 
     Ok(comic)
 }
@@ -285,22 +293,6 @@ pub fn show_path_in_file_manager(app: AppHandle, path: &str) -> CommandResult<()
     Ok(())
 }
 
-#[allow(clippy::needless_pass_by_value)]
-#[tauri::command(async)]
-#[specta::specta]
-pub fn show_comic_download_dir_in_file_manager(
-    app: AppHandle,
-    comic_title: String,
-    author: String,
-) -> CommandResult<()> {
-    let comic_download_dir = Comic::get_comic_download_dir(&app, &comic_title, &author);
-    app.opener()
-        .reveal_item_in_dir(&comic_download_dir)
-        .context(format!("在文件管理器中打开`{comic_download_dir:?}`失败"))
-        .map_err(|err| CommandError::from("在文件管理器中打开失败", err))?;
-    Ok(())
-}
-
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn get_favorite(
@@ -314,7 +306,9 @@ pub async fn get_favorite(
         .await
         .map_err(|err| CommandError::from("获取收藏的漫画失败", err))?;
 
-    let get_favorite_result = GetFavoriteResult::from_resp_data(&app, get_favorite_resp_data);
+    let get_favorite_result = GetFavoriteResult::from_resp_data(&app, get_favorite_resp_data)
+        .map_err(|err| CommandError::from("获取收藏的漫画失败", err))?;
+
     Ok(get_favorite_result)
 }
 

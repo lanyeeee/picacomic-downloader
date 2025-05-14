@@ -49,6 +49,7 @@ tracing = { version = "0.1.41" }
 tracing-subscriber = { version = "0.3.19", features = ["json", "time", "local-time"] }
 tracing-appender = { version = "0.2.3" }
 notify = { version = "8.0.0" }
+strfmt = { version = "0.2.4" }
 
 
 [profile.release]
