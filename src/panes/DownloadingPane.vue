@@ -6,6 +6,7 @@ import { FolderOpenOutlined } from '@vicons/antd'
 import { useStore } from '../store.ts'
 import UncompletedProgresses from '../components/UncompletedProgresses.vue'
 import CompletedProgresses from '../components/CompletedProgresses.vue'
+import { ProgressData } from '../types.ts'
 
 const store = useStore()
 
@@ -16,7 +17,7 @@ onMounted(async () => {
     downloadSpeed.value = speed
   })
 
-  await events.downloadTaskEvent.listen(({ payload: { event, data } }) => {
+  await events.downloadTaskEvent.listen(async ({ payload: { event, data } }) => {
     if (event === 'Create') {
       const { chapterInfo, downloadedImgCount, totalImgCount } = data
 
@@ -39,28 +40,9 @@ onMounted(async () => {
 
       if (state === 'Completed') {
         progressData.chapterInfo.isDownloaded = true
-
-        if (store.pickedComic !== undefined) {
-          store.pickedComic.isDownloaded = true
-          const chapter = store.pickedComic.chapterInfos.find((chapter) => chapter.chapterId === chapterId)
-          if (chapter !== undefined) {
-            chapter.isDownloaded = true
-          }
-        }
-
-        if (store.searchResult !== undefined) {
-          const comic = store.searchResult.docs.find((comic) => comic.id === progressData.comic.id)
-          if (comic !== undefined) {
-            comic.isDownloaded = true
-          }
-        }
-
-        if (store.getFavoriteResult !== undefined) {
-          const comic = store.getFavoriteResult.docs.find((comic) => comic.id === progressData.comic.id)
-          if (comic !== undefined) {
-            comic.isDownloaded = true
-          }
-        }
+        await syncPickedComic()
+        await syncComicInSearch(progressData)
+        await syncComicInFavorite(progressData)
       }
 
       progressData.percentage = (downloadedImgCount / totalImgCount) * 100
@@ -87,6 +69,50 @@ onMounted(async () => {
     }
   })
 })
+
+async function syncPickedComic() {
+  if (store.pickedComic === undefined) {
+    return
+  }
+  const result = await commands.getSyncedComic(store.pickedComic)
+  if (result.status === 'error') {
+    console.error(result.error)
+    return
+  }
+  store.pickedComic = result.data
+}
+
+async function syncComicInSearch(progressData: ProgressData) {
+  if (store.searchResult === undefined) {
+    return
+  }
+  const comic = store.searchResult.docs.find((comic) => comic.id === progressData.comic.id)
+  if (comic === undefined) {
+    return
+  }
+  const result = await commands.getSyncedComicInSearch(comic)
+  if (result.status === 'error') {
+    console.error(result.error)
+    return
+  }
+  Object.assign(comic, { ...result.data })
+}
+
+async function syncComicInFavorite(progressData: ProgressData) {
+  if (store.getFavoriteResult === undefined) {
+    return
+  }
+  const comic = store.getFavoriteResult.docs.find((comic) => comic.id === progressData.comic.id)
+  if (comic === undefined) {
+    return
+  }
+  const result = await commands.getSyncedComicInFavorite(comic)
+  if (result.status === 'error') {
+    console.error(result.error)
+    return
+  }
+  Object.assign(comic, { ...result.data })
+}
 
 async function showDownloadDirInFileManager() {
   if (store.config === undefined) {
