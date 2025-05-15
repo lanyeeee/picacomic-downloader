@@ -365,7 +365,12 @@ pub fn get_downloaded_comics(
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn export_cbz(app: AppHandle, comic: Comic) -> CommandResult<()> {
+pub fn export_cbz(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
+    comic
+        .update_fields(&app)
+        .context(format!("`{}`更新Comic的字段失败", comic.title))
+        .map_err(|err| CommandError::from("导出cbz失败", err))?;
+
     let comic_title = &comic.title;
     export::cbz(&app, &comic)
         .context(format!("漫画`{comic_title}`导出cbz失败"))
@@ -376,7 +381,12 @@ pub fn export_cbz(app: AppHandle, comic: Comic) -> CommandResult<()> {
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn export_pdf(app: AppHandle, comic: Comic) -> CommandResult<()> {
+pub fn export_pdf(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
+    comic
+        .update_fields(&app)
+        .context(format!("`{}`更新Comic的字段失败", comic.title))
+        .map_err(|err| CommandError::from("导出pdf失败", err))?;
+
     let comic_title = &comic.title;
     export::pdf(&app, &comic)
         .context(format!("漫画`{comic_title}`导出pdf失败"))
