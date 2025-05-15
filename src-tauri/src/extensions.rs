@@ -18,3 +18,25 @@ impl AnyhowErrorToStringChain for anyhow::Error {
             })
     }
 }
+
+pub trait PathIsImg {
+    /// 判断路径是否为图片文件  
+    /// # Example
+    /// ```
+    /// use std::path::Path;
+    /// use crate::extensions::PathIsImg;
+    ///
+    /// let path = Path::new("test.jpg");
+    /// assert_eq!(path.is_img(), true);
+    /// ```
+    fn is_img(&self) -> bool;
+}
+
+impl PathIsImg for std::path::Path {
+    fn is_img(&self) -> bool {
+        self.extension()
+            .and_then(|ext| ext.to_str())
+            .map(str::to_lowercase)
+            .is_some_and(|ext| matches!(ext.as_str(), "jpg" | "jpeg" | "png"))
+    }
+}
