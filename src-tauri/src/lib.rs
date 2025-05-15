@@ -52,6 +52,9 @@ pub fn run() {
             export_cbz,
             export_pdf,
             get_logs_dir_size,
+            get_synced_comic,
+            get_synced_comic_in_favorite,
+            get_synced_comic_in_search,
         ])
         .events(tauri_specta::collect_events![
             DownloadSpeedEvent,

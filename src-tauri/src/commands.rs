@@ -14,7 +14,8 @@ use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
 use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
 use crate::types::{
-    ChapterInfo, Comic, GetFavoriteResult, GetFavoriteSort, SearchResult, SearchSort,
+    ChapterInfo, Comic, ComicInFavorite, ComicInSearch, GetFavoriteResult, GetFavoriteSort,
+    SearchResult, SearchSort,
 };
 use crate::{export, logger};
 
@@ -410,4 +411,45 @@ pub fn get_logs_dir_size(app: AppHandle) -> CommandResult<u64> {
         .sum::<u64>();
     tracing::debug!("获取日志目录大小成功");
     Ok(logs_dir_size)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn get_synced_comic(app: AppHandle, mut comic: Comic) -> CommandResult<Comic> {
+    comic
+        .update_fields(&app)
+        .map_err(|err| CommandError::from(&format!("`{}`更新Comic的字段失败", comic.title), err))?;
+
+    Ok(comic)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn get_synced_comic_in_favorite(
+    app: AppHandle,
+    mut comic: ComicInFavorite,
+) -> CommandResult<ComicInFavorite> {
+    comic.update_fields(&app).map_err(|err| {
+        let err_title = format!("`{}`更新ComicInFavorite的字段失败", comic.title);
+        CommandError::from(&err_title, err)
+    })?;
+
+    Ok(comic)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn get_synced_comic_in_search(
+    app: AppHandle,
+    mut comic: ComicInSearch,
+) -> CommandResult<ComicInSearch> {
+    comic.update_fields(&app).map_err(|err| {
+        let err_title = format!("`{}`更新ComicInSearch的字段失败", comic.title);
+        CommandError::from(&err_title, err)
+    })?;
+
+    Ok(comic)
 }
