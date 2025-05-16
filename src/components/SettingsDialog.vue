@@ -32,15 +32,6 @@ async function showConfigInFileManager() {
           <n-input-group-label size="small">秒</n-input-group-label>
         </n-input-group>
 
-        <n-tooltip placement="top" trigger="hover">
-          <template #trigger>
-            <n-checkbox v-model:checked="store.config.downloadWithAuthor" class="mr-auto">
-              在漫画名前面附加作者名
-            </n-checkbox>
-          </template>
-          [作者名] 漫画名
-        </n-tooltip>
-
         <n-radio-group v-model:value="store.config.downloadFormat">
           <span class="mr-4">下载格式</span>
           <n-tooltip placement="top" trigger="hover">
