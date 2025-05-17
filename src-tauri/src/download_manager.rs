@@ -329,22 +329,9 @@ impl DownloadTask {
         let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
-        let temp_download_dir = match self
+        let temp_download_dir = self
             .chapter_info
-            .get_temp_download_dir_by_fmt(&self.app, &self.comic)
-        {
-            Ok(temp_download_dir) => temp_download_dir,
-            Err(err) => {
-                let err_title = format!("`{comic_title} - {chapter_title}`获取临时下载目录失败");
-                let string_chain = err.to_string_chain();
-                tracing::error!(err_title, message = string_chain);
-
-                self.set_state(DownloadTaskState::Failed);
-                self.emit_download_task_update_event();
-
-                return None;
-            }
-        };
+            .get_temp_download_dir(&self.app, &self.comic);
 
         if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
             let err_title = format!(
@@ -503,11 +490,7 @@ impl DownloadTask {
             chapter.chapter_dir_name = String::new();
         }
 
-        let comic_title = &self.comic.title;
-        let comic_download_dir = self
-            .comic
-            .get_comic_download_dir_by_fmt(&self.app)
-            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
+        let comic_download_dir = self.comic.get_comic_download_dir(&self.app);
         let metadata_path = comic_download_dir.join("元数据.json");
 
         std::fs::create_dir_all(&comic_download_dir)
@@ -528,12 +511,9 @@ impl DownloadTask {
         chapter_info.is_downloaded = None;
         chapter_info.chapter_dir_name = String::new();
 
-        let comic_title = &self.comic.title;
-        let chapter_title = &self.chapter_info.chapter_title;
         let chapter_download_dir = self
             .chapter_info
-            .get_chapter_download_dir_by_fmt(&self.app, &self.comic)
-            .context(format!("`{comic_title} - {chapter_title}`获取下载目录失败"))?;
+            .get_chapter_download_dir(&self.app, &self.comic);
         let metadata_path = chapter_download_dir.join("元数据.json");
 
         std::fs::create_dir_all(&chapter_download_dir)
@@ -876,25 +856,6 @@ impl Comic {
         Ok(())
     }
 
-    fn get_comic_download_dir_by_fmt(&self, app: &AppHandle) -> anyhow::Result<PathBuf> {
-        let comic_title = &self.title;
-        let comic_fmt_params = ComicDirNameFmtParams {
-            comic_id: self.id.clone(),
-            comic_title: comic_title.clone(),
-            author: self.author.clone(),
-        };
-        let comic_dir_name = Comic::get_comic_dir_name_by_fmt(app, &comic_fmt_params)
-            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
-
-        let comic_download_dir = app
-            .state::<RwLock<Config>>()
-            .read()
-            .download_dir
-            .join(comic_dir_name);
-
-        Ok(comic_download_dir)
-    }
-
     fn get_comic_dir_name_by_fmt(
         app: &AppHandle,
         comic_fmt_params: &ComicDirNameFmtParams,
@@ -944,37 +905,6 @@ pub struct ChapterDirNameFmtParams {
 }
 
 impl ChapterInfo {
-    fn get_temp_download_dir_by_fmt(
-        &self,
-        app: &AppHandle,
-        comic: &Comic,
-    ) -> anyhow::Result<PathBuf> {
-        let comic_title = &comic.title;
-        let comic_download_dir = comic
-            .get_comic_download_dir_by_fmt(app)
-            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
-
-        let chapter_dir_name = &self.chapter_dir_name;
-        let temp_download_dir = comic_download_dir.join(format!(".下载中-{chapter_dir_name}")); // 以 `.下载中-` 开头，表示是临时目录
-
-        Ok(temp_download_dir)
-    }
-
-    fn get_chapter_download_dir_by_fmt(
-        &self,
-        app: &AppHandle,
-        comic: &Comic,
-    ) -> anyhow::Result<PathBuf> {
-        let comic_title = &comic.title;
-        let comic_download_dir = comic
-            .get_comic_download_dir_by_fmt(app)
-            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
-
-        let chapter_download_dir = comic_download_dir.join(&self.chapter_dir_name);
-
-        Ok(chapter_download_dir)
-    }
-
     fn get_chapter_dir_name_by_fmt(
         app: &AppHandle,
         chapter_fmt_params: &ChapterDirNameFmtParams,
