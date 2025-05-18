@@ -177,12 +177,14 @@ async getSyncedComicInSearch(comic: ComicInSearch) : Promise<Result<ComicInSearc
 
 
 export const events = __makeEvents__<{
+downloadSleepingEvent: DownloadSleepingEvent,
 downloadSpeedEvent: DownloadSpeedEvent,
 downloadTaskEvent: DownloadTaskEvent,
 exportCbzEvent: ExportCbzEvent,
 exportPdfEvent: ExportPdfEvent,
 logEvent: LogEvent
 }>({
+downloadSleepingEvent: "download-sleeping-event",
 downloadSpeedEvent: "download-speed-event",
 downloadTaskEvent: "download-task-event",
 exportCbzEvent: "export-cbz-event",
@@ -202,9 +204,10 @@ export type Comic = { id: string; title: string; author: string; pagesCount: num
 export type ComicInFavorite = { id: string; title: string; author: string; pagesCount: number; epsCount: number; finished: boolean; categories: string[]; thumb: ImageRespData; likesCount: number; isDownloaded: boolean; comicDirName: string }
 export type ComicInSearch = { id: string; author: string; categories: string[]; chineseTeam: string; createdAt: string; description: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updatedAt: string; isDownloaded: boolean; comicDirName: string }
 export type CommandError = { err_title: string; err_message: string }
-export type Config = { token: string; downloadDir: string; exportDir: string; chapterDownloadInterval: number; enableFileLogger: boolean; downloadFormat: DownloadFormat; comicDirNameFmt: string; chapterDirNameFmt: string }
+export type Config = { token: string; downloadDir: string; exportDir: string; enableFileLogger: boolean; downloadFormat: DownloadFormat; comicDirNameFmt: string; chapterDirNameFmt: string; chapterConcurrency: number; chapterDownloadIntervalSec: number; imgConcurrency: number; imgDownloadIntervalSec: number }
 export type Creator = { id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar: Image; slogan: string; role: string; character: string }
 export type DownloadFormat = "Jpeg" | "Png" | "Original"
+export type DownloadSleepingEvent = { id: string; remainingSec: number }
 export type DownloadSpeedEvent = { speed: string }
 export type DownloadTaskEvent = { event: "Create"; data: { state: DownloadTaskState; comic: Comic; chapterInfo: ChapterInfo; downloadedImgCount: number; totalImgCount: number } } | { event: "Update"; data: { chapterId: string; state: DownloadTaskState; downloadedImgCount: number; totalImgCount: number } }
 export type DownloadTaskState = "Pending" | "Downloading" | "Paused" | "Cancelled" | "Completed" | "Failed"

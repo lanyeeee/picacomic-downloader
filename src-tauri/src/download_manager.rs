@@ -13,9 +13,10 @@ use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
 use tokio::sync::{watch, Semaphore, SemaphorePermit};
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 
 use crate::config::Config;
-use crate::events::{DownloadSpeedEvent, DownloadTaskEvent};
+use crate::events::{DownloadSleepingEvent, DownloadSpeedEvent, DownloadTaskEvent};
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
 use crate::types::{ChapterInfo, Comic};
@@ -50,10 +51,16 @@ pub enum DownloadTaskState {
 
 impl DownloadManager {
     pub fn new(app: AppHandle) -> Self {
+        let (chapter_concurrency, img_concurrency) = {
+            let config = app.state::<RwLock<Config>>();
+            let config = config.read();
+            (config.chapter_concurrency, config.img_concurrency)
+        };
+
         let manager = DownloadManager {
             app,
-            chapter_sem: Arc::new(Semaphore::new(3)),
-            img_sem: Arc::new(Semaphore::new(40)),
+            chapter_sem: Arc::new(Semaphore::new(chapter_concurrency)),
+            img_sem: Arc::new(Semaphore::new(img_concurrency)),
             byte_per_sec: Arc::new(AtomicU64::new(0)),
             download_tasks: Arc::new(RwLock::new(HashMap::new())),
         };
@@ -250,13 +257,6 @@ impl DownloadTask {
         // 等待所有图片下载任务完成
         join_set.join_all().await;
         tracing::trace!(comic_title, chapter_title, "所有图片下载任务完成");
-        // 等待一段时间再下载下一章节
-        let chapter_download_interval = self
-            .app
-            .state::<RwLock<Config>>()
-            .read()
-            .chapter_download_interval;
-        tokio::time::sleep(Duration::from_secs(chapter_download_interval)).await;
         // 检查此章节的图片是否全部下载成功
         let downloaded_img_count = self.downloaded_img_count.load(Ordering::Relaxed);
         let total_img_count = self.total_img_count.load(Ordering::Relaxed);
@@ -290,6 +290,7 @@ impl DownloadTask {
             tracing::error!(err_title, message = string_chain);
         }
 
+        self.sleep_between_chapter().await;
         tracing::info!(comic_title, chapter_title, "章节下载成功");
 
         self.set_state(DownloadTaskState::Completed);
@@ -608,6 +609,24 @@ impl DownloadTask {
         }
     }
 
+    async fn sleep_between_chapter(&self) {
+        let id = &self.chapter_info.chapter_id;
+        let mut remaining_sec = self
+            .app
+            .state::<RwLock<Config>>()
+            .read()
+            .chapter_download_interval_sec;
+        while remaining_sec > 0 {
+            // 发送章节休眠事件
+            let _ = DownloadSleepingEvent {
+                id: id.clone(),
+                remaining_sec,
+            }
+            .emit(&self.app);
+            sleep(Duration::from_secs(1)).await;
+            remaining_sec -= 1;
+        }
+    }
     fn set_state(&self, state: DownloadTaskState) {
         let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
@@ -749,6 +768,13 @@ impl DownloadImgTask {
             .fetch_add(1, Ordering::Relaxed);
 
         self.download_task.emit_download_task_update_event();
+
+        let img_download_interval_sec = self
+            .app
+            .state::<RwLock<Config>>()
+            .read()
+            .img_download_interval_sec;
+        sleep(Duration::from_secs(img_download_interval_sec)).await;
     }
 
     async fn acquire_img_permit<'a>(
