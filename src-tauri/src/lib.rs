@@ -1,4 +1,5 @@
 use anyhow::Context;
+use events::DownloadSleepingEvent;
 use parking_lot::RwLock;
 use tauri::{Manager, Wry};
 
@@ -58,6 +59,7 @@ pub fn run() {
         ])
         .events(tauri_specta::collect_events![
             DownloadSpeedEvent,
+            DownloadSleepingEvent,
             DownloadTaskEvent,
             ExportCbzEvent,
             ExportPdfEvent,
