@@ -1,15 +1,20 @@
 #![allow(clippy::used_underscore_binding)]
+use std::sync::atomic::AtomicI64;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
 use parking_lot::{Mutex, RwLock};
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
+use tauri_specta::Event;
+use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
 use crate::errors::{CommandError, CommandResult};
+use crate::events::DownloadAllFavoritesEvent;
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
 use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
@@ -17,7 +22,7 @@ use crate::types::{
     ChapterInfo, Comic, ComicInFavorite, ComicInSearch, GetFavoriteResult, GetFavoriteSort,
     SearchResult, SearchSort,
 };
-use crate::{export, logger};
+use crate::{export, logger, utils};
 
 #[tauri::command]
 #[specta::specta]
@@ -124,55 +129,9 @@ pub async fn get_comic(
     pica_client: State<'_, PicaClient>,
     comic_id: String,
 ) -> CommandResult<Comic> {
-    let pica_client = pica_client.inner().clone();
-    // 获取漫画详情和章节的第一页
-    let (comic, first_page) = tokio::try_join!(
-        pica_client.get_comic(&comic_id),
-        pica_client.get_chapter(&comic_id, 1)
-    )
-    .map_err(|err| {
-        let err_title = format!("获取漫画`{comic_id}的详情或章节的第一页失败`");
-        CommandError::from(&err_title, err)
-    })?;
-    // 准备根据章节的第一页获取所有章节
-    // 先把第一页的章节放进去
-    let chapters = Arc::new(Mutex::new(vec![]));
-    chapters.lock().extend(first_page.docs);
-    // 获取剩下的章节
-    let total_pages = first_page.pages;
-    let mut join_set = JoinSet::new();
-    for page in 2..=total_pages {
-        let pica_client = pica_client.clone();
-        let chapters = chapters.clone();
-        let comic_id = comic_id.clone();
-        // 创建获取章节的任务
-        join_set.spawn(async move {
-            let chapter_page = match pica_client.get_chapter(&comic_id, page).await {
-                Ok(chapter_page) => chapter_page,
-                Err(err) => {
-                    let err_title = format!("获取漫画`{comic_id}`章节的第{page}页章节失败");
-                    let string_chain = err.to_string_chain();
-                    tracing::error!(err_title, message = string_chain);
-                    return;
-                }
-            };
-            chapters.lock().extend(chapter_page.docs);
-        });
-    }
-    // 等待所有章节获取完毕
-    join_set.join_all().await;
-    // 按章节顺序排序
-    let chapters = {
-        let mut chapters = chapters.lock();
-        chapters.sort_by_key(|chapter| chapter.order);
-        std::mem::take(&mut *chapters)
-    };
-    let comic = Comic::from(&app, comic, chapters)
-        .context("从RespData转为Comic失败")
-        .map_err(|err| {
-            let err_title = format!("获取漫画`{comic_id}`的详情失败");
-            CommandError::from(&err_title, err)
-        })?;
+    let comic = utils::get_comic(&app, pica_client.inner(), &comic_id)
+        .await
+        .map_err(|err| CommandError::from("获取漫画详情失败", err))?;
 
     Ok(comic)
 }
@@ -313,6 +272,120 @@ pub async fn get_favorite(
     Ok(get_favorite_result)
 }
 
+#[allow(clippy::cast_possible_wrap)]
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn download_all_favorites(
+    app: AppHandle,
+    pica_client: State<'_, PicaClient>,
+    download_manager: State<'_, DownloadManager>,
+) -> CommandResult<()> {
+    let pica_client = pica_client.inner().clone();
+    let favorite_comics = Arc::new(Mutex::new(vec![]));
+    let _ = DownloadAllFavoritesEvent::GettingFavorites.emit(&app);
+    // 获取收藏夹第一页
+    let first_page = pica_client
+        .get_favorite(GetFavoriteSort::TimeNewest, 1)
+        .await
+        .map_err(|err| CommandError::from("下载收藏夹失败", err))?;
+    // 先把第一页的收藏放进去
+    favorite_comics.lock().extend(first_page.comics.docs);
+    let page_count = first_page.comics.pages;
+    // 获取收藏夹剩余页
+    let mut join_set = JoinSet::new();
+    for page in 2..=page_count {
+        let pica_client = pica_client.clone();
+        let favorite_comics = favorite_comics.clone();
+        join_set.spawn(async move {
+            let favorite_page = pica_client
+                .get_favorite(GetFavoriteSort::TimeNewest, page)
+                .await?;
+            favorite_comics.lock().extend(favorite_page.comics.docs);
+            Ok::<(), anyhow::Error>(())
+        });
+    }
+    // 等待所有请求完成
+    while let Some(Ok(get_favorite_result)) = join_set.join_next().await {
+        // 如果有请求失败，直接返回错误
+        get_favorite_result.map_err(|err| CommandError::from("下载收藏夹失败", err))?;
+    }
+    // 至此，收藏夹已经全部获取完毕
+    let favorite_comics = std::mem::take(&mut *favorite_comics.lock());
+    let comics = Arc::new(Mutex::new(vec![]));
+    // 限制并发数为5
+    let sem = Arc::new(Semaphore::new(5));
+    let current = Arc::new(AtomicI64::new(0));
+    // 发送正在获取收藏夹漫画详情事件
+    let total = favorite_comics.len() as i64;
+    // 获取收藏夹漫画的详细信息
+    for favorite_comic in favorite_comics {
+        let sem = sem.clone();
+        let comics = comics.clone();
+        let current = current.clone();
+        let pica_client = pica_client.clone();
+        let app = app.clone();
+
+        join_set.spawn(async move {
+            let permit = sem.acquire().await?;
+            let comic = utils::get_comic(&app, &pica_client, &favorite_comic.id).await?;
+            drop(permit);
+            comics.lock().push(comic);
+            let current = current.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            let _ = DownloadAllFavoritesEvent::GettingComics { current, total }.emit(&app);
+            Ok::<(), anyhow::Error>(())
+        });
+    }
+    // 等待所有请求完成
+    while let Some(Ok(get_comic_result)) = join_set.join_next().await {
+        // 如果有请求失败，直接返回错误
+        get_comic_result.map_err(|err| CommandError::from("下载收藏夹失败", err))?;
+    }
+    let _ = DownloadAllFavoritesEvent::EndGetComics.emit(&app);
+    // 至此，收藏夹漫画的详细信息已经全部获取完毕
+    let comics = std::mem::take(&mut *comics.lock());
+    // 给每个漫画未下载的章节创建下载任务
+    for comic in comics {
+        let chapter_infos: Vec<&ChapterInfo> = comic
+            .chapter_infos
+            .iter()
+            .filter(|chapter_info| chapter_info.is_downloaded != Some(true))
+            .collect();
+        if chapter_infos.is_empty() {
+            continue;
+        }
+
+        let _ = DownloadAllFavoritesEvent::StartCreateDownloadTasks {
+            comic_id: comic.id.clone(),
+            comic_title: comic.title.clone(),
+            current: 0,
+            total: chapter_infos.len() as i64,
+        }
+        .emit(&app);
+
+        for (current, chapter_info) in chapter_infos.into_iter().enumerate() {
+            let current = current as i64 + 1;
+            download_manager
+                .create_download_task(comic.clone(), chapter_info.chapter_id.clone())
+                .map_err(|err| CommandError::from("下载收藏夹失败", err))?;
+
+            let _ = DownloadAllFavoritesEvent::CreatingDownloadTask {
+                comic_id: comic.id.clone(),
+                current,
+            }
+            .emit(&app);
+
+            sleep(std::time::Duration::from_millis(100)).await;
+        }
+
+        let _ = DownloadAllFavoritesEvent::EndCreateDownloadTasks {
+            comic_id: comic.id.clone(),
+        }
+        .emit(&app);
+    }
+
+    Ok(())
+}
+
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
@@ -345,7 +418,7 @@ pub fn get_downloaded_comics(
             |(metadata_path, _)| match Comic::from_metadata(&app, metadata_path) {
                 Ok(comic) => Some(comic),
                 Err(err) => {
-                    let err_title = format!("读取元数据文件`{metadata_path:?}`失败");
+                    let err_title = "从元数据转为Comic失败";
                     let string_chain = err.to_string_chain();
                     tracing::error!(err_title, message = string_chain);
                     None
