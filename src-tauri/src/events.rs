@@ -95,3 +95,30 @@ pub struct LogEvent {
     #[serde(rename = "line_number")]
     pub line_number: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "event", content = "data")]
+pub enum DownloadAllFavoritesEvent {
+    #[serde(rename_all = "camelCase")]
+    GettingFavorites,
+
+    #[serde(rename_all = "camelCase")]
+    GettingComics { current: i64, total: i64 },
+
+    #[serde(rename_all = "camelCase")]
+    EndGetComics,
+
+    #[serde(rename_all = "camelCase")]
+    StartCreateDownloadTasks {
+        comic_id: String,
+        comic_title: String,
+        current: i64,
+        total: i64,
+    },
+
+    #[serde(rename_all = "camelCase")]
+    CreatingDownloadTask { comic_id: String, current: i64 },
+
+    #[serde(rename_all = "camelCase")]
+    EndCreateDownloadTasks { comic_id: String },
+}
