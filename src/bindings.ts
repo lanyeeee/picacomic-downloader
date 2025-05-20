@@ -67,6 +67,14 @@ async downloadComic(comicId: string) : Promise<Result<null, CommandError>> {
     else return { status: "error", error: e  as any };
 }
 },
+async downloadAllFavorites() : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_all_favorites") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async createDownloadTask(comic: Comic, chapterId: string) : Promise<Result<null, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_download_task", { comic, chapterId }) };
@@ -177,6 +185,7 @@ async getSyncedComicInSearch(comic: ComicInSearch) : Promise<Result<ComicInSearc
 
 
 export const events = __makeEvents__<{
+downloadAllFavoritesEvent: DownloadAllFavoritesEvent,
 downloadSleepingEvent: DownloadSleepingEvent,
 downloadSpeedEvent: DownloadSpeedEvent,
 downloadTaskEvent: DownloadTaskEvent,
@@ -184,6 +193,7 @@ exportCbzEvent: ExportCbzEvent,
 exportPdfEvent: ExportPdfEvent,
 logEvent: LogEvent
 }>({
+downloadAllFavoritesEvent: "download-all-favorites-event",
 downloadSleepingEvent: "download-sleeping-event",
 downloadSpeedEvent: "download-speed-event",
 downloadTaskEvent: "download-task-event",
@@ -206,6 +216,7 @@ export type ComicInSearch = { id: string; author: string; categories: string[]; 
 export type CommandError = { err_title: string; err_message: string }
 export type Config = { token: string; downloadDir: string; exportDir: string; enableFileLogger: boolean; downloadFormat: DownloadFormat; comicDirNameFmt: string; chapterDirNameFmt: string; chapterConcurrency: number; chapterDownloadIntervalSec: number; imgConcurrency: number; imgDownloadIntervalSec: number }
 export type Creator = { id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar: Image; slogan: string; role: string; character: string }
+export type DownloadAllFavoritesEvent = { event: "GettingFavorites" } | { event: "GettingComics"; data: { current: number; total: number } } | { event: "EndGetComics" } | { event: "StartCreateDownloadTasks"; data: { comicId: string; comicTitle: string; current: number; total: number } } | { event: "CreatingDownloadTask"; data: { comicId: string; current: number } } | { event: "EndCreateDownloadTasks"; data: { comicId: string } }
 export type DownloadFormat = "Jpeg" | "Png" | "Original"
 export type DownloadSleepingEvent = { id: string; remainingSec: number }
 export type DownloadSpeedEvent = { speed: string }
