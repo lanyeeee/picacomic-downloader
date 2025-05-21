@@ -60,6 +60,7 @@ function useDownloadedComics() {
 }
 
 function useProgressTracking() {
+  // TODO: 这里应该改用 ref，否则不会实时更新
   const progresses = new Map<string, ProgressData>(new Map())
 
   // 处理导出CBZ事件
