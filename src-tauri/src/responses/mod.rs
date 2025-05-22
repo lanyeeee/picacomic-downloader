@@ -52,6 +52,7 @@ pub struct CreatorRespData {
     pub id: String,
     pub gender: String,
     pub name: String,
+    #[serde(default)]
     pub title: String,
     pub verified: Option<bool>,
     pub exp: i64,
