@@ -44,7 +44,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: 工具版本号
+      label: 工具版本号(点`关于`按钮查看)
       placeholder: v0.1.0
     validations:
       required: true
