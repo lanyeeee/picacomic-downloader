@@ -12,17 +12,18 @@ name = "pica_downloader_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-rc", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-rc", features = [] }
-tauri-plugin-shell = { version = "2.0.0-rc" }
-tauri-plugin-dialog = { version = "2.0.0-rc" }
-tauri-plugin-fs = { version = "2.0.0-rc.2" }
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = { version = "2" }
+tauri-plugin-dialog = { version = "2" }
+
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
+yaserde = { version = "0.12.0", features = ["yaserde_derive"] }
 
-specta = { version = "2.0.0-rc", features = ["chrono"] }
+specta = { version = "2.0.0-rc", features = ["chrono", "serde_json"] }
 tauri-specta = { version = "2.0.0-rc", features = ["derive", "typescript"] }
 specta-typescript = { version = "0.0.7" }
 
@@ -38,8 +39,17 @@ anyhow = { version = "1" }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1.40.0", features = ["full"] }
 bytes = { version = "1.7.1" }
-showfile = { version = "0.1.1" }
-path-slash = { version = "0.2.1" }
+parking_lot = { version = "0.12.3", features = ["send_guard"] }
+rayon = { version = "1.10.0" }
+uuid = { version = "1.15.1", features = ["v4"] }
+zip = { version = "2.2.3", default-features = false }
+lopdf = { git = "https://github.com/lanyeeee/lopdf", features = ["embed_image_jpeg", "embed_image_png"] }
+image = { version = "0.25.5", default-features = false, features = ["jpeg", "png"] }
+tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3.19", features = ["json", "time", "local-time"] }
+tracing-appender = { version = "0.2.3" }
+notify = { version = "8.0.0" }
+strfmt = { version = "0.2.4" }
 
 
 [profile.release]

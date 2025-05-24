@@ -1,11 +1,15 @@
 use anyhow::Context;
+use events::{DownloadAllFavoritesEvent, DownloadSleepingEvent};
+use parking_lot::RwLock;
 use tauri::{Manager, Wry};
 
 // TODO: 使用 prelude 来消除警告
 use crate::commands::*;
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
-use crate::events::prelude::*;
+use crate::events::{
+    DownloadSpeedEvent, DownloadTaskEvent, ExportCbzEvent, ExportPdfEvent, LogEvent,
+};
 use crate::pica_client::PicaClient;
 
 mod commands;
@@ -13,7 +17,9 @@ mod config;
 mod download_manager;
 mod errors;
 mod events;
+mod export;
 mod extensions;
+mod logger;
 mod pica_client;
 mod responses;
 mod types;
@@ -25,8 +31,7 @@ fn generate_context() -> tauri::Context<Wry> {
 
 // TODO: 添加 Panic doc
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[tokio::main]
-pub async fn run() {
+pub fn run() {
     let builder = tauri_specta::Builder::<Wry>::new()
         .commands(tauri_specta::collect_commands![
             greet,
@@ -36,20 +41,31 @@ pub async fn run() {
             get_user_profile,
             search_comic,
             get_comic,
-            get_episode_image,
-            download_episodes,
+            get_chapter_image,
             download_comic,
+            download_all_favorites,
+            create_download_task,
+            pause_download_task,
+            resume_download_task,
+            cancel_download_task,
             show_path_in_file_manager,
-            get_favorite_comics,
+            get_favorite,
+            get_downloaded_comics,
+            export_cbz,
+            export_pdf,
+            get_logs_dir_size,
+            get_synced_comic,
+            get_synced_comic_in_favorite,
+            get_synced_comic_in_search,
         ])
         .events(tauri_specta::collect_events![
-            DownloadEpisodeEndEvent,
-            DownloadEpisodePendingEvent,
-            DownloadEpisodeStartEvent,
-            DownloadImageErrorEvent,
-            DownloadImageSuccessEvent,
             DownloadSpeedEvent,
-            UpdateOverallDownloadProgressEvent
+            DownloadSleepingEvent,
+            DownloadTaskEvent,
+            DownloadAllFavoritesEvent,
+            ExportCbzEvent,
+            ExportPdfEvent,
+            LogEvent,
         ]);
 
     #[cfg(debug_assertions)]
@@ -65,8 +81,7 @@ pub async fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
@@ -80,13 +95,16 @@ pub async fn run() {
                 .context(format!("failed to create app data dir: {app_data_dir:?}"))?;
             println!("app data dir: {app_data_dir:?}");
 
-            let config = std::sync::RwLock::new(Config::new(app.handle())?);
-            let pica_client = PicaClient::new(app.handle().clone());
-            let download_manager = DownloadManager::new(app.handle().clone());
-
+            let config = RwLock::new(Config::new(app.handle())?);
             app.manage(config);
+
+            let pica_client = PicaClient::new(app.handle().clone());
             app.manage(pica_client);
+
+            let download_manager = DownloadManager::new(app.handle().clone());
             app.manage(download_manager);
+
+            logger::init(app.handle())?;
 
             Ok(())
         })
