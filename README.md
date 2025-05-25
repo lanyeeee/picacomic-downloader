@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://github.com/user-attachments/assets/4c92e80c-90fa-4ab6-a361-e48abd66d4b7" style="align-self: center"/>
+    <img src="https://github.com/user-attachments/assets/dc777941-f1ea-43f7-9c3a-dda16cbb7443" style="align-self: center"/>
 </p>
 
 # 哔咔漫画下载器
