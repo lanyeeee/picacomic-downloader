@@ -44,7 +44,16 @@ async function showConfigInFileManager() {
             </template>
           </n-tooltip>
           <n-tooltip placement="top" trigger="hover">
-            <div>保持原图格式，不做任何转换</div>
+            <div>原图不为webp时，会自动转换为webp</div>
+            <template #trigger>
+              <n-radio value="Webp">webp</n-radio>
+            </template>
+          </n-tooltip>
+          <n-tooltip placement="top" trigger="hover">
+            <div>
+              保持原图格式，不做任何转换，
+              <span class="text-red">不支持断点续传</span>
+            </div>
             <template #trigger>
               <n-radio value="Original">原始格式</n-radio>
             </template>

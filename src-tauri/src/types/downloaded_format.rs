@@ -6,6 +6,7 @@ pub enum DownloadFormat {
     #[default]
     Jpeg,
     Png,
+    Webp,
     Original,
 }
 
@@ -14,6 +15,7 @@ impl DownloadFormat {
         match self {
             DownloadFormat::Jpeg => Some("jpg"),
             DownloadFormat::Png => Some("png"),
+            DownloadFormat::Webp => Some("webp"),
             DownloadFormat::Original => None,
         }
     }
