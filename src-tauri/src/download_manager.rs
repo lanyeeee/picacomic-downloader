@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Cursor;
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -6,6 +7,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
+use bytes::Bytes;
+use image::codecs::png::{self, PngEncoder};
+use image::ImageFormat;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -19,7 +23,7 @@ use crate::config::Config;
 use crate::events::{DownloadSleepingEvent, DownloadSpeedEvent, DownloadTaskEvent};
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
-use crate::types::{ChapterInfo, Comic};
+use crate::types::{ChapterInfo, Comic, DownloadFormat};
 use crate::utils::filename_filter;
 
 /// 用于管理下载任务
@@ -232,26 +236,14 @@ impl DownloadTask {
         let Some(temp_download_dir) = self.create_temp_download_dir() else {
             return;
         };
-        // 获取保存路径
-        let Some(save_paths) = self.get_save_paths(&img_urls, &temp_download_dir) else {
-            return;
-        };
         // 清理临时下载目录中与`config.download_format`对不上的文件
-        if let Err(err) = self.clean_temp_download_dir(&temp_download_dir, &save_paths) {
-            let err_title = format!("`{comic_title} - {chapter_title}`清理临时下载目录失败");
-            let string_chain = err.to_string_chain();
-            tracing::error!(err_title, message = string_chain);
-
-            self.set_state(DownloadTaskState::Failed);
-            self.emit_download_task_update_event();
-
-            return;
-        }
+        self.clean_temp_download_dir(&temp_download_dir);
 
         let mut join_set = JoinSet::new();
-        for (url, save_path) in img_urls.into_iter().zip(save_paths.into_iter()) {
+        for (i, url) in img_urls.into_iter().enumerate() {
             // 创建下载任务
-            let download_img_task = DownloadImgTask::new(self, url, save_path);
+            let temp_download_dir = temp_download_dir.clone();
+            let download_img_task = DownloadImgTask::new(self, url, i, temp_download_dir);
             join_set.spawn(download_img_task.process());
         }
         // 等待所有图片下载任务完成
@@ -295,35 +287,6 @@ impl DownloadTask {
 
         self.set_state(DownloadTaskState::Completed);
         self.emit_download_task_update_event();
-    }
-
-    fn get_save_paths(&self, urls: &[String], temp_download_dir: &Path) -> Option<Vec<PathBuf>> {
-        let comic_title = &self.comic.title;
-        let chapter_title = &self.chapter_info.chapter_title;
-
-        let mut save_paths = Vec::with_capacity(urls.len());
-
-        for (i, url) in urls.iter().enumerate() {
-            let extension = match self.get_extension_from_url(url) {
-                Ok(extension) => extension,
-                Err(err) => {
-                    let err_title =
-                        format!("`{comic_title} - {chapter_title}`获取`{url}`的后缀名失败");
-                    let string_chain = err.to_string_chain();
-                    tracing::error!(err_title, message = string_chain);
-
-                    self.set_state(DownloadTaskState::Failed);
-                    self.emit_download_task_update_event();
-
-                    return None;
-                }
-            };
-            save_paths.push(temp_download_dir.join(format!("{:03}.{extension}", i + 1)));
-        }
-
-        tracing::trace!(comic_title, chapter_title, "获取保存路径成功");
-
-        Some(save_paths)
     }
 
     fn create_temp_download_dir(&self) -> Option<PathBuf> {
@@ -438,46 +401,50 @@ impl DownloadTask {
         Ok(())
     }
 
-    fn get_extension_from_url(&self, url: &str) -> anyhow::Result<String> {
-        let download_format = self.app.state::<RwLock<Config>>().read().download_format;
-        if let Some(extension) = download_format.extension() {
-            // 如果不是Original格式，直接返回
-            return Ok(extension.to_string());
-        }
-        // 如果是Original格式，从url中提取后缀名
-        let extension = url
-            .rsplit('.')
-            .next()
-            .context(format!("无法从`{url}`中提取出后缀名"))?
-            .to_string();
-        Ok(extension)
-    }
-
     /// 删除临时下载目录中与`config.download_format`对不上的文件
-    fn clean_temp_download_dir(
-        &self,
-        temp_download_dir: &Path,
-        save_paths: &[PathBuf],
-    ) -> anyhow::Result<()> {
+    fn clean_temp_download_dir(&self, temp_download_dir: &Path) {
         let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
-        let entries = std::fs::read_dir(temp_download_dir)
-            .context(format!("读取临时下载目录`{temp_download_dir:?}`失败"))?;
+        let entries = match std::fs::read_dir(temp_download_dir).map_err(anyhow::Error::from) {
+            Ok(entries) => entries,
+            Err(err) => {
+                let err_title = format!(
+                    "`{comic_title}`读取临时下载目录`{}`失败",
+                    temp_download_dir.display()
+                );
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+                return;
+            }
+        };
 
+        let download_format = self.app.state::<RwLock<Config>>().read().download_format;
+        let extension = download_format.extension();
         for path in entries.filter_map(Result::ok).map(|entry| entry.path()) {
-            if !save_paths.contains(&path) {
-                std::fs::remove_file(&path).context(format!("删除临时下载目录的`{path:?}`失败"))?;
+            // path有扩展名，且能转换为utf8，并与`config.download_format`一致或是gif，则保留
+            let should_keep = path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| Some(ext) == extension);
+            if should_keep {
+                continue;
+            }
+            // 否则删除文件
+            if let Err(err) = std::fs::remove_file(&path).map_err(anyhow::Error::from) {
+                let err_title =
+                    format!("`{comic_title}`删除临时下载目录的`{}`失败", path.display());
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
             }
         }
 
         tracing::trace!(
             comic_title,
             chapter_title,
-            "清理临时下载目录`{temp_download_dir:?}`成功"
+            "清理临时下载目录`{}`成功",
+            temp_download_dir.display()
         );
-
-        Ok(())
     }
 
     fn save_comic_metadata(&self) -> anyhow::Result<()> {
@@ -670,17 +637,24 @@ struct DownloadImgTask {
     download_manager: DownloadManager,
     download_task: DownloadTask,
     url: String,
-    save_path: PathBuf,
+    index: usize,
+    temp_download_dir: PathBuf,
 }
 
 impl DownloadImgTask {
-    pub fn new(download_task: &DownloadTask, url: String, save_path: PathBuf) -> Self {
+    pub fn new(
+        download_task: &DownloadTask,
+        url: String,
+        index: usize,
+        temp_download_dir: PathBuf,
+    ) -> Self {
         Self {
             app: download_task.app.clone(),
             download_manager: download_task.download_manager.clone(),
             download_task: download_task.clone(),
             url,
-            save_path,
+            index,
+            temp_download_dir,
         }
     }
 
@@ -714,24 +688,28 @@ impl DownloadImgTask {
 
     async fn download_img(&self) {
         let url = &self.url;
-        let save_path = &self.save_path;
         let comic_title = &self.download_task.comic.title;
         let chapter_title = &self.download_task.chapter_info.chapter_title;
 
-        if save_path.exists() {
-            // 如果图片已经存在，直接返回
-            self.download_task
-                .downloaded_img_count
-                .fetch_add(1, Ordering::Relaxed);
-
-            tracing::trace!(url, comic_title, chapter_title, "图片已存在，跳过下载");
-
-            return;
+        let download_format = self.app.state::<RwLock<Config>>().read().download_format;
+        if let Some(extension) = download_format.extension() {
+            // 如果图片已存在，则跳过下载
+            let save_path = self
+                .temp_download_dir
+                .join(format!("{:03}.{extension}", self.index + 1));
+            if save_path.exists() {
+                tracing::trace!(url, comic_title, chapter_title, "图片已存在，跳过下载");
+                self.download_task
+                    .downloaded_img_count
+                    .fetch_add(1, Ordering::Relaxed);
+                self.download_task.emit_download_task_update_event();
+                return;
+            }
         }
 
         tracing::trace!(url, comic_title, chapter_title, "开始下载图片");
 
-        let img_data = match self.pica_client().get_img_data(url).await {
+        let (img_data, img_format) = match self.pica_client().get_img_data_and_format(url).await {
             Ok(data) => data,
             Err(err) => {
                 let err_title = format!("下载图片`{url}`失败");
@@ -740,12 +718,30 @@ impl DownloadImgTask {
                 return;
             }
         };
+        let img_data_len = img_data.len() as u64;
 
         tracing::trace!(url, comic_title, chapter_title, "图片成功下载到内存");
 
+        // 获取图片格式的扩展名
+        let Some(extension) = download_format.extension().or(match img_format {
+            ImageFormat::Jpeg => Some("jpg"),
+            ImageFormat::Png => Some("png"),
+            ImageFormat::WebP => Some("webp"),
+            _ => None,
+        }) else {
+            let err_title = format!("保存图片`{url}`失败");
+            let err_msg = format!("`{img_format:?}`格式不支持");
+            tracing::error!(err_title, message = err_msg);
+            return;
+        };
+
+        let save_path = self
+            .temp_download_dir
+            .join(format!("{:03}.{extension}", self.index + 1));
+
         // 保存图片
-        if let Err(err) = std::fs::write(save_path, &img_data).map_err(anyhow::Error::from) {
-            let err_title = format!("保存图片`{save_path:?}`失败");
+        if let Err(err) = save_img(&save_path, download_format, img_data).await {
+            let err_title = format!("保存图片`{}`失败", save_path.display());
             let string_chain = err.to_string_chain();
             tracing::error!(err_title, message = string_chain);
             return;
@@ -761,7 +757,7 @@ impl DownloadImgTask {
         // 记录下载字节数
         self.download_manager
             .byte_per_sec
-            .fetch_add(img_data.len() as u64, Ordering::Relaxed);
+            .fetch_add(img_data_len, Ordering::Relaxed);
 
         self.download_task
             .downloaded_img_count
@@ -840,6 +836,60 @@ impl DownloadImgTask {
     fn pica_client(&self) -> PicaClient {
         self.app.state::<PicaClient>().inner().clone()
     }
+}
+
+async fn save_img(
+    save_path: &Path,
+    download_format: DownloadFormat,
+    src_img_data: Bytes,
+) -> anyhow::Result<()> {
+    if DownloadFormat::Original == download_format {
+        // 如果下载格式是Original，直接保存
+        std::fs::write(save_path, &src_img_data)
+            .context(format!("保存图片`{}`失败", save_path.display()))?;
+        return Ok(());
+    }
+
+    // 图像处理的闭包
+    let save_path = save_path.to_path_buf();
+    let process_img = move || -> anyhow::Result<()> {
+        let src_img = image::load_from_memory(&src_img_data)
+            .context("解码图片失败")?
+            .to_rgb8();
+        // 用来存图片编码后的数据
+        let mut dst_img_data = Vec::new();
+        match download_format {
+            DownloadFormat::Jpeg => {
+                src_img.write_to(&mut Cursor::new(&mut dst_img_data), ImageFormat::Jpeg)?;
+            }
+            DownloadFormat::Png => {
+                let encoder = PngEncoder::new_with_quality(
+                    Cursor::new(&mut dst_img_data),
+                    png::CompressionType::Best,
+                    png::FilterType::default(),
+                );
+                src_img.write_with_encoder(encoder)?;
+            }
+            DownloadFormat::Webp => {
+                src_img.write_to(&mut Cursor::new(&mut dst_img_data), ImageFormat::WebP)?;
+            }
+            DownloadFormat::Original => {
+                return Err(anyhow!("这里不应该出现这个下载格式: `{download_format:?}`"));
+            }
+        }
+        // 保存编码后的图片数据
+        std::fs::write(&save_path, dst_img_data)
+            .context(format!("保存图片`{}`失败", save_path.display()))?;
+        Ok(())
+    };
+
+    // 因为图像处理是CPU密集型操作，所以使用rayon并发处理
+    let (sender, receiver) = tokio::sync::oneshot::channel::<anyhow::Result<()>>();
+    rayon::spawn(move || {
+        let _ = sender.send(process_img());
+    });
+    // 在tokio任务中等待rayon任务的完成，避免阻塞worker threads
+    receiver.await?
 }
 
 #[derive(Default, Debug, PartialEq, Clone, Serialize, Deserialize, Type)]
