@@ -37,6 +37,6 @@ impl PathIsImg for std::path::Path {
         self.extension()
             .and_then(|ext| ext.to_str())
             .map(str::to_lowercase)
-            .is_some_and(|ext| matches!(ext.as_str(), "jpg" | "jpeg" | "png"))
+            .is_some_and(|ext| matches!(ext.as_str(), "jpg" | "jpeg" | "png" | "webp"))
     }
 }
