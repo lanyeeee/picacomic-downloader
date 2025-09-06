@@ -3,7 +3,7 @@ import { commands } from '../bindings.ts'
 import { path } from '@tauri-apps/api'
 import { appDataDir } from '@tauri-apps/api/path'
 import { useStore } from '../store.ts'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 
 const message = useMessage()
@@ -14,6 +14,30 @@ const showing = defineModel<boolean>('showing', { required: true })
 
 const comicDirNameFmt = ref<string>(store.config?.comicDirNameFmt ?? '')
 const chapterDirNameFmt = ref<string>(store.config?.chapterDirNameFmt ?? '')
+
+// 代理设置相关
+const enableProxy = ref<boolean>(store.config?.proxy !== null)
+const proxyHost = ref<string>(store.config?.proxy?.host ?? '')
+const proxyPort = ref<number>(store.config?.proxy?.port ?? 80)
+const proxyType = ref<'Http' | 'Socks5'>(store.config?.proxy?.proxyType ?? 'Http')
+
+// 监听代理设置变化并更新到store
+watch([enableProxy, proxyHost, proxyPort, proxyType], () => {
+  if (enableProxy.value) {
+    store.config!.proxy = {
+      host: proxyHost.value,
+      port: proxyPort.value,
+      proxyType: proxyType.value
+    }
+  } else {
+    store.config!.proxy = null
+  }
+
+  // 如果设置了代理，提示用户重启应用
+  if (enableProxy.value) {
+    message.info('代理设置重启应用后生效')
+  }
+})
 
 async function showConfigInFileManager() {
   const configName = 'config.json'
@@ -29,6 +53,30 @@ async function showConfigInFileManager() {
   <n-modal v-model:show="showing" v-if="store.config !== undefined">
     <n-dialog class="w-140!" :showIcon="false" title="配置" @close="showing = false">
       <div class="flex flex-col gap-row-2">
+        <!-- 代理设置 -->
+        <n-card size="small" embedded>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <span>代理设置</span>
+              <n-switch v-model:value="enableProxy" size="small">
+                <template #checked>启用代理</template>
+                <template #unchecked>不使用代理</template>
+              </n-switch>
+            </div>
+          </template>
+          <div class="flex flex-col gap-3">
+            <div class="grid grid-cols-3 gap-2">
+              <n-select v-model:value="proxyType" :disabled="!enableProxy"
+                :options="[
+                  { label: 'HTTP', value: 'Http' },
+                  { label: 'SOCKS5', value: 'Socks5' }
+                ]" />
+              <n-input v-model:value="proxyHost" :disabled="!enableProxy" placeholder="代理地址" />
+              <n-input-number v-model:value="proxyPort" :disabled="!enableProxy" placeholder="端口" :min="1" :max="65535" />
+            </div>
+          </div>
+        </n-card>
+
         <n-radio-group v-model:value="store.config.downloadFormat">
           <span class="mr-4">下载格式</span>
           <n-tooltip placement="top" trigger="hover">

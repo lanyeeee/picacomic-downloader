@@ -14,7 +14,7 @@ use sha2::Sha256;
 use tauri::http::StatusCode;
 use tauri::{AppHandle, Manager};
 
-use crate::config::Config;
+use crate::config::{Config, ProxyConfig, ProxyType};
 use crate::responses::{
     ChapterImageRespData, ChapterRespData, ComicRespData, GetChapterImageRespData,
     GetChapterRespData, GetComicRespData, GetFavoriteRespData, LoginRespData, Pagination, PicaResp,
@@ -36,8 +36,9 @@ pub struct PicaClient {
 
 impl PicaClient {
     pub fn new(app: AppHandle) -> Self {
-        let api_client = create_api_client();
-        let img_client = create_img_client();
+        let config = app.state::<RwLock<Config>>().read().clone();
+        let api_client = create_api_client_with_proxy(config.proxy.as_ref());
+        let img_client = create_img_client_with_proxy(config.proxy.as_ref());
         Self {
             app,
             api_client,
@@ -393,24 +394,65 @@ fn hmac_hex(key: &str, data: &str) -> anyhow::Result<String> {
     Ok(result)
 }
 
-pub fn create_api_client() -> ClientWithMiddleware {
+fn create_api_client_with_proxy(proxy_config: Option<&ProxyConfig>) -> ClientWithMiddleware {
     let retry_policy = ExponentialBackoff::builder()
-        .base(1) // 指数为1，保证重试间隔为1秒不变
-        .jitter(Jitter::Bounded) // 重试间隔在1秒左右波动
-        .build_with_total_retry_duration(Duration::from_secs(3)); // 重试总时长为3秒
-    let client = reqwest::ClientBuilder::new()
-        .timeout(Duration::from_secs(2)) // 每个请求超过2秒就超时
-        .build()
-        .unwrap();
+        .base(1)
+        .jitter(Jitter::Bounded)
+        .build_with_total_retry_duration(Duration::from_secs(3));
+
+    let mut client_builder = reqwest::ClientBuilder::new().timeout(Duration::from_secs(2));
+
+    if let Some(proxy) = proxy_config {
+        // 只有当主机地址和端口不为空时才设置代理
+        if !proxy.host.trim().is_empty() && proxy.port > 0 {
+            let proxy_url = match proxy.proxy_type {
+                ProxyType::Http => format!("http://{}:{}", proxy.host, proxy.port),
+                ProxyType::Socks5 => format!("socks5://{}:{}", proxy.host, proxy.port),
+            };
+
+            match reqwest::Proxy::all(&proxy_url) {
+                Ok(proxy_config) => {
+                    client_builder = client_builder.proxy(proxy_config);
+                }
+                Err(e) => {
+                    eprintln!("无效的代理配置: {}", e);
+                }
+            }
+        }
+    }
+
+    let client = client_builder.build().unwrap();
+
     reqwest_middleware::ClientBuilder::new(client)
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build()
 }
 
-fn create_img_client() -> ClientWithMiddleware {
+fn create_img_client_with_proxy(proxy_config: Option<&ProxyConfig>) -> ClientWithMiddleware {
     let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
 
-    let client = reqwest::ClientBuilder::new().build().unwrap();
+    let mut client_builder = reqwest::ClientBuilder::new();
+
+    if let Some(proxy) = proxy_config {
+        // 只有当主机地址不为空时才设置代理
+        if !proxy.host.trim().is_empty() && proxy.port > 0 {
+            let proxy_url = match proxy.proxy_type {
+                ProxyType::Http => format!("http://{}:{}", proxy.host, proxy.port),
+                ProxyType::Socks5 => format!("socks5://{}:{}", proxy.host, proxy.port),
+            };
+
+            match reqwest::Proxy::all(&proxy_url) {
+                Ok(proxy_config) => {
+                    client_builder = client_builder.proxy(proxy_config);
+                }
+                Err(e) => {
+                    eprintln!("无效的代理配置: {}", e);
+                }
+            }
+        }
+    }
+
+    let client = client_builder.build().unwrap();
 
     reqwest_middleware::ClientBuilder::new(client)
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
