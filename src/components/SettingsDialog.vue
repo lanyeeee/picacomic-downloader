@@ -21,8 +21,7 @@ const proxyHost = ref<string>(store.config?.proxy?.host ?? '')
 const proxyPort = ref<number>(store.config?.proxy?.port ?? 80)
 const proxyType = ref<'Http' | 'Socks5'>(store.config?.proxy?.proxyType ?? 'Http')
 
-// 监听代理设置变化并更新到store
-watch([enableProxy, proxyHost, proxyPort, proxyType], () => {
+function saveProxySettings() {
   if (enableProxy.value) {
     store.config!.proxy = {
       host: proxyHost.value,
@@ -32,12 +31,7 @@ watch([enableProxy, proxyHost, proxyPort, proxyType], () => {
   } else {
     store.config!.proxy = null
   }
-
-  // 如果设置了代理，提示用户重启应用
-  if (enableProxy.value) {
-    message.info('代理设置重启应用后生效')
-  }
-})
+}
 
 async function showConfigInFileManager() {
   const configName = 'config.json'
@@ -71,8 +65,16 @@ async function showConfigInFileManager() {
                   { label: 'HTTP', value: 'Http' },
                   { label: 'SOCKS5', value: 'Socks5' }
                 ]" />
-              <n-input v-model:value="proxyHost" :disabled="!enableProxy" placeholder="代理地址" />
-              <n-input-number v-model:value="proxyPort" :disabled="!enableProxy" placeholder="端口" :min="1" :max="65535" />
+              <n-input v-model:value="proxyHost" :disabled="!enableProxy" placeholder="代理地址"
+                       @blur="saveProxySettings" />
+              <n-input-number v-model:value="proxyPort" :disabled="!enableProxy" placeholder="端口" :min="1" :max="65535"
+                              @blur="saveProxySettings"/>
+            </div>
+            <div class="transition-all duration-300 ease-in-out overflow-hidden"
+                 :class="enableProxy ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'">
+              <n-alert type="warning" :show-icon="false">
+                <span class="text-xs">代理设置将在重启应用后生效</span>
+              </n-alert>
             </div>
           </div>
         </n-card>

@@ -16,6 +16,7 @@ declare module 'vue' {
     LoginDialog: typeof import('./src/components/LoginDialog.vue')['default']
     LogViewer: typeof import('./src/components/LogViewer.vue')['default']
     NA: typeof import('naive-ui')['NA']
+    NAlert: typeof import('naive-ui')['NAlert']
     NAvatar: typeof import('naive-ui')['NAvatar']
     NButton: typeof import('naive-ui')['NButton']
     NCard: typeof import('naive-ui')['NCard']
