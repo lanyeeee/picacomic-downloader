@@ -3,7 +3,7 @@ import { commands } from '../bindings.ts'
 import { path } from '@tauri-apps/api'
 import { appDataDir } from '@tauri-apps/api/path'
 import { useStore } from '../store.ts'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useMessage } from 'naive-ui'
 
 const message = useMessage()
