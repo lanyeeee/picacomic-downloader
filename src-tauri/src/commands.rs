@@ -1,13 +1,12 @@
 #![allow(clippy::used_underscore_binding)]
-use std::sync::atomic::AtomicI64;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use parking_lot::{Mutex, RwLock};
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 use tauri_specta::Event;
-use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
 
@@ -277,6 +276,7 @@ pub async fn get_favorite(
 #[specta::specta]
 pub async fn download_all_favorites(
     app: AppHandle,
+    config: State<'_, RwLock<Config>>,
     pica_client: State<'_, PicaClient>,
     download_manager: State<'_, DownloadManager>,
 ) -> CommandResult<()> {
@@ -311,46 +311,32 @@ pub async fn download_all_favorites(
     }
     // 至此，收藏夹已经全部获取完毕
     let favorite_comics = std::mem::take(&mut *favorite_comics.lock());
-    let comics = Arc::new(Mutex::new(vec![]));
-    // 限制并发数为5
-    let sem = Arc::new(Semaphore::new(5));
-    let current = Arc::new(AtomicI64::new(0));
-    // 发送正在获取收藏夹漫画详情事件
     let total = favorite_comics.len() as i64;
     // 获取收藏夹漫画的详细信息
-    for favorite_comic in favorite_comics {
-        let sem = sem.clone();
-        let comics = comics.clone();
-        let current = current.clone();
-        let pica_client = pica_client.clone();
-        let app = app.clone();
+    let interval_sec = config.read().download_all_favorites_interval_sec;
+    for (i, favorite_comic) in favorite_comics.into_iter().enumerate() {
+        let comic = match utils::get_comic(&app, &pica_client, &favorite_comic.id).await {
+            Ok(comic) => comic,
+            Err(err) => {
+                let err_title = format!("获取`{}`漫画详情失败，已跳过", favorite_comic.title);
+                let err = err.context("可能是频率太高，请手动去`配置`里调整`下载整个收藏夹时，每处理完一个收藏夹中的漫画后休息`");
+                tracing::error!(err_title, message = err.to_string_chain());
+                sleep(Duration::from_secs(interval_sec)).await;
+                continue;
+            }
+        };
 
-        join_set.spawn(async move {
-            let permit = sem.acquire().await?;
-            let comic = utils::get_comic(&app, &pica_client, &favorite_comic.id).await?;
-            drop(permit);
-            comics.lock().push(comic);
-            let current = current.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            let _ = DownloadAllFavoritesEvent::GettingComics { current, total }.emit(&app);
-            Ok::<(), anyhow::Error>(())
-        });
-    }
-    // 等待所有请求完成
-    while let Some(Ok(get_comic_result)) = join_set.join_next().await {
-        // 如果有请求失败，直接返回错误
-        get_comic_result.map_err(|err| CommandError::from("下载收藏夹失败", err))?;
-    }
-    let _ = DownloadAllFavoritesEvent::EndGetComics.emit(&app);
-    // 至此，收藏夹漫画的详细信息已经全部获取完毕
-    let comics = std::mem::take(&mut *comics.lock());
-    // 给每个漫画未下载的章节创建下载任务
-    for comic in comics {
+        let current = (i + 1) as i64;
+        let _ = DownloadAllFavoritesEvent::GettingComics { current, total }.emit(&app);
+
+        // 给每个漫画未下载的章节创建下载任务
         let chapter_infos: Vec<&ChapterInfo> = comic
             .chapter_infos
             .iter()
             .filter(|chapter_info| chapter_info.is_downloaded != Some(true))
             .collect();
         if chapter_infos.is_empty() {
+            sleep(Duration::from_secs(interval_sec)).await;
             continue;
         }
 
@@ -363,10 +349,9 @@ pub async fn download_all_favorites(
         .emit(&app);
 
         for (current, chapter_info) in chapter_infos.into_iter().enumerate() {
+            let chapter_id = chapter_info.chapter_id.clone();
             let current = current as i64 + 1;
-            download_manager
-                .create_download_task(comic.clone(), chapter_info.chapter_id.clone())
-                .map_err(|err| CommandError::from("下载收藏夹失败", err))?;
+            let _ = download_manager.create_download_task(comic.clone(), chapter_id);
 
             let _ = DownloadAllFavoritesEvent::CreatingDownloadTask {
                 comic_id: comic.id.clone(),
@@ -374,14 +359,18 @@ pub async fn download_all_favorites(
             }
             .emit(&app);
 
-            sleep(std::time::Duration::from_millis(100)).await;
+            sleep(Duration::from_millis(100)).await;
         }
 
         let _ = DownloadAllFavoritesEvent::EndCreateDownloadTasks {
             comic_id: comic.id.clone(),
         }
         .emit(&app);
+
+        sleep(Duration::from_secs(interval_sec)).await;
     }
+    // 至此，收藏夹漫画的详细信息已经全部获取完毕
+    let _ = DownloadAllFavoritesEvent::EndGetComics.emit(&app);
 
     Ok(())
 }
