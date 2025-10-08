@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useStore } from '../store.ts'
-import { commands } from '../bindings.ts'
+import { commands, DownloadAllFavoritesEvent, events } from '../bindings.ts'
+import { MessageReactive, useMessage } from 'naive-ui'
 
 const store = useStore()
 
@@ -11,6 +12,66 @@ const rejectCooldown = ref<number>(0)
 const rejectButtonDisabled = computed(() => rejectCooldown.value > 0)
 
 const countdownInterval = ref<ReturnType<typeof setInterval>>(setInterval(() => {}, 1000))
+
+type ProgressData = Extract<DownloadAllFavoritesEvent, { event: 'StartCreateDownloadTasks' }>['data'] & {
+  progressMessage: MessageReactive
+}
+
+const message = useMessage()
+
+const progresses = ref<Map<string, ProgressData>>(new Map())
+let prepareMessage: MessageReactive | undefined
+
+onMounted(async () => {
+  await events.downloadAllFavoritesEvent.listen(({ payload }) => {
+    if (payload.event === 'GettingFavorites') {
+      prepareMessage = message.loading('正在获取收藏夹', { duration: 0 })
+    } else if (payload.event === 'GettingComics' && prepareMessage !== undefined) {
+      const { current, total } = payload.data
+      prepareMessage.content = `正在获取收藏夹中的漫画(${current}/${total})`
+    } else if (payload.event === 'EndGetComics' && prepareMessage !== undefined) {
+      prepareMessage.type = 'success'
+      prepareMessage.content = '成功获取收藏夹中所有的漫画'
+      setTimeout(() => {
+        prepareMessage?.destroy()
+        prepareMessage = undefined
+      }, 3000)
+    } else if (payload.event === 'StartCreateDownloadTasks') {
+      const { comicId, comicTitle, current, total } = payload.data
+      progresses.value.set(comicId, {
+        comicId,
+        comicTitle,
+        current,
+        total,
+        progressMessage: message.loading(
+          () => {
+            const progressData = progresses.value.get(comicId)
+            if (progressData === undefined) return ''
+            return `${progressData.comicTitle} 正在创建下载任务(${progressData.current}/${progressData.total})`
+          },
+          { duration: 0 },
+        ),
+      })
+    } else if (payload.event === 'CreatingDownloadTask') {
+      const { comicId, current } = payload.data
+      const progressData = progresses.value.get(comicId)
+      if (progressData) {
+        progressData.current = current
+      }
+    } else if (payload.event === 'EndCreateDownloadTasks') {
+      const { comicId } = payload.data
+      const progressData = progresses.value.get(comicId)
+      if (progressData) {
+        progressData.progressMessage.type = 'success'
+        progressData.progressMessage.content = `${progressData.comicTitle} 创建下载任务完成(${progressData.current}/${progressData.total})`
+        setTimeout(() => {
+          progressData.progressMessage.destroy()
+          progresses.value.delete(comicId)
+        }, 3000)
+      }
+    }
+  })
+})
 
 async function agree() {
   if (store.config === undefined) {
@@ -26,6 +87,11 @@ async function agree() {
   const result = await commands.downloadAllFavorites()
   if (result.status === 'error') {
     console.error(result.error)
+    prepareMessage?.destroy()
+    progresses.value.forEach((progress) => {
+      progress.progressMessage.destroy()
+    })
+    progresses.value.clear()
     return
   }
 }
@@ -35,6 +101,11 @@ async function reject() {
   const result = await commands.downloadAllFavorites()
   if (result.status === 'error') {
     console.error(result.error)
+    prepareMessage?.destroy()
+    progresses.value.forEach((progress) => {
+      progress.progressMessage.destroy()
+    })
+    progresses.value.clear()
     return
   }
 }
