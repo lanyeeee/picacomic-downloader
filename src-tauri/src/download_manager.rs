@@ -146,8 +146,8 @@ struct DownloadTask {
 impl DownloadTask {
     pub fn new(app: AppHandle, mut comic: Comic, chapter_id: &str) -> anyhow::Result<Self> {
         comic
-            .update_dir_name_fields_by_fmt(&app)
-            .context(format!("`{}`更新`dir_name`字段失败", comic.title))?;
+            .update_download_dir_fields_by_fmt(&app)
+            .context(format!("漫画`{}`更新`download_dir`字段失败", comic.title))?;
 
         let chapter_info = comic
             .chapter_infos
@@ -293,9 +293,19 @@ impl DownloadTask {
         let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
 
-        let temp_download_dir = self
-            .chapter_info
-            .get_temp_download_dir(&self.app, &self.comic);
+        let temp_download_dir = match self.chapter_info.get_temp_download_dir() {
+            Ok(temp_download_dir) => temp_download_dir,
+            Err(err) => {
+                let err_title = format!("`{comic_title} - {chapter_title}`获取临时下载目录失败");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+
+                self.set_state(DownloadTaskState::Failed);
+                self.emit_download_task_update_event();
+
+                return None;
+            }
+        };
 
         if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
             let err_title = format!(
@@ -381,7 +391,9 @@ impl DownloadTask {
         let chapter_title = &self.chapter_info.chapter_title;
         let chapter_download_dir = self
             .chapter_info
-            .get_chapter_download_dir(&self.app, &self.comic);
+            .chapter_download_dir
+            .as_ref()
+            .context("`chapter_download_dir`字段为`None`")?;
 
         if chapter_download_dir.exists() {
             std::fs::remove_dir_all(&chapter_download_dir)
@@ -449,16 +461,22 @@ impl DownloadTask {
 
     fn save_comic_metadata(&self) -> anyhow::Result<()> {
         let mut comic = self.comic.as_ref().clone();
-        // 将is_downloaded字段设置为None，comic_dir_name和chapter_dir_name设置为空字符串
+        // 将漫画的is_downloaded和comic_download_dir字段设置为None
         // 这样能使这些字段在序列化时被忽略
         comic.is_downloaded = None;
-        comic.comic_dir_name = String::new();
+        comic.comic_download_dir = None;
         for chapter in &mut comic.chapter_infos {
+            // 将章节的is_downloaded和chapter_download_dir字段设置为None
+            // 这样能使这些字段在序列化时被忽略
             chapter.is_downloaded = None;
-            chapter.chapter_dir_name = String::new();
+            chapter.chapter_download_dir = None;
         }
 
-        let comic_download_dir = self.comic.get_comic_download_dir(&self.app);
+        let comic_download_dir = self
+            .comic
+            .comic_download_dir
+            .as_ref()
+            .context("`comic_download_dir`字段为`None`")?;
         let metadata_path = comic_download_dir.join("元数据.json");
 
         std::fs::create_dir_all(&comic_download_dir)
@@ -474,15 +492,17 @@ impl DownloadTask {
 
     fn save_chapter_metadata(&self) -> anyhow::Result<()> {
         let mut chapter_info = self.chapter_info.as_ref().clone();
-        // 将is_downloaded字段设置为None，chapter_dir_name设置为空字符串
+        // 将is_downloaded和chapter_download_dir字段设置为None
         // 这样能使这些字段在序列化时被忽略
         chapter_info.is_downloaded = None;
-        chapter_info.chapter_dir_name = String::new();
+        chapter_info.chapter_download_dir = None;
 
         let chapter_download_dir = self
             .chapter_info
-            .get_chapter_download_dir(&self.app, &self.comic);
-        let metadata_path = chapter_download_dir.join("元数据.json");
+            .chapter_download_dir
+            .as_ref()
+            .context("`chapter_download_dir`字段为`None`")?;
+        let metadata_path = chapter_download_dir.join("章节元数据.json");
 
         std::fs::create_dir_all(&chapter_download_dir)
             .context(format!("创建目录`{chapter_download_dir:?}`失败"))?;
@@ -900,21 +920,18 @@ pub struct ComicDirNameFmtParams {
 }
 
 impl Comic {
-    /// 根据fmt更新`comic_dir_name`和`chapter_infos.chapter_dir_name`字段
-    fn update_dir_name_fields_by_fmt(&mut self, app: &AppHandle) -> anyhow::Result<()> {
-        let comic_title = &self.title;
-        let comic_fmt_params = ComicDirNameFmtParams {
-            comic_id: self.id.clone(),
-            comic_title: comic_title.clone(),
-            author: self.author.clone(),
-        };
-        self.comic_dir_name = Comic::get_comic_dir_name_by_fmt(app, &comic_fmt_params)
-            .context(format!("`{comic_title}`根据fmt获取目录名失败"))?;
+    /// 根据fmt更新`comic_download_dir`和`chapter_infos.chapter_download_dir`字段
+    fn update_download_dir_fields_by_fmt(&mut self, app: &AppHandle) -> anyhow::Result<()> {
+        if self.chapter_infos.is_empty() {
+            return Err(anyhow!("没有章节信息，无法更新下载目录字段"));
+        }
+
+        let mut first_chapter_download_dir = None;
 
         for chapter_info in &mut self.chapter_infos {
             let chapter_title = &chapter_info.chapter_title;
 
-            let chapter_fmt_params = ChapterDirNameFmtParams {
+            let dir_fmt_params = DirFmtParams {
                 comic_id: self.id.clone(),
                 comic_title: self.title.clone(),
                 author: self.author.clone(),
@@ -923,55 +940,35 @@ impl Comic {
                 order: chapter_info.order,
             };
 
-            chapter_info.chapter_dir_name =
-                ChapterInfo::get_chapter_dir_name_by_fmt(app, &chapter_fmt_params).context(
-                    format!("`{comic_title} - {chapter_title}`根据fmt获取目录名失败"),
-                )?;
+            let chapter_download_dir =
+                ChapterInfo::get_chapter_download_dir_by_fmt(app, &dir_fmt_params)
+                    .context(format!("章节`{chapter_title}`根据fmt获取章节下载目录失败"))?;
+
+            if first_chapter_download_dir.is_none() {
+                first_chapter_download_dir = Some(chapter_download_dir.clone());
+            }
+
+            chapter_info.chapter_download_dir = Some(chapter_download_dir);
         }
 
+        let Some(first_chapter_download_dir) = first_chapter_download_dir else {
+            return Err(anyhow!(
+                "处理完所有章节后first_chapter_download_dir仍然为None"
+            ));
+        };
+
+        let comic_download_dir = first_chapter_download_dir.parent().context(format!(
+            "第一个章节下载目录`{first_chapter_download_dir:?}`没有父目录"
+        ))?;
+
+        self.comic_download_dir = Some(comic_download_dir.to_path_buf());
+
         Ok(())
-    }
-
-    fn get_comic_dir_name_by_fmt(
-        app: &AppHandle,
-        comic_fmt_params: &ComicDirNameFmtParams,
-    ) -> anyhow::Result<String> {
-        use strfmt::strfmt;
-
-        let fmt = app
-            .state::<RwLock<Config>>()
-            .read()
-            .comic_dir_name_fmt
-            .clone();
-
-        let json_value = serde_json::to_value(comic_fmt_params)
-            .context("将ComicDirNameFmtParams转为serde_json::Value失败")?;
-
-        let json_map = json_value
-            .as_object()
-            .context("ComicDirNameFmtParams不是JSON对象")?;
-
-        let vars: HashMap<String, String> = json_map
-            .into_iter()
-            .map(|(k, v)| {
-                let key = k.clone();
-                let value = match v {
-                    serde_json::Value::String(s) => s.clone(),
-                    _ => v.to_string(),
-                };
-                (key, value)
-            })
-            .collect();
-
-        let comic_dir_name = strfmt(&fmt, &vars).context("格式化漫画目录名失败")?;
-        let comic_dir_name = filename_filter(&comic_dir_name);
-
-        Ok(comic_dir_name)
     }
 }
 
 #[derive(Default, Debug, PartialEq, Clone, Serialize, Deserialize, Type)]
-pub struct ChapterDirNameFmtParams {
+pub struct DirFmtParams {
     pub comic_id: String,
     pub comic_title: String,
     pub author: String,
@@ -981,24 +978,16 @@ pub struct ChapterDirNameFmtParams {
 }
 
 impl ChapterInfo {
-    fn get_chapter_dir_name_by_fmt(
+    fn get_chapter_download_dir_by_fmt(
         app: &AppHandle,
-        chapter_fmt_params: &ChapterDirNameFmtParams,
-    ) -> anyhow::Result<String> {
+        fmt_params: &DirFmtParams,
+    ) -> anyhow::Result<PathBuf> {
         use strfmt::strfmt;
 
-        let fmt = app
-            .state::<RwLock<Config>>()
-            .read()
-            .chapter_dir_name_fmt
-            .clone();
+        let json_value =
+            serde_json::to_value(fmt_params).context("将DirFmtParams转为serde_json::Value失败")?;
 
-        let json_value = serde_json::to_value(chapter_fmt_params)
-            .context("将ChapterDirNameFmtParams转为serde_json::Value失败")?;
-
-        let json_map = json_value
-            .as_object()
-            .context("ChapterDirNameFmtParams不是JSON对象")?;
+        let json_map = json_value.as_object().context("DirFmtParams不是JSON对象")?;
 
         let vars: HashMap<String, String> = json_map
             .into_iter()
@@ -1012,9 +1001,52 @@ impl ChapterInfo {
             })
             .collect();
 
-        let chapter_dir_name = strfmt(&fmt, &vars).context("格式化章节目录名失败")?;
-        let chapter_dir_name = filename_filter(&chapter_dir_name);
+        let (download_dir, dir_fmt) = {
+            let config = app.state::<RwLock<Config>>();
+            let config = config.read();
+            (config.download_dir.clone(), config.dir_fmt.clone())
+        };
 
-        Ok(chapter_dir_name)
+        let dir_fmt_parts: Vec<&str> = dir_fmt.split('/').collect();
+
+        let mut dir_names = Vec::new();
+        for fmt in dir_fmt_parts {
+            let dir_name = strfmt(fmt, &vars).context("格式化目录名失败")?;
+            let dir_name = filename_filter(&dir_name);
+            if !dir_name.is_empty() {
+                dir_names.push(dir_name);
+            }
+        }
+
+        if dir_names.len() < 2 {
+            let err_msg =
+                "配置中的下载目录格式至少要有两个层级，例如：{comic_title}/{chapter_title}";
+            return Err(anyhow!(err_msg));
+        }
+        // 将格式化后的目录名拼接成完整的目录路径
+        let mut chapter_download_dir = download_dir;
+        for dir_name in dir_names {
+            chapter_download_dir = chapter_download_dir.join(dir_name);
+        }
+
+        Ok(chapter_download_dir)
+    }
+
+    fn get_temp_download_dir(&self) -> anyhow::Result<PathBuf> {
+        let chapter_download_dir = self
+            .chapter_download_dir
+            .as_ref()
+            .context("`chapter_download_dir`字段为`None`")?;
+
+        let chapter_download_dir_name = self
+            .get_chapter_download_dir_name()
+            .context("获取章节下载目录名失败")?;
+
+        let parent = chapter_download_dir
+            .parent()
+            .context(format!("`{chapter_download_dir:?}`的父目录不存在"))?;
+
+        let temp_download_dir = parent.join(format!(".下载中-{chapter_download_dir_name}"));
+        Ok(temp_download_dir)
     }
 }

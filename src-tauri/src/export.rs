@@ -56,7 +56,6 @@ impl Drop for CbzErrorEventGuard {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn cbz(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
-    let comic_title = &comic.title;
     let downloaded_chapter_infos = comic
         .chapter_infos
         .iter()
@@ -71,7 +70,7 @@ pub fn cbz(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
     // 发送开始导出cbz事件
     let _ = ExportCbzEvent::Start {
         uuid: event_uuid.clone(),
-        comic_title: comic_title.clone(),
+        comic_title: comic.title.clone(),
         total: downloaded_chapter_infos.len() as u32,
     }
     .emit(app);
@@ -85,43 +84,49 @@ pub fn cbz(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
     let current = Arc::new(AtomicU32::new(0));
 
     let extension = ExportArchive::Cbz.extension();
-    let comic_export_dir = comic.get_comic_export_dir(app);
+    let comic_export_dir = comic
+        .get_comic_export_dir(app)
+        .context("获取导出目录失败")?;
     let chapter_export_dir = comic_export_dir.join(extension);
     // 保证导出目录存在
-    std::fs::create_dir_all(&chapter_export_dir).context(format!(
-        "`{comic_title}`创建目录`{chapter_export_dir:?}`失败"
-    ))?;
+    std::fs::create_dir_all(&chapter_export_dir)
+        .context(format!("创建目录`{chapter_export_dir:?}`失败"))?;
     // 并发处理
     let downloaded_chapter_infos = downloaded_chapter_infos.into_par_iter();
     downloaded_chapter_infos.try_for_each(|chapter_info| -> anyhow::Result<()> {
         let chapter_title = chapter_info.chapter_title.clone();
-        let err_prefix = format!("`{comic_title} - {chapter_title}`");
 
-        let chapter_download_dir = chapter_info.get_chapter_download_dir(app, comic);
+        let chapter_download_dir = chapter_info.chapter_download_dir.as_ref().context(format!(
+            "章节`{chapter_title}`的`chapter_download_dir`字段为`None`"
+        ))?;
         // 生成ComicInfo
         let comic_info = ComicInfo::from(comic, chapter_info);
         // 序列化ComicInfo为xml
-        let comic_info_xml = yaserde::ser::to_string_with_config(&comic_info, &cfg)
-            .map_err(|err_msg| anyhow!("{err_prefix}序列化`ComicInfo.xml`失败: {err_msg}"))?;
+        let comic_info_xml =
+            yaserde::ser::to_string_with_config(&comic_info, &cfg).map_err(|err_msg| {
+                anyhow!("章节`{chapter_title}`序列化`ComicInfo.xml`失败: {err_msg}")
+            })?;
         // 创建cbz文件
-        let chapter_dir_name = &chapter_info.chapter_dir_name;
-        let save_path = chapter_export_dir.join(format!("{chapter_dir_name}.{extension}"));
+        let chapter_download_dir_name = &chapter_info
+            .get_chapter_download_dir_name()
+            .context(format!("章节`{chapter_title}`获取章节下载目录名失败"))?;
+        let save_path = chapter_export_dir.join(format!("{chapter_download_dir_name}.{extension}"));
         let zip_file = std::fs::File::create(&save_path)
-            .context(format!("{err_prefix}创建文件`{save_path:?}`失败"))?;
+            .context(format!("章节`{chapter_title}`创建文件`{save_path:?}`失败"))?;
         let mut zip_writer = ZipWriter::new(zip_file);
         // 把ComicInfo.xml写入cbz
         zip_writer
             .start_file("ComicInfo.xml", SimpleFileOptions::default())
             .context(format!(
-                "{err_prefix}在`{save_path:?}`创建`ComicInfo.xml`失败"
+                "章节`{chapter_title}`在`{save_path:?}`创建`ComicInfo.xml`失败"
             ))?;
         zip_writer
             .write_all(comic_info_xml.as_bytes())
-            .context(format!("{err_prefix}写入`ComicInfo.xml`失败"))?;
+            .context(format!("章节`{chapter_title}`写入`ComicInfo.xml`失败"))?;
         // 遍历下载目录，将文件写入cbz
-        let image_entries = std::fs::read_dir(&chapter_download_dir)
+        let image_entries = std::fs::read_dir(chapter_download_dir)
             .context(format!(
-                "{err_prefix}读取目录`{chapter_download_dir:?}`失败"
+                "章节`{chapter_title}`读取目录`{chapter_download_dir:?}`失败"
             ))?
             .filter_map(Result::ok);
         for image_entry in image_entries {
@@ -138,18 +143,18 @@ pub fn cbz(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
             zip_writer
                 .start_file(&filename, SimpleFileOptions::default())
                 .context(format!(
-                    "{err_prefix}在`{save_path:?}`创建`{filename:?}`失败"
+                    "章节`{chapter_title}`在`{save_path:?}`创建`{filename:?}`失败"
                 ))?;
             let mut file =
                 std::fs::File::open(&image_path).context(format!("打开`{image_path:?}`失败"))?;
             std::io::copy(&mut file, &mut zip_writer).context(format!(
-                "{err_prefix}将`{image_path:?}`写入`{save_path:?}`失败"
+                "章节`{chapter_title}`将`{image_path:?}`写入`{save_path:?}`失败"
             ))?;
         }
 
         zip_writer
             .finish()
-            .context(format!("{err_prefix}关闭`{save_path:?}`失败"))?;
+            .context(format!("章节`{chapter_title}`关闭`{save_path:?}`失败"))?;
         // 更新导出cbz的进度
         let current = current.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
         // 发送导出cbz进度事件
@@ -204,7 +209,6 @@ impl Drop for PdfMergeErrorEventGuard {
 
 #[allow(clippy::cast_possible_truncation)]
 pub fn pdf(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
-    let comic_title = &comic.title;
     let downloaded_chapter_infos: Vec<&ChapterInfo> = comic
         .chapter_infos
         .iter()
@@ -214,7 +218,7 @@ pub fn pdf(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
     // 发送开始创建pdf事件
     let _ = ExportPdfEvent::CreateStart {
         uuid: event_uuid.clone(),
-        comic_title: comic_title.clone(),
+        comic_title: comic.title.clone(),
         total: downloaded_chapter_infos.len() as u32,
     }
     .emit(app);
@@ -228,32 +232,39 @@ pub fn pdf(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
     let current = Arc::new(AtomicU32::new(0));
 
     let extension = ExportArchive::Pdf.extension();
-    let comic_export_dir = comic.get_comic_export_dir(app);
+    let comic_export_dir = comic
+        .get_comic_export_dir(app)
+        .context("获取导出目录失败")?;
     let chapter_export_dir = comic_export_dir.join(extension);
     // 保证导出目录存在
-    std::fs::create_dir_all(&chapter_export_dir).context(format!(
-        "`{comic_title}`创建目录`{chapter_export_dir:?}`失败"
-    ))?;
+    std::fs::create_dir_all(&chapter_export_dir)
+        .context(format!("创建目录`{chapter_export_dir:?}`失败"))?;
     let chapter_with_pdf_path = Mutex::new(Vec::new());
     // 并发处理
     let downloaded_chapter_infos = downloaded_chapter_infos.into_par_iter();
     downloaded_chapter_infos.try_for_each(|chapter_info| -> anyhow::Result<()> {
-        let chapter_download_dir = chapter_info.get_chapter_download_dir(app, comic);
-        let mut image_paths: Vec<PathBuf> = std::fs::read_dir(&chapter_download_dir)
-            .context(format!("读取目录`{chapter_download_dir:?}`失败"))?
+        let chapter_title = &chapter_info.chapter_title;
+
+        let chapter_download_dir = chapter_info.chapter_download_dir.as_ref().context(format!(
+            "章节`{chapter_title}`的`chapter_download_dir`字段为`None`"
+        ))?;
+        let mut image_paths: Vec<PathBuf> = std::fs::read_dir(chapter_download_dir)
+            .context(format!(
+                "章节`{chapter_title}`读取目录`{chapter_download_dir:?}`失败"
+            ))?
             .filter_map(Result::ok)
             .map(|entry| entry.path())
             .filter(|path| path.is_img())
             .collect();
         image_paths.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
 
-        let chapter_title = &chapter_info.chapter_title;
-        let chapter_dir_name = &chapter_info.chapter_dir_name;
+        let chapter_download_dir_name = &chapter_info
+            .get_chapter_download_dir_name()
+            .context(format!("章节`{chapter_title}`获取章节下载目录名失败"))?;
         // 创建pdf
-        let save_path = chapter_export_dir.join(format!("{chapter_dir_name}.{extension}"));
+        let save_path = chapter_export_dir.join(format!("{chapter_download_dir_name}.{extension}"));
 
-        create_pdf(image_paths, &save_path)
-            .context(format!("`{comic_title} - {chapter_title}`创建pdf失败"))?;
+        create_pdf(image_paths, &save_path).context(format!("章节`{chapter_title}`创建pdf失败"))?;
 
         chapter_with_pdf_path.lock().push((chapter_info, save_path));
         // 更新创建pdf的进度
@@ -283,7 +294,7 @@ pub fn pdf(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
     // 发送开始合并pdf事件
     let _ = ExportPdfEvent::MergeStart {
         uuid: event_uuid.clone(),
-        comic_title: comic_title.clone(),
+        comic_title: comic.title.clone(),
     }
     .emit(app);
     // 如果success为false，drop时发送MergeError事件
@@ -293,9 +304,11 @@ pub fn pdf(app: &AppHandle, comic: &Comic) -> anyhow::Result<()> {
         success: false,
     };
 
-    let comic_dir_name = &comic.comic_dir_name;
-    let save_path = comic_export_dir.join(format!("{comic_dir_name}.{extension}"));
-    merge_pdf(chapter_pdf_paths, &save_path).context(format!("`{comic_title}`合并pdf失败"))?;
+    let comic_download_dir_name = &comic
+        .get_comic_download_dir_name()
+        .context("获取漫画下载目录名失败")?;
+    let save_path = comic_export_dir.join(format!("{comic_download_dir_name}.{extension}"));
+    merge_pdf(chapter_pdf_paths, &save_path).context("合并pdf失败")?;
     // 标记为成功，后面drop时就不会发送MergeError事件
     merge_error_event_guard.success = true;
     // 发送合并pdf完成事件

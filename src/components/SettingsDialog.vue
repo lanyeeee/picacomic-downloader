@@ -12,8 +12,7 @@ const store = useStore()
 
 const showing = defineModel<boolean>('showing', { required: true })
 
-const comicDirNameFmt = ref<string>(store.config?.comicDirNameFmt ?? '')
-const chapterDirNameFmt = ref<string>(store.config?.chapterDirNameFmt ?? '')
+const dirFmt = ref<string>(store.config?.dirFmt ?? '')
 
 async function showConfigInFileManager() {
   const configName = 'config.json'
@@ -117,48 +116,14 @@ async function showConfigInFileManager() {
           </n-input-group>
         </div>
 
-        <n-tooltip placement="top" trigger="hover">
-          <div class="font-semibold">
-            <span class="text-pink">漫画名</span>
-            <span>可用字段：</span>
-          </div>
+        <n-tooltip placement="top" trigger="hover" width="550">
           <div>
-            <div>
-              <span class="rounded bg-gray-500 px-1">comic_id</span>
-              <span class="ml-2">漫画ID</span>
-            </div>
-            <div>
-              <span class="rounded bg-gray-500 px-1">comic_title</span>
-              <span class="ml-2">漫画标题</span>
-            </div>
-            <div>
-              <span class="rounded bg-gray-500 px-1">author</span>
-              <span class="ml-2">作者</span>
-            </div>
+            可以用斜杠
+            <span class="rounded bg-gray-500 px-1 text-white">/</span>
+            来分隔目录层级
           </div>
-          <div class="font-semibold mt-2">例如格式</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">[{author}] {comic_title}({comic_id})</div>
-          <div class="font-semibold">下载《电锯人》的结果：</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">
-            [藤本树（藤本タツキ）] 电锯人(5f606646d50a7c0733961549)
-          </div>
-          <template #trigger>
-            <n-input-group class="box-border">
-              <n-input-group-label size="small">漫画名格式</n-input-group-label>
-              <n-input
-                v-model:value="comicDirNameFmt"
-                size="small"
-                @blur="store.config.comicDirNameFmt = comicDirNameFmt"
-                @keydown.enter="store.config.comicDirNameFmt = comicDirNameFmt" />
-            </n-input-group>
-          </template>
-        </n-tooltip>
-
-        <n-tooltip placement="top" trigger="hover">
-          <div class="font-semibold">
-            <span class="text-pink">章节名</span>
-            <span>可用字段：</span>
-          </div>
+          <div class="text-pink">至少要有两个层级，最后一层存放章节元数据，倒数第二层存放漫画元数据</div>
+          <div class="font-semibold mt-2">可用字段：</div>
           <div class="grid grid-cols-2">
             <div>
               <span class="rounded bg-gray-500 px-1">comic_id</span>
@@ -186,21 +151,25 @@ async function showConfigInFileManager() {
             </div>
           </div>
           <div class="font-semibold mt-2">例如格式</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">
-            [{author}] {comic_title}({comic_id}) - {order} - {chapter_title}({chapter_id})
+          <div class="bg-gray-200 rounded-md p-1 text-black w-fit">
+            {author}/[{author}] {comic_title}({comic_id})/{order} - {chapter_title}
           </div>
-          <div class="font-semibold">下载《电锯人》第20话的结果：</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">
-            [藤本树（藤本タツキ）] 电锯人(5f606646d50a7c0733961549) - 20 - 第20話(5f623435a183ac0739ccf041)
+          <div class="font-semibold">下载《浪客行》第5卷会产生三层文件夹，分别是</div>
+          <div class="flex gap-1 text-black">
+            <span class="bg-gray-200 rounded-md px-2 w-fit">井上雄彦</span>
+            <span class="rounded bg-gray-500 px-1 text-white">/</span>
+            <span class="bg-gray-200 rounded-md px-2 w-fit">[井上雄彦] 浪客行(67a18a90cac76a1659ab71f5)</span>
+            <span class="rounded bg-gray-500 px-1 text-white">/</span>
+            <span class="bg-gray-200 rounded-md px-2 w-fit">5 - 第5卷</span>
           </div>
           <template #trigger>
             <n-input-group class="box-border">
-              <n-input-group-label size="small">章节名格式</n-input-group-label>
+              <n-input-group-label size="small">下载目录格式</n-input-group-label>
               <n-input
-                v-model:value="chapterDirNameFmt"
+                v-model:value="dirFmt"
                 size="small"
-                @blur="store.config.chapterDirNameFmt = chapterDirNameFmt"
-                @keydown.enter="store.config.chapterDirNameFmt = chapterDirNameFmt" />
+                @blur="store.config.dirFmt = dirFmt"
+                @keydown.enter="store.config.dirFmt = dirFmt" />
             </n-input-group>
           </template>
         </n-tooltip>

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { path } from '@tauri-apps/api'
 import { Comic, commands } from '../bindings.ts'
 import { useStore } from '../store.ts'
 
@@ -35,8 +34,15 @@ async function showComicDownloadDirInFileManager() {
   if (store.config === undefined) {
     return
   }
-  const comicDir = await path.join(store.config.downloadDir, props.comic.comicDirName)
-  const result = await commands.showPathInFileManager(comicDir)
+
+  const comicDownloadDir = props.comic.comicDownloadDir
+
+  if (comicDownloadDir === undefined || comicDownloadDir === null) {
+    console.error('comicDownloadDir的值为undefined或null')
+    return
+  }
+
+  const result = await commands.showPathInFileManager(comicDownloadDir)
   if (result.status === 'error') {
     console.error(result.error)
   }

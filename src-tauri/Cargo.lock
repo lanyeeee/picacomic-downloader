@@ -2946,6 +2946,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
+ "walkdir",
  "yaserde",
  "zip",
 ]

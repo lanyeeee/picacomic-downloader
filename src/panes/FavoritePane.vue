@@ -54,14 +54,14 @@ watch(
     </div>
     <div class="flex flex-col gap-row-2 overflow-auto box-border px-2">
       <comic-card
-        v-for="{ id, title, author, categories, thumb, isDownloaded, comicDirName } in store.getFavoriteResult.docs"
+        v-for="{ id, title, author, categories, thumb, isDownloaded, comicDownloadDir } in store.getFavoriteResult.docs"
         :key="id"
         :comic-id="id"
         :comic-title="title"
         :comic-author="author"
         :comic-categories="categories"
         :comic-downloaded="isDownloaded"
-        :comic-dir-name="comicDirName"
+        :comic-download-dir="comicDownloadDir"
         :thumb="thumb" />
     </div>
     <n-pagination

@@ -1,10 +1,8 @@
 use std::path::PathBuf;
 
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri::AppHandle;
-
-use super::Comic;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -14,21 +12,23 @@ pub struct ChapterInfo {
     pub order: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_downloaded: Option<bool>,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub chapter_dir_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chapter_download_dir: Option<PathBuf>,
 }
 
 impl ChapterInfo {
-    pub fn get_chapter_download_dir(&self, app: &AppHandle, comic: &Comic) -> PathBuf {
-        let comic_download_dir = comic.get_comic_download_dir(app);
+    pub fn get_chapter_download_dir_name(&self) -> anyhow::Result<String> {
+        let chapter_download_dir = self
+            .chapter_download_dir
+            .as_ref()
+            .context("`chapter_download_dir`字段为`None`")?;
 
-        comic_download_dir.join(&self.chapter_dir_name)
-    }
+        let chapter_download_dir_name = chapter_download_dir
+            .file_name()
+            .context(format!("获取`{chapter_download_dir:?}`的目录名失败"))?
+            .to_string_lossy()
+            .to_string();
 
-    pub fn get_temp_download_dir(&self, app: &AppHandle, comic: &Comic) -> PathBuf {
-        let comic_download_dir = comic.get_comic_download_dir(app);
-
-        let chapter_dir_name = &self.chapter_dir_name;
-        comic_download_dir.join(format!(".下载中-{chapter_dir_name}")) // 以 `.下载中-` 开头，表示是临时目录
+        Ok(chapter_download_dir_name)
     }
 }

@@ -50,6 +50,7 @@ tracing-subscriber = { version = "0.3.19", features = ["json", "time", "local-ti
 tracing-appender = { version = "0.2.3" }
 notify = { version = "8.0.0" }
 strfmt = { version = "0.2.4" }
+walkdir = { version = "2.5.0" }
 
 
 [profile.release]

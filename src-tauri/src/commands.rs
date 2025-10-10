@@ -9,12 +9,13 @@ use tauri_plugin_opener::OpenerExt;
 use tauri_specta::Event;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
+use walkdir::WalkDir;
 
 use crate::config::Config;
 use crate::download_manager::DownloadManager;
 use crate::errors::{CommandError, CommandResult};
 use crate::events::DownloadAllFavoritesEvent;
-use crate::extensions::AnyhowErrorToStringChain;
+use crate::extensions::{AnyhowErrorToStringChain, WalkDirEntryExt};
 use crate::pica_client::PicaClient;
 use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
 use crate::types::{
@@ -378,65 +379,73 @@ pub async fn download_all_favorites(
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn get_downloaded_comics(
-    app: AppHandle,
-    config: State<RwLock<Config>>,
-) -> CommandResult<Vec<Comic>> {
+pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
     let download_dir = config.read().download_dir.clone();
-    // 遍历下载目录，获取所有元数据文件的路径和修改时间
-    let mut metadata_path_with_modify_time = std::fs::read_dir(&download_dir)
-        .context(format!(
-            "获取已下载的漫画失败，读取下载目录 {download_dir:?} 失败"
-        ))
-        .map_err(|err| CommandError::from("获取已下载的漫画失败", err))?
+    // 遍历下载目录，获取所有漫画元数据文件的路径和修改时间
+    let mut metadata_path_with_modify_time = Vec::new();
+    for entry in WalkDir::new(&download_dir)
+        .into_iter()
         .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let metadata_path = entry.path().join("元数据.json");
-            if !metadata_path.exists() {
-                return None;
+    {
+        let path = entry.path();
+
+        if !entry.is_comic_metadata() {
+            continue;
+        }
+
+        let metadata = match path.metadata().map_err(anyhow::Error::from) {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                let err_title = format!("获取`{path:?}`的metadata失败");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+                continue;
             }
-            let modify_time = metadata_path.metadata().ok()?.modified().ok()?;
-            Some((metadata_path, modify_time))
-        })
-        .collect::<Vec<_>>();
+        };
+
+        let modify_time = match metadata.modified().map_err(anyhow::Error::from) {
+            Ok(modify_time) => modify_time,
+            Err(err) => {
+                let err_title = format!("获取`{path:?}`的修改时间失败");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+                continue;
+            }
+        };
+
+        metadata_path_with_modify_time.push((path.to_path_buf(), modify_time));
+    }
     // 按照文件修改时间排序，最新的排在最前面
     metadata_path_with_modify_time.sort_by(|(_, a), (_, b)| b.cmp(a));
-    let downloaded_comics: Vec<Comic> = metadata_path_with_modify_time
-        .iter()
-        .filter_map(
-            |(metadata_path, _)| match Comic::from_metadata(&app, metadata_path) {
-                Ok(comic) => Some(comic),
-                Err(err) => {
-                    let err_title = "从元数据转为Comic失败";
-                    let string_chain = err.to_string_chain();
-                    tracing::error!(err_title, message = string_chain);
-                    None
-                }
-            },
-        )
-        .collect();
+
+    let mut downloaded_comics = Vec::new();
+    for (metadata_path, _) in metadata_path_with_modify_time {
+        match Comic::from_metadata(&metadata_path) {
+            Ok(comic) => downloaded_comics.push(comic),
+            Err(err) => {
+                let err_title = "从元数据转为Comic失败";
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+            }
+        }
+    }
 
     // 根据comicId去重
     let mut comic_id_set = std::collections::HashSet::new();
-    let downloaded_comics = downloaded_comics
+
+    downloaded_comics
         .into_iter()
         .filter(|comic| comic_id_set.insert(comic.id.clone()))
-        .collect();
-    Ok(downloaded_comics)
+        .collect()
 }
 
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn export_cbz(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
-    comic
-        .update_fields(&app)
-        .context(format!("`{}`更新Comic的字段失败", comic.title))
-        .map_err(|err| CommandError::from("导出cbz失败", err))?;
-
+pub fn export_cbz(app: AppHandle, comic: Comic) -> CommandResult<()> {
     let comic_title = &comic.title;
     export::cbz(&app, &comic)
-        .context(format!("漫画`{comic_title}`导出cbz失败"))
+        .context(format!("`{comic_title}`导出cbz失败"))
         .map_err(|err| CommandError::from("导出cbz失败", err))?;
     Ok(())
 }
@@ -444,15 +453,10 @@ pub fn export_cbz(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn export_pdf(app: AppHandle, mut comic: Comic) -> CommandResult<()> {
-    comic
-        .update_fields(&app)
-        .context(format!("`{}`更新Comic的字段失败", comic.title))
-        .map_err(|err| CommandError::from("导出pdf失败", err))?;
-
+pub fn export_pdf(app: AppHandle, comic: Comic) -> CommandResult<()> {
     let comic_title = &comic.title;
     export::pdf(&app, &comic)
-        .context(format!("漫画`{comic_title}`导出pdf失败"))
+        .context(format!("`{comic_title}`导出pdf失败"))
         .map_err(|err| CommandError::from("导出pdf失败", err))?;
     Ok(())
 }
@@ -479,9 +483,15 @@ pub fn get_logs_dir_size(app: AppHandle) -> CommandResult<u64> {
 #[tauri::command(async)]
 #[specta::specta]
 pub fn get_synced_comic(app: AppHandle, mut comic: Comic) -> CommandResult<Comic> {
-    comic
-        .update_fields(&app)
-        .map_err(|err| CommandError::from(&format!("`{}`更新Comic的字段失败", comic.title), err))?;
+    let id_to_dir_map = utils::create_id_to_dir_map(&app)
+        .context("创建漫画ID到下载目录映射失败")
+        .map_err(|err| {
+            CommandError::from(&format!("漫画`{}`同步Comic的字段失败", comic.title), err)
+        })?;
+
+    comic.update_fields(&id_to_dir_map).map_err(|err| {
+        CommandError::from(&format!("漫画`{}`同步Comic的字段失败", comic.title), err)
+    })?;
 
     Ok(comic)
 }
@@ -493,10 +503,14 @@ pub fn get_synced_comic_in_favorite(
     app: AppHandle,
     mut comic: ComicInFavorite,
 ) -> CommandResult<ComicInFavorite> {
-    comic.update_fields(&app).map_err(|err| {
-        let err_title = format!("`{}`更新ComicInFavorite的字段失败", comic.title);
-        CommandError::from(&err_title, err)
-    })?;
+    let id_to_dir_map = utils::create_id_to_dir_map(&app)
+        .context("创建漫画ID到下载目录映射失败")
+        .map_err(|err| {
+            let err_title = format!("漫画`{}`同步ComicInFavorite的字段失败", comic.title);
+            CommandError::from(&err_title, err)
+        })?;
+
+    comic.update_fields(&id_to_dir_map);
 
     Ok(comic)
 }
@@ -508,10 +522,14 @@ pub fn get_synced_comic_in_search(
     app: AppHandle,
     mut comic: ComicInSearch,
 ) -> CommandResult<ComicInSearch> {
-    comic.update_fields(&app).map_err(|err| {
-        let err_title = format!("`{}`更新ComicInSearch的字段失败", comic.title);
-        CommandError::from(&err_title, err)
-    })?;
+    let id_to_dir_map = utils::create_id_to_dir_map(&app)
+        .context("创建漫画ID到下载目录映射失败")
+        .map_err(|err| {
+            let err_title = format!("漫画`{}`同步ComicInSearch的字段失败", comic.title);
+            CommandError::from(&err_title, err)
+        })?;
+
+    comic.update_fields(&id_to_dir_map);
 
     Ok(comic)
 }

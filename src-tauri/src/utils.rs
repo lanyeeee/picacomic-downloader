@@ -1,11 +1,17 @@
-use std::sync::Arc;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use anyhow::Context;
-use parking_lot::Mutex;
-use tauri::AppHandle;
+use parking_lot::{Mutex, RwLock};
+use tauri::{AppHandle, Manager};
 use tokio::task::JoinSet;
+use walkdir::WalkDir;
 
-use crate::{extensions::AnyhowErrorToStringChain, pica_client::PicaClient, types::Comic};
+use crate::{
+    config::Config,
+    extensions::{AnyhowErrorToStringChain, WalkDirEntryExt},
+    pica_client::PicaClient,
+    types::Comic,
+};
 
 pub fn filename_filter(s: &str) -> String {
     s.chars()
@@ -73,4 +79,41 @@ pub async fn get_comic(
     let comic = Comic::from(app, comic, chapters)?;
 
     Ok(comic)
+}
+
+pub fn create_id_to_dir_map(app: &AppHandle) -> anyhow::Result<HashMap<String, PathBuf>> {
+    let mut id_to_dir_map: HashMap<String, PathBuf> = HashMap::new();
+    let download_dir = app.state::<RwLock<Config>>().read().download_dir.clone();
+    if !download_dir.exists() {
+        return Ok(id_to_dir_map);
+    }
+
+    for entry in WalkDir::new(&download_dir)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let path = entry.path();
+        if !entry.is_comic_metadata() {
+            continue;
+        }
+
+        let metadata_str =
+            std::fs::read_to_string(path).context(format!("读取`{}`失败", path.display()))?;
+        let comic_json: serde_json::Value = serde_json::from_str(&metadata_str).context(
+            format!("将`{}`反序列化为serde_json::Value失败", path.display()),
+        )?;
+        let id = comic_json
+            .get("id")
+            .and_then(|id| id.as_str())
+            .context(format!("`{path:?}`没有`id`字段"))?
+            .to_string();
+
+        let parent = path
+            .parent()
+            .context(format!("`{}`没有父目录", path.display()))?;
+
+        id_to_dir_map.entry(id).or_insert(parent.to_path_buf());
+    }
+
+    Ok(id_to_dir_map)
 }
