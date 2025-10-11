@@ -85,7 +85,7 @@ impl DownloadManager {
         }
         tasks.remove(&chapter_id);
         let task = DownloadTask::new(self.app.clone(), comic, &chapter_id)
-            .context(format!("创建章节ID为`{chapter_id}`的下载任务失败"))?;
+            .context("DownloadTask创建失败")?;
         tauri::async_runtime::spawn(task.clone().process());
         tasks.insert(chapter_id, task);
         Ok(())
@@ -147,7 +147,7 @@ impl DownloadTask {
     pub fn new(app: AppHandle, mut comic: Comic, chapter_id: &str) -> anyhow::Result<Self> {
         comic
             .update_download_dir_fields_by_fmt(&app)
-            .context(format!("漫画`{}`更新`download_dir`字段失败", comic.title))?;
+            .context("更新`download_dir`字段失败")?;
 
         let chapter_info = comic
             .chapter_infos

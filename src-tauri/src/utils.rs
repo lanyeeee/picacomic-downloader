@@ -38,10 +38,20 @@ pub async fn get_comic(
 ) -> anyhow::Result<Comic> {
     // 获取漫画详情和章节的第一页
     let (comic, first_page) = tokio::try_join!(
-        pica_client.get_comic(comic_id),
-        pica_client.get_chapter(comic_id, 1)
-    )
-    .context(format!("获取漫画`{comic_id}`的详情或章节的第1页失败"))?;
+        async {
+            pica_client
+                .get_comic(comic_id)
+                .await
+                .context("获取漫画详情失败")
+        },
+        async {
+            pica_client
+                .get_chapter(comic_id, 1)
+                .await
+                .context("获取漫画章节的第1页失败")
+        },
+    )?;
+
     // 准备根据章节的第一页获取所有章节
     // 先把第一页的章节放进去
     // TODO: 在join_set里返回chapter_page.docs，然后在.join_next()里处理，这样就不用锁了
@@ -59,7 +69,7 @@ pub async fn get_comic(
             let chapter_page = match pica_client.get_chapter(&comic_id, page).await {
                 Ok(chapter_page) => chapter_page,
                 Err(err) => {
-                    let err_title = format!("获取漫画`{comic_id}`章节的第{page}页失败");
+                    let err_title = format!("获取ID为`{comic_id}`的漫画章节的第{page}页失败");
                     let string_chain = err.to_string_chain();
                     tracing::error!(err_title, message = string_chain);
                     return;

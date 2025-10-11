@@ -131,11 +131,13 @@ pub async fn get_comic(
 ) -> CommandResult<Comic> {
     let comic = utils::get_comic(&app, pica_client.inner(), &comic_id)
         .await
-        .map_err(|err| CommandError::from("获取漫画详情失败", err))?;
+        .context(format!("获取ID为`{comic_id}`的漫画失败"))
+        .map_err(|err| CommandError::from("获取漫画失败", err))?;
 
     Ok(comic)
 }
 
+// TODO: 删了这个用不到的command
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn get_chapter_image(
@@ -162,10 +164,10 @@ pub fn create_download_task(
     let comic_title = comic.title.clone();
     download_manager
         .create_download_task(comic, chapter_id.clone())
-        .map_err(|err| {
-            let err_title = format!("`{comic_title}`的章节ID为`{chapter_id}`的下载任务创建失败");
-            CommandError::from(&err_title, err)
-        })?;
+        .context(format!(
+            "漫画`{comic_title}`创建章节ID为`{chapter_id}`的下载任务失败"
+        ))
+        .map_err(|err| CommandError::from("下载任务创建失败", err))?;
     tracing::debug!("下载任务创建成功");
     Ok(())
 }
@@ -179,7 +181,8 @@ pub fn pause_download_task(
 ) -> CommandResult<()> {
     download_manager
         .pause_download_task(&chapter_id)
-        .map_err(|err| CommandError::from(&format!("暂停章节ID为`{chapter_id}`的下载任务"), err))?;
+        .context(format!("暂停章节ID为`{chapter_id}`的下载任务失败"))
+        .map_err(|err| CommandError::from("暂停下载任务失败", err))?;
     tracing::debug!("暂停章节ID为`{chapter_id}`的下载任务成功");
     Ok(())
 }
@@ -193,7 +196,8 @@ pub fn resume_download_task(
 ) -> CommandResult<()> {
     download_manager
         .resume_download_task(&chapter_id)
-        .map_err(|err| CommandError::from(&format!("恢复章节ID为`{chapter_id}`的下载任务"), err))?;
+        .context(format!("恢复章节ID为`{chapter_id}`的下载任务失败"))
+        .map_err(|err| CommandError::from("恢复下载任务失败", err))?;
     tracing::debug!("恢复章节ID为`{chapter_id}`的下载任务成功");
     Ok(())
 }
@@ -207,7 +211,8 @@ pub fn cancel_download_task(
 ) -> CommandResult<()> {
     download_manager
         .cancel_download_task(&chapter_id)
-        .map_err(|err| CommandError::from(&format!("取消章节ID为`{chapter_id}`的下载任务"), err))?;
+        .context(format!("取消章节ID为`{chapter_id}`的下载任务失败"))
+        .map_err(|err| CommandError::from("取消下载任务失败", err))?;
     tracing::debug!("取消章节ID为`{chapter_id}`的下载任务成功");
     Ok(())
 }
@@ -220,24 +225,34 @@ pub async fn download_comic(
     download_manager: State<'_, DownloadManager>,
     comic_id: String,
 ) -> CommandResult<()> {
-    let comic = get_comic(app, pica_client, comic_id).await?;
+    let comic = utils::get_comic(&app, pica_client.inner(), &comic_id)
+        .await
+        .context(format!("获取ID为`{comic_id}`的漫画失败"))
+        .map_err(|err| CommandError::from("一键下载漫画失败", err))?;
+
+    let comic_title = &comic.title;
+
     let chapter_infos: Vec<&ChapterInfo> = comic
         .chapter_infos
         .iter()
         .filter(|chapter_info| chapter_info.is_downloaded != Some(true))
         .collect();
+
     if chapter_infos.is_empty() {
-        let comic_title = &comic.title;
-        return Err(CommandError::from(
-            "一键下载漫画失败",
-            anyhow!("漫画`{comic_title}`的所有章节都已存在于下载目录，无需重复下载"),
-        ));
+        let err = anyhow!("漫画`{comic_title}`的所有章节都已存在于下载目录，无需重复下载");
+        return Err(CommandError::from("一键下载漫画失败", err));
     }
+
     for chapter_info in chapter_infos {
+        let chapter_id = &chapter_info.chapter_id;
         download_manager
-            .create_download_task(comic.clone(), chapter_info.chapter_id.clone())
+            .create_download_task(comic.clone(), chapter_id.clone())
+            .context(format!(
+                "漫画`{comic_title}`创建章节ID为`{chapter_id}`的下载任务失败"
+            ))
             .map_err(|err| CommandError::from("一键下载漫画失败", err))?;
     }
+
     tracing::debug!("一键下载漫画成功，已为所有需要下载的章节创建下载任务");
     Ok(())
 }
@@ -282,12 +297,14 @@ pub async fn download_all_favorites(
     download_manager: State<'_, DownloadManager>,
 ) -> CommandResult<()> {
     let pica_client = pica_client.inner().clone();
+    // TODO: 把favorite_page在JoinSet里返回，然后在.join_next()里处理，这样就不用锁了
     let favorite_comics = Arc::new(Mutex::new(vec![]));
     let _ = DownloadAllFavoritesEvent::GettingFavorites.emit(&app);
     // 获取收藏夹第一页
     let first_page = pica_client
         .get_favorite(GetFavoriteSort::TimeNewest, 1)
         .await
+        .context("获取收藏夹的第`1`页失败")
         .map_err(|err| CommandError::from("下载收藏夹失败", err))?;
     // 先把第一页的收藏放进去
     favorite_comics.lock().extend(first_page.comics.docs);
@@ -300,7 +317,8 @@ pub async fn download_all_favorites(
         join_set.spawn(async move {
             let favorite_page = pica_client
                 .get_favorite(GetFavoriteSort::TimeNewest, page)
-                .await?;
+                .await
+                .context(format!("获取收藏夹的第`{page}`页失败"))?;
             favorite_comics.lock().extend(favorite_page.comics.docs);
             Ok::<(), anyhow::Error>(())
         });
@@ -316,10 +334,16 @@ pub async fn download_all_favorites(
     // 获取收藏夹漫画的详细信息
     let interval_sec = config.read().download_all_favorites_interval_sec;
     for (i, favorite_comic) in favorite_comics.into_iter().enumerate() {
-        let comic = match utils::get_comic(&app, &pica_client, &favorite_comic.id).await {
+        let comic_title = &favorite_comic.title;
+        let comic_id = &favorite_comic.id;
+
+        let comic = match utils::get_comic(&app, &pica_client, comic_id)
+            .await
+            .context(format!("获取ID为`{comic_id}`的漫画失败"))
+        {
             Ok(comic) => comic,
             Err(err) => {
-                let err_title = format!("获取`{}`漫画详情失败，已跳过", favorite_comic.title);
+                let err_title = format!("下载收藏夹过程中，获取漫画`{comic_title}`失败，已跳过");
                 let err = err.context("可能是频率太高，请手动去`配置`里调整`下载整个收藏夹时，每处理完一个收藏夹中的漫画后休息`");
                 tracing::error!(err_title, message = err.to_string_chain());
                 sleep(Duration::from_secs(interval_sec)).await;
@@ -336,6 +360,7 @@ pub async fn download_all_favorites(
             .iter()
             .filter(|chapter_info| chapter_info.is_downloaded != Some(true))
             .collect();
+
         if chapter_infos.is_empty() {
             sleep(Duration::from_secs(interval_sec)).await;
             continue;
@@ -393,20 +418,28 @@ pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
             continue;
         }
 
-        let metadata = match path.metadata().map_err(anyhow::Error::from) {
+        let metadata = match path
+            .metadata()
+            .map_err(anyhow::Error::from)
+            .context(format!("获取`{path:?}`的metadata失败"))
+        {
             Ok(metadata) => metadata,
             Err(err) => {
-                let err_title = format!("获取`{path:?}`的metadata失败");
+                let err_title = "获取已下载漫画的过程中遇到错误，已跳过";
                 let string_chain = err.to_string_chain();
                 tracing::error!(err_title, message = string_chain);
                 continue;
             }
         };
 
-        let modify_time = match metadata.modified().map_err(anyhow::Error::from) {
+        let modify_time = match metadata
+            .modified()
+            .map_err(anyhow::Error::from)
+            .context(format!("获取`{path:?}`的修改时间失败"))
+        {
             Ok(modify_time) => modify_time,
             Err(err) => {
-                let err_title = format!("获取`{path:?}`的修改时间失败");
+                let err_title = "获取已下载漫画的过程中遇到错误，已跳过";
                 let string_chain = err.to_string_chain();
                 tracing::error!(err_title, message = string_chain);
                 continue;
@@ -420,10 +453,12 @@ pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
 
     let mut downloaded_comics = Vec::new();
     for (metadata_path, _) in metadata_path_with_modify_time {
-        match Comic::from_metadata(&metadata_path) {
+        match Comic::from_metadata(&metadata_path)
+            .context(format!("从元数据`{metadata_path:?}`转为Comic失败"))
+        {
             Ok(comic) => downloaded_comics.push(comic),
             Err(err) => {
-                let err_title = "从元数据转为Comic失败";
+                let err_title = "获取已下载漫画的过程中遇到错误，已跳过";
                 let string_chain = err.to_string_chain();
                 tracing::error!(err_title, message = string_chain);
             }
@@ -445,7 +480,7 @@ pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
 pub fn export_cbz(app: AppHandle, comic: Comic) -> CommandResult<()> {
     let comic_title = &comic.title;
     export::cbz(&app, &comic)
-        .context(format!("`{comic_title}`导出cbz失败"))
+        .context(format!("漫画`{comic_title}`导出cbz失败"))
         .map_err(|err| CommandError::from("导出cbz失败", err))?;
     Ok(())
 }
@@ -456,7 +491,7 @@ pub fn export_cbz(app: AppHandle, comic: Comic) -> CommandResult<()> {
 pub fn export_pdf(app: AppHandle, comic: Comic) -> CommandResult<()> {
     let comic_title = &comic.title;
     export::pdf(&app, &comic)
-        .context(format!("`{comic_title}`导出pdf失败"))
+        .context(format!("漫画`{comic_title}`导出pdf失败"))
         .map_err(|err| CommandError::from("导出pdf失败", err))?;
     Ok(())
 }
