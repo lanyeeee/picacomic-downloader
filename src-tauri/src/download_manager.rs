@@ -274,7 +274,7 @@ impl DownloadTask {
             self.emit_download_task_update_event();
 
             return;
-        };
+        }
 
         if let Err(err) = self.save_chapter_metadata() {
             let err_title = format!("`{comic_title} - {chapter_title}`保存元数据失败");
@@ -309,7 +309,8 @@ impl DownloadTask {
 
         if let Err(err) = std::fs::create_dir_all(&temp_download_dir).map_err(anyhow::Error::from) {
             let err_title = format!(
-                "`{comic_title} - {chapter_title}`创建临时下载目录`{temp_download_dir:?}`失败"
+                "`{comic_title} - {chapter_title}`创建临时下载目录`{}`失败",
+                temp_download_dir.display()
             );
             let string_chain = err.to_string_chain();
             tracing::error!(err_title, message = string_chain);
@@ -318,12 +319,13 @@ impl DownloadTask {
             self.emit_download_task_update_event();
 
             return None;
-        };
+        }
 
         tracing::trace!(
             comic_title,
             chapter_title,
-            "创建临时下载目录`{temp_download_dir:?}`成功"
+            "创建临时下载目录`{}`成功",
+            temp_download_dir.display()
         );
 
         Some(temp_download_dir)
@@ -396,18 +398,22 @@ impl DownloadTask {
             .context("`chapter_download_dir`字段为`None`")?;
 
         if chapter_download_dir.exists() {
-            std::fs::remove_dir_all(&chapter_download_dir)
-                .context(format!("删除 {chapter_download_dir:?} 失败"))?;
+            std::fs::remove_dir_all(chapter_download_dir)
+                .context(format!("删除 `{}` 失败", chapter_download_dir.display()))?;
         }
 
-        std::fs::rename(temp_download_dir, &chapter_download_dir).context(format!(
-            "将 {temp_download_dir:?} 重命名为 {chapter_download_dir:?} 失败"
+        std::fs::rename(temp_download_dir, chapter_download_dir).context(format!(
+            "将 `{}` 重命名为 `{}` 失败",
+            temp_download_dir.display(),
+            chapter_download_dir.display()
         ))?;
 
         tracing::trace!(
             comic_title,
             chapter_title,
-            "重命名临时下载目录`{temp_download_dir:?}`为`{chapter_download_dir:?}`成功"
+            "重命名临时下载目录`{}`为`{}`成功",
+            temp_download_dir.display(),
+            chapter_download_dir.display()
         );
 
         Ok(())
@@ -479,13 +485,13 @@ impl DownloadTask {
             .context("`comic_download_dir`字段为`None`")?;
         let metadata_path = comic_download_dir.join("元数据.json");
 
-        std::fs::create_dir_all(&comic_download_dir)
-            .context(format!("创建目录`{comic_download_dir:?}`失败"))?;
+        std::fs::create_dir_all(comic_download_dir)
+            .context(format!("创建目录`{}`失败", comic_download_dir.display()))?;
 
         let comic_json = serde_json::to_string_pretty(&comic).context("将Comic序列化为json失败")?;
 
         std::fs::write(&metadata_path, comic_json)
-            .context(format!("写入文件`{metadata_path:?}`失败"))?;
+            .context(format!("写入文件`{}`失败", metadata_path.display()))?;
 
         Ok(())
     }
@@ -504,14 +510,14 @@ impl DownloadTask {
             .context("`chapter_download_dir`字段为`None`")?;
         let metadata_path = chapter_download_dir.join("章节元数据.json");
 
-        std::fs::create_dir_all(&chapter_download_dir)
-            .context(format!("创建目录`{chapter_download_dir:?}`失败"))?;
+        std::fs::create_dir_all(chapter_download_dir)
+            .context(format!("创建目录`{}`失败", chapter_download_dir.display()))?;
 
         let chapter_json =
             serde_json::to_string_pretty(&chapter_info).context("将ChapterInfo序列化为json失败")?;
 
         std::fs::write(&metadata_path, chapter_json)
-            .context(format!("写入文件`{metadata_path:?}`失败"))?;
+            .context(format!("写入文件`{}`失败", metadata_path.display()))?;
 
         Ok(())
     }
@@ -585,7 +591,7 @@ impl DownloadTask {
                 tracing::debug!(comic_title, chapter_title, "章节暂停中");
                 if let Some(permit) = permit.take() {
                     drop(permit);
-                };
+                }
                 ControlFlow::Continue(())
             }
             DownloadTaskState::Cancelled => {
@@ -771,7 +777,8 @@ impl DownloadImgTask {
             url,
             comic_title,
             chapter_title,
-            "图片成功保存到`{save_path:?}`"
+            "图片成功保存到`{}`",
+            save_path.display()
         );
 
         // 记录下载字节数
@@ -842,7 +849,7 @@ impl DownloadImgTask {
                 tracing::trace!(comic_title, chapter_title, url, "图片暂停下载");
                 if let Some(permit) = permit.take() {
                     drop(permit);
-                };
+                }
                 ControlFlow::Continue(())
             }
             DownloadTaskState::Cancelled => {
@@ -958,7 +965,8 @@ impl Comic {
         };
 
         let comic_download_dir = first_chapter_download_dir.parent().context(format!(
-            "第一个章节下载目录`{first_chapter_download_dir:?}`没有父目录"
+            "第一个章节下载目录`{}`没有父目录",
+            first_chapter_download_dir.display()
         ))?;
 
         self.comic_download_dir = Some(comic_download_dir.to_path_buf());
@@ -1042,9 +1050,10 @@ impl ChapterInfo {
             .get_chapter_download_dir_name()
             .context("获取章节下载目录名失败")?;
 
-        let parent = chapter_download_dir
-            .parent()
-            .context(format!("`{chapter_download_dir:?}`的父目录不存在"))?;
+        let parent = chapter_download_dir.parent().context(format!(
+            "`{}`的父目录不存在",
+            chapter_download_dir.display()
+        ))?;
 
         let temp_download_dir = parent.join(format!(".下载中-{chapter_download_dir_name}"));
         Ok(temp_download_dir)

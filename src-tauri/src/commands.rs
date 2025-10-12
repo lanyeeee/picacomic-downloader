@@ -421,7 +421,7 @@ pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
         let metadata = match path
             .metadata()
             .map_err(anyhow::Error::from)
-            .context(format!("获取`{path:?}`的metadata失败"))
+            .context(format!("获取`{}`的metadata失败", path.display()))
         {
             Ok(metadata) => metadata,
             Err(err) => {
@@ -435,7 +435,7 @@ pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
         let modify_time = match metadata
             .modified()
             .map_err(anyhow::Error::from)
-            .context(format!("获取`{path:?}`的修改时间失败"))
+            .context(format!("获取`{}`的修改时间失败", path.display()))
         {
             Ok(modify_time) => modify_time,
             Err(err) => {
@@ -453,9 +453,10 @@ pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
 
     let mut downloaded_comics = Vec::new();
     for (metadata_path, _) in metadata_path_with_modify_time {
-        match Comic::from_metadata(&metadata_path)
-            .context(format!("从元数据`{metadata_path:?}`转为Comic失败"))
-        {
+        match Comic::from_metadata(&metadata_path).context(format!(
+            "从元数据`{}`转为Comic失败",
+            metadata_path.display()
+        )) {
             Ok(comic) => downloaded_comics.push(comic),
             Err(err) => {
                 let err_title = "获取已下载漫画的过程中遇到错误，已跳过";
@@ -504,7 +505,7 @@ pub fn get_logs_dir_size(app: AppHandle) -> CommandResult<u64> {
         .context("获取日志目录失败")
         .map_err(|err| CommandError::from("获取日志目录大小失败", err))?;
     let logs_dir_size = std::fs::read_dir(&logs_dir)
-        .context(format!("读取日志目录`{logs_dir:?}`失败"))
+        .context(format!("读取日志目录`{}`失败", logs_dir.display()))
         .map_err(|err| CommandError::from("获取日志目录大小失败", err))?
         .filter_map(Result::ok)
         .filter_map(|entry| entry.metadata().ok())

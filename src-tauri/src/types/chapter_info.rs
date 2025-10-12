@@ -25,7 +25,10 @@ impl ChapterInfo {
 
         let chapter_download_dir_name = chapter_download_dir
             .file_name()
-            .context(format!("获取`{chapter_download_dir:?}`的目录名失败"))?
+            .context(format!(
+                "获取`{}`的目录名失败",
+                chapter_download_dir.display()
+            ))?
             .to_string_lossy()
             .to_string();
 

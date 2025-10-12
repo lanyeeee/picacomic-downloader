@@ -145,10 +145,12 @@ impl Comic {
 
     pub fn from_metadata(metadata_path: &Path) -> anyhow::Result<Comic> {
         let comic_json = std::fs::read_to_string(metadata_path)
-            .context(format!("读取`{metadata_path:?}`失败"))?;
-        let mut comic = serde_json::from_str::<Comic>(&comic_json)
-            .context(format!("将`{metadata_path:?}`反序列化为Comic失败"))?;
-        // 来自元数据的章节信息没有`comic_download_dir`和`is_downloaded`字段，需要更新
+            .context(format!("读取`{}`失败", metadata_path.display()))?;
+        let mut comic = serde_json::from_str::<Comic>(&comic_json).context(format!(
+            "将`{}`反序列化为Comic失败",
+            metadata_path.display()
+        ))?;
+        // 来自元数据的章节信息没有`download_dir`和`is_downloaded`字段，需要更新
         let parent = metadata_path
             .parent()
             .context(format!("`{}`没有父目录", metadata_path.display()))?;
@@ -170,7 +172,10 @@ impl Comic {
 
         let comic_download_dir_name = comic_download_dir
             .file_name()
-            .context(format!("获取`{comic_download_dir:?}`的目录名失败"))?
+            .context(format!(
+                "获取`{}`的目录名失败",
+                comic_download_dir.display()
+            ))?
             .to_string_lossy()
             .to_string();
 
@@ -191,7 +196,9 @@ impl Comic {
         let relative_dir = comic_download_dir
             .strip_prefix(&download_dir)
             .context(format!(
-                "无法从路径`{comic_download_dir:?}`中移除前缀`{download_dir:?}`"
+                "无法从路径`{}`中移除前缀`{}`",
+                comic_download_dir.display(),
+                download_dir.display()
             ))?;
 
         let comic_export_dir = export_dir.join(relative_dir);
