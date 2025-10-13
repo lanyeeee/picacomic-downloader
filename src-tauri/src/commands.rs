@@ -1,8 +1,10 @@
 #![allow(clippy::used_underscore_binding)]
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
+use indexmap::IndexMap;
 use parking_lot::{Mutex, RwLock};
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
@@ -402,6 +404,7 @@ pub async fn download_all_favorites(
 }
 
 #[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::too_many_lines)]
 #[tauri::command(async)]
 #[specta::specta]
 pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
@@ -465,14 +468,57 @@ pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
             }
         }
     }
+    // 按照漫画ID分组，以方便去重
+    let mut comics_by_id: IndexMap<String, Vec<Comic>> = IndexMap::new();
+    for comic in downloaded_comics {
+        comics_by_id
+            .entry(comic.id.clone())
+            .or_default()
+            .push(comic);
+    }
 
-    // 根据comicId去重
-    let mut comic_id_set = std::collections::HashSet::new();
+    let mut unique_comics = Vec::new();
+    for (_comic_id, mut comics) in comics_by_id {
+        // 该漫画ID对应的所有漫画下载目录，可能有多个版本，所以需要去重
+        let comic_download_dirs: Vec<&PathBuf> = comics
+            .iter()
+            .filter_map(|comic| comic.comic_download_dir.as_ref())
+            .collect();
 
-    downloaded_comics
-        .into_iter()
-        .filter(|comic| comic_id_set.insert(comic.id.clone()))
-        .collect()
+        if comic_download_dirs.is_empty() {
+            // 其实这种情况不应该发生，因为漫画元数据文件应该总是有下载目录的
+            continue;
+        }
+
+        // 选第一个作为保留的漫画
+        let chosen_download_dir = comic_download_dirs[0];
+
+        if comics.len() > 1 {
+            let dir_paths_string = comic_download_dirs
+                .iter()
+                .map(|path| format!("`{}`", path.display()))
+                .collect::<Vec<String>>()
+                .join(", ");
+            // 如果有重复的漫画，打印错误信息
+            let comic_title = &comics[0].title;
+            let err_title = "获取已下载漫画的过程中遇到错误";
+            let string_chain = anyhow!("所有版本路径: [{dir_paths_string}]")
+                .context(format!(
+                    "此次获取已下载漫画的结果中只保留版本`{}`",
+                    chosen_download_dir.display()
+                ))
+                .context(format!(
+                    "漫画`{comic_title}`在下载目录里有多个版本，请手动处理，只保留一个版本"
+                ))
+                .to_string_chain();
+            tracing::error!(err_title, message = string_chain);
+        }
+        // 取第一个作为保留的漫画
+        let chosen_comic = comics.remove(0);
+        unique_comics.push(chosen_comic);
+    }
+
+    unique_comics
 }
 
 #[allow(clippy::needless_pass_by_value)]
