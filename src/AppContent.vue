@@ -2,17 +2,17 @@
 import { onMounted, ref, watch } from 'vue'
 import { commands } from './bindings.ts'
 import { useMessage, useNotification } from 'naive-ui'
-import LoginDialog from './components/LoginDialog.vue'
+import LoginDialog from './dialogs/LoginDialog.vue'
 import SearchPane from './panes/SearchPane.vue'
 import ChapterPane from './panes/ChapterPane.vue'
-import DownloadingPane from './panes/DownloadingPane.vue'
+import ProgressesPane from './panes/ProgressesPane/ProgressesPane.vue'
 import FavoritePane from './panes/FavoritePane.vue'
-import SettingsDialog from './components/SettingsDialog.vue'
+import SettingsDialog from './dialogs/SettingsDialog.vue'
 import { QuestionCircleOutlined, UserOutlined, SettingOutlined, BarsOutlined } from '@vicons/antd'
-import AboutDialog from './components/AboutDialog.vue'
-import DownloadedPane from './panes/DownloadedPane.vue'
+import AboutDialog from './dialogs/AboutDialog.vue'
+import DownloadedPane from './panes/DownloadPane/DownloadedPane.vue'
 import { useStore } from './store.ts'
-import LogViewer from './components/LogViewer.vue'
+import LogDialog from './dialogs/LogDialog.vue'
 
 const store = useStore()
 
@@ -155,14 +155,14 @@ onMounted(async () => {
             关于
           </n-button>
         </div>
-        <downloading-pane />
+        <progresses-pane />
       </div>
     </div>
 
     <login-dialog v-model:showing="loginDialogShowing" />
     <settings-dialog v-model:showing="settingsDialogShowing" />
     <about-dialog v-model:showing="aboutDialogShowing" />
-    <log-viewer v-model:showing="logViewerShowing" />
+    <log-dialog v-model:showing="logViewerShowing" />
   </div>
 </template>
 

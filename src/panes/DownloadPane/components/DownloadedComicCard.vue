@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Comic, commands } from '../bindings.ts'
-import { useStore } from '../store.ts'
+import { Comic, commands } from '../../../bindings.ts'
+import { useStore } from '../../../store.ts'
 
 const props = defineProps<{
   comic: Comic

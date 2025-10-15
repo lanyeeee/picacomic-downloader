@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Comic, commands, events } from '../bindings.ts'
+import { Comic, commands, events } from '../../bindings.ts'
 import { computed, ref, watch, onMounted } from 'vue'
 import { MessageReactive, useMessage } from 'naive-ui'
-import DownloadedComicCard from '../components/DownloadedComicCard.vue'
+import DownloadedComicCard from './components/DownloadedComicCard.vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderOpenOutlined } from '@vicons/antd'
-import { useStore } from '../store.ts'
+import { useStore } from '../../store.ts'
 
 interface ProgressData {
   comicTitle: string

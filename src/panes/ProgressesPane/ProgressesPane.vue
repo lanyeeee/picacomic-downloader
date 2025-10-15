@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { commands, events } from '../bindings.ts'
+import { commands, events } from '../../bindings.ts'
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderOpenOutlined } from '@vicons/antd'
-import { useStore } from '../store.ts'
-import UncompletedProgresses from '../components/UncompletedProgresses.vue'
-import CompletedProgresses from '../components/CompletedProgresses.vue'
-import { ProgressData } from '../types.ts'
+import { useStore } from '../../store.ts'
+import UncompletedProgresses from './components/UncompletedProgresses.vue'
+import CompletedProgresses from './components/CompletedProgresses.vue'
+import { ProgressData } from '../../types.ts'
 
 const store = useStore()
 

@@ -7,14 +7,14 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AboutDialog: typeof import('./src/components/AboutDialog.vue')['default']
+    AboutDialog: typeof import('./src/dialogs/AboutDialog.vue')['default']
     ComicCard: typeof import('./src/components/ComicCard.vue')['default']
-    CompletedProgresses: typeof import('./src/components/CompletedProgresses.vue')['default']
+    CompletedProgresses: typeof import('./src/panes/ProgressesPane/components/CompletedProgresses.vue')['default']
     DownloadAllFavoriteButton: typeof import('./src/components/DownloadAllFavoriteButton.vue')['default']
-    DownloadedComicCard: typeof import('./src/components/DownloadedComicCard.vue')['default']
+    DownloadedComicCard: typeof import('./src/panes/DownloadPane/components/DownloadedComicCard.vue')['default']
     FloatLabelInput: typeof import('./src/components/FloatLabelInput.vue')['default']
-    LoginDialog: typeof import('./src/components/LoginDialog.vue')['default']
-    LogViewer: typeof import('./src/components/LogViewer.vue')['default']
+    LoginDialog: typeof import('./src/dialogs/LoginDialog.vue')['default']
+    LogDialog: typeof import('./src/dialogs/LogDialog.vue')['default']
     NA: typeof import('naive-ui')['NA']
     NAvatar: typeof import('naive-ui')['NAvatar']
     NButton: typeof import('naive-ui')['NButton']
@@ -45,7 +45,7 @@ declare module 'vue' {
     NTabs: typeof import('naive-ui')['NTabs']
     NTooltip: typeof import('naive-ui')['NTooltip']
     NVirtualList: typeof import('naive-ui')['NVirtualList']
-    SettingsDialog: typeof import('./src/components/SettingsDialog.vue')['default']
-    UncompletedProgresses: typeof import('./src/components/UncompletedProgresses.vue')['default']
+    SettingsDialog: typeof import('./src/dialogs/SettingsDialog.vue')['default']
+    UncompletedProgresses: typeof import('./src/panes/ProgressesPane/components/UncompletedProgresses.vue')['default']
   }
 }
