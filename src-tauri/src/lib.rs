@@ -50,6 +50,7 @@ pub fn run() {
             cancel_download_task,
             show_path_in_file_manager,
             get_favorite,
+            get_rank,
             get_downloaded_comics,
             export_cbz,
             export_pdf,
@@ -57,6 +58,7 @@ pub fn run() {
             get_synced_comic,
             get_synced_comic_in_favorite,
             get_synced_comic_in_search,
+            get_synced_comic_in_rank,
         ])
         .events(tauri_specta::collect_events![
             DownloadSpeedEvent,

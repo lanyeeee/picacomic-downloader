@@ -17,10 +17,10 @@ use tauri::{AppHandle, Manager};
 use crate::config::Config;
 use crate::responses::{
     ChapterImageRespData, ChapterRespData, ComicRespData, GetChapterImageRespData,
-    GetChapterRespData, GetComicRespData, GetFavoriteRespData, LoginRespData, Pagination, PicaResp,
-    SearchRespData, UserProfileDetailRespData, UserProfileRespData,
+    GetChapterRespData, GetComicRespData, GetFavoriteRespData, GetRankRespData, LoginRespData,
+    Pagination, PicaResp, SearchRespData, UserProfileDetailRespData, UserProfileRespData,
 };
-use crate::types::{GetFavoriteSort, SearchSort};
+use crate::types::{GetFavoriteSort, RankType, SearchSort};
 
 const HOST_URL: &str = "https://picaapi.picacomic.com/";
 const API_KEY: &str = "C69BAF41DA5ABD1FFEDC6D2FEA56B";
@@ -357,6 +357,40 @@ impl PicaClient {
             .context(format!("将data解析为GetFavoriteRespData失败: {data_str}"))?;
 
         Ok(get_favorite_resp_data)
+    }
+
+    pub async fn get_rank(&self, rank_type: RankType) -> anyhow::Result<GetRankRespData> {
+        // 发送获取收藏的漫画请求
+        let rank_type = rank_type.as_str();
+        let path = format!("comics/leaderboard?tt={rank_type}&ct=VC");
+        let http_resp = self.pica_get(&path).await?;
+        // 检查http响应状态码
+        let status = http_resp.status();
+        let body = http_resp.text().await?;
+        if status == StatusCode::UNAUTHORIZED {
+            return Err(anyhow!(
+                "Authorization无效或已过期，请重新登录({status}): {body}"
+            ));
+        } else if status != StatusCode::OK {
+            return Err(anyhow!("预料之外的状态码({status}): {body}"));
+        }
+        // 尝试将body解析为PicaResp
+        let pica_resp: PicaResp =
+            serde_json::from_str(&body).context(format!("将body解析为PicaResp失败: {body}"))?;
+        // 检查PicaResp的code字段
+        if pica_resp.code != 200 {
+            return Err(anyhow!("预料之外的code: {pica_resp:?}"));
+        }
+        // 检查PicaResp的data是否存在
+        let Some(data) = pica_resp.data else {
+            return Err(anyhow!("data字段不存在: {pica_resp:?}"));
+        };
+        // 尝试将data解析为GetRankRespData
+        let data_str = data.to_string();
+        let get_rank_result = serde_json::from_str::<GetRankRespData>(&data_str)
+            .context(format!("将data解析为GetRankRespData失败: {data_str}"))?;
+
+        Ok(get_rank_result)
     }
 
     pub async fn get_img_data_and_format(&self, url: &str) -> anyhow::Result<(Bytes, ImageFormat)> {
