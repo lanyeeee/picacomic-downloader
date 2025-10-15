@@ -21,8 +21,8 @@ use crate::extensions::{AnyhowErrorToStringChain, WalkDirEntryExt};
 use crate::pica_client::PicaClient;
 use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
 use crate::types::{
-    ChapterInfo, Comic, ComicInFavorite, ComicInSearch, GetFavoriteResult, GetFavoriteSort,
-    SearchResult, SearchSort,
+    ChapterInfo, Comic, ComicInFavorite, ComicInRank, ComicInSearch, GetFavoriteResult,
+    GetFavoriteSort, GetRankResult, RankType, SearchResult, SearchSort,
 };
 use crate::{export, logger, utils};
 
@@ -287,6 +287,24 @@ pub async fn get_favorite(
         .map_err(|err| CommandError::from("获取收藏的漫画失败", err))?;
 
     Ok(get_favorite_result)
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn get_rank(
+    app: AppHandle,
+    pica_client: State<'_, PicaClient>,
+    rank_type: RankType,
+) -> CommandResult<GetRankResult> {
+    let get_rank_resp_data = pica_client
+        .get_rank(rank_type)
+        .await
+        .map_err(|err| CommandError::from("获取排行榜失败", err))?;
+
+    let get_rank_result = GetRankResult::from_resp_data(&app, get_rank_resp_data)
+        .map_err(|err| CommandError::from("获取排行榜失败", err))?;
+
+    Ok(get_rank_result)
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -608,6 +626,25 @@ pub fn get_synced_comic_in_search(
         .context("创建漫画ID到下载目录映射失败")
         .map_err(|err| {
             let err_title = format!("漫画`{}`同步ComicInSearch的字段失败", comic.title);
+            CommandError::from(&err_title, err)
+        })?;
+
+    comic.update_fields(&id_to_dir_map);
+
+    Ok(comic)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command(async)]
+#[specta::specta]
+pub fn get_synced_comic_in_rank(
+    app: AppHandle,
+    mut comic: ComicInRank,
+) -> CommandResult<ComicInRank> {
+    let id_to_dir_map = utils::create_id_to_dir_map(&app)
+        .context("创建漫画ID到下载目录映射失败")
+        .map_err(|err| {
+            let err_title = format!("漫画`{}`同步ComicInRank的字段失败", comic.title);
             CommandError::from(&err_title, err)
         })?;
 
