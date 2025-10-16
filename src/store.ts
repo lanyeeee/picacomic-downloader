@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { CurrentTabName, ProgressData } from './types.ts'
-import { Comic, Config, GetFavoriteResult, SearchResult, UserProfileDetailRespData } from './bindings.ts'
+import { Comic, Config, GetFavoriteResult, SearchResult, UserProfileDetailRespData, GetRankResult } from './bindings.ts'
 import { ref } from 'vue'
 
 export const useStore = defineStore('store', () => {
@@ -11,6 +11,16 @@ export const useStore = defineStore('store', () => {
   const progresses = ref<Map<string, ProgressData>>(new Map())
   const getFavoriteResult = ref<GetFavoriteResult>()
   const searchResult = ref<SearchResult>()
+  const getRankResult = ref<GetRankResult>()
 
-  return { config, userProfile, pickedComic, currentTabName, progresses, getFavoriteResult, searchResult }
+  return {
+    config,
+    userProfile,
+    pickedComic,
+    currentTabName,
+    progresses,
+    getFavoriteResult,
+    searchResult,
+    getRankResult,
+  }
 })
