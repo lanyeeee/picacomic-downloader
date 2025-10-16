@@ -11,6 +11,12 @@ const themeOverrides: GlobalThemeOverrides = {
     primaryColorPressed: '#B53C64FF',
     primaryColorSuppl: '#E87D9AFF',
   },
+  Tabs: {
+    tabTextColorActiveSegment: '#DB547CFF',
+    tabTextColorHoverSegment: '#E87D9AFF',
+    tabColorSegment: '#FFDAE9FF',
+    colorSegment: '#FFFFFFFF',
+  },
 }
 </script>
 

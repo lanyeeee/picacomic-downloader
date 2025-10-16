@@ -13,6 +13,7 @@ import AboutDialog from './dialogs/AboutDialog.vue'
 import DownloadedPane from './panes/DownloadPane/DownloadedPane.vue'
 import { useStore } from './store.ts'
 import LogDialog from './dialogs/LogDialog.vue'
+import RankPane from './panes/RankPane.vue'
 
 const store = useStore()
 
@@ -112,11 +113,14 @@ onMounted(async () => {
 
     <div class="flex overflow-hidden flex-1">
       <n-tabs class="h-full w-1/2" v-model:value="store.currentTabName" type="line" size="small" animated>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show">
+        <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="搜索" display-directive="show">
           <search-pane />
         </n-tab-pane>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="漫画收藏" display-directive="show">
+        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="收藏夹" display-directive="show">
           <favorite-pane />
+        </n-tab-pane>
+        <n-tab-pane class="h-full overflow-auto p-0!" name="rank" tab="排行榜" display-directive="show">
+          <rank-pane />
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="downloaded" tab="本地库存" display-directive="show">
           <downloaded-pane />
