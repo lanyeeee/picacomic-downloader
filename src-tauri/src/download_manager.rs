@@ -8,7 +8,6 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
-use image::codecs::png::{self, PngEncoder};
 use image::ImageFormat;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -23,7 +22,7 @@ use crate::config::Config;
 use crate::events::{DownloadSleepingEvent, DownloadSpeedEvent, DownloadTaskEvent};
 use crate::extensions::AnyhowErrorToStringChain;
 use crate::pica_client::PicaClient;
-use crate::types::{ChapterInfo, Comic, DownloadFormat};
+use crate::types::{ChapterInfo, Comic};
 use crate::utils::filename_filter;
 
 /// 用于管理下载任务
@@ -717,12 +716,14 @@ impl DownloadImgTask {
         let comic_title = &self.download_task.comic.title;
         let chapter_title = &self.download_task.chapter_info.chapter_title;
 
+        let index_filename = format!("{:03}", self.index + 1);
         let download_format = self.app.state::<RwLock<Config>>().read().download_format;
+
         if let Some(extension) = download_format.extension() {
             // 如果图片已存在，则跳过下载
             let save_path = self
                 .temp_download_dir
-                .join(format!("{:03}.{extension}", self.index + 1));
+                .join(format!("{index_filename}.{extension}"));
             if save_path.exists() {
                 tracing::trace!(url, comic_title, chapter_title, "图片已存在，跳过下载");
                 self.download_task
@@ -749,24 +750,32 @@ impl DownloadImgTask {
         tracing::trace!(url, comic_title, chapter_title, "图片成功下载到内存");
 
         // 获取图片格式的扩展名
-        let Some(extension) = download_format.extension().or(match img_format {
-            ImageFormat::Jpeg => Some("jpg"),
-            ImageFormat::Png => Some("png"),
-            ImageFormat::WebP => Some("webp"),
-            _ => None,
-        }) else {
-            let err_title = format!("保存图片`{url}`失败");
-            let err_msg = format!("`{img_format:?}`格式不支持");
-            tracing::error!(err_title, message = err_msg);
-            return;
+        let original_img_extension = match img_format {
+            ImageFormat::Jpeg => "jpg",
+            ImageFormat::Png => "png",
+            ImageFormat::WebP => "webp",
+            _ => {
+                let err_title =
+                    format!("`{comic_title} - {chapter_title}`获取图片`{url}`的扩展名失败");
+                let err_msg =
+                    format!("出现了意料之外的格式`{img_format:?}`，请将此问题反馈给开发者");
+                tracing::error!(err_title, message = err_msg);
+                return;
+            }
         };
+
+        let extension = download_format
+            .extension()
+            .unwrap_or(original_img_extension);
 
         let save_path = self
             .temp_download_dir
-            .join(format!("{:03}.{extension}", self.index + 1));
+            .join(format!("{index_filename}.{extension}"));
+
+        let target_format = download_format.to_image_format().unwrap_or(img_format);
 
         // 保存图片
-        if let Err(err) = save_img(&save_path, download_format, img_data).await {
+        if let Err(err) = save_img(&save_path, target_format, img_data, img_format).await {
             let err_title = format!("保存图片`{}`失败", save_path.display());
             let string_chain = err.to_string_chain();
             tracing::error!(err_title, message = string_chain);
@@ -867,46 +876,37 @@ impl DownloadImgTask {
 
 async fn save_img(
     save_path: &Path,
-    download_format: DownloadFormat,
+    target_format: ImageFormat,
     src_img_data: Bytes,
+    src_format: ImageFormat,
 ) -> anyhow::Result<()> {
-    if DownloadFormat::Original == download_format {
-        // 如果下载格式是Original，直接保存
+    if target_format == src_format {
+        // 如果target_format与src_format匹配，则直接保存
         std::fs::write(save_path, &src_img_data)
-            .context(format!("保存图片`{}`失败", save_path.display()))?;
+            .context(format!("将图片数据写入`{}`失败", save_path.display()))?;
         return Ok(());
     }
 
-    // 图像处理的闭包
     let save_path = save_path.to_path_buf();
+    // 图像处理的闭包
     let process_img = move || -> anyhow::Result<()> {
-        let src_img = image::load_from_memory(&src_img_data)
-            .context("解码图片失败")?
-            .to_rgb8();
-        // 用来存图片编码后的数据
-        let mut dst_img_data = Vec::new();
-        match download_format {
-            DownloadFormat::Jpeg => {
-                src_img.write_to(&mut Cursor::new(&mut dst_img_data), ImageFormat::Jpeg)?;
-            }
-            DownloadFormat::Png => {
-                let encoder = PngEncoder::new_with_quality(
-                    Cursor::new(&mut dst_img_data),
-                    png::CompressionType::Best,
-                    png::FilterType::default(),
-                );
-                src_img.write_with_encoder(encoder)?;
-            }
-            DownloadFormat::Webp => {
-                src_img.write_to(&mut Cursor::new(&mut dst_img_data), ImageFormat::WebP)?;
-            }
-            DownloadFormat::Original => {
-                return Err(anyhow!("这里不应该出现这个下载格式: `{download_format:?}`"));
-            }
+        // 如果target_format与src_format不匹配，则需要转换格式
+        let img = image::load_from_memory(&src_img_data).context("加载图片数据失败")?;
+
+        let mut converted_data = Vec::new();
+
+        if target_format != ImageFormat::Jpeg
+            && target_format != ImageFormat::Png
+            && target_format != ImageFormat::WebP
+        {
+            return Err(anyhow!("不支持的图片格式: {:?}", target_format));
         }
-        // 保存编码后的图片数据
-        std::fs::write(&save_path, dst_img_data)
-            .context(format!("保存图片`{}`失败", save_path.display()))?;
+        img.write_to(&mut Cursor::new(&mut converted_data), target_format)
+            .context(format!("将`{src_format:?}`转换为`{target_format:?}`失败"))?;
+
+        std::fs::write(&save_path, &converted_data)
+            .context(format!("将图片数据写入`{}`失败", save_path.display()))?;
+
         Ok(())
     };
 
