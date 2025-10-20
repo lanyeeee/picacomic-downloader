@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { commands, SearchSort } from '../bindings.ts'
 import ComicCard from '../components/ComicCard.vue'
-import { SearchOutlined, ArrowRightOutlined } from '@vicons/antd'
+import { PhMagnifyingGlass, PhArrowRight } from '@phosphor-icons/vue'
 import FloatLabelInput from '../components/FloatLabelInput.vue'
 import { useStore } from '../store.ts'
 import { SelectProps } from 'naive-ui'
@@ -68,7 +68,7 @@ async function pickComic() {
         @click="searchByKeyword(searchInput.trim(), sortSelected, 1, [])">
         <template #icon>
           <n-icon size="22">
-            <SearchOutlined />
+            <PhMagnifyingGlass />
           </n-icon>
         </template>
       </n-button>
@@ -79,7 +79,7 @@ async function pickComic() {
       <n-button type="primary" size="small" class="w-15%" @click="pickComic">
         <template #icon>
           <n-icon size="20">
-            <ArrowRightOutlined />
+            <PhArrowRight />
           </n-icon>
         </template>
       </n-button>

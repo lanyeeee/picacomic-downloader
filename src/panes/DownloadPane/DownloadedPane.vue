@@ -4,7 +4,7 @@ import { computed, ref, watch, onMounted } from 'vue'
 import { MessageReactive, useMessage } from 'naive-ui'
 import DownloadedComicCard from './components/DownloadedComicCard.vue'
 import { open } from '@tauri-apps/plugin-dialog'
-import { FolderOpenOutlined } from '@vicons/antd'
+import { PhFolderOpen } from '@phosphor-icons/vue'
 import { useStore } from '../../store.ts'
 
 interface ProgressData {
@@ -235,8 +235,8 @@ async function showExportDirInFileManager() {
       <n-input v-model:value="store.config.exportDir" size="small" readonly @click="selectExportDir" />
       <n-button size="small" @click="showExportDirInFileManager">
         <template #icon>
-          <n-icon>
-            <FolderOpenOutlined />
+          <n-icon size="20">
+            <PhFolderOpen />
           </n-icon>
         </template>
       </n-button>

@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { commands, events } from '../../bindings.ts'
 import { open } from '@tauri-apps/plugin-dialog'
-import { FolderOpenOutlined } from '@vicons/antd'
+import { PhFolderOpen } from '@phosphor-icons/vue'
 import { useStore } from '../../store.ts'
 import UncompletedProgresses from './components/UncompletedProgresses.vue'
 import CompletedProgresses from './components/CompletedProgresses.vue'
@@ -175,8 +175,8 @@ async function selectDownloadDir() {
         @click="selectDownloadDir" />
       <n-button size="small" @click="showDownloadDirInFileManager">
         <template #icon>
-          <n-icon>
-            <FolderOpenOutlined />
+          <n-icon size="20">
+            <PhFolderOpen />
           </n-icon>
         </template>
       </n-button>

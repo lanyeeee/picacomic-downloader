@@ -8,7 +8,7 @@ import ChapterPane from './panes/ChapterPane.vue'
 import ProgressesPane from './panes/ProgressesPane/ProgressesPane.vue'
 import FavoritePane from './panes/FavoritePane.vue'
 import SettingsDialog from './dialogs/SettingsDialog.vue'
-import { QuestionCircleOutlined, UserOutlined, SettingOutlined, BarsOutlined } from '@vicons/antd'
+import { PhInfo, PhUser, PhClockCounterClockwise, PhGearSix } from '@phosphor-icons/vue'
 import AboutDialog from './dialogs/AboutDialog.vue'
 import DownloadedPane from './panes/DownloadPane/DownloadedPane.vue'
 import { useStore } from './store.ts'
@@ -93,8 +93,8 @@ onMounted(async () => {
         <n-input v-model:value="store.config.token" placeholder="手动输入或点击右侧的按钮登录" clearable />
         <n-button type="primary" @click="loginDialogShowing = true">
           <template #icon>
-            <n-icon>
-              <UserOutlined />
+            <n-icon size="20">
+              <PhUser />
             </n-icon>
           </template>
           登录
@@ -136,24 +136,24 @@ onMounted(async () => {
           <div class="text-xl font-bold box-border">下载列表</div>
           <n-button class="ml-auto" size="small" @click="logViewerShowing = true">
             <template #icon>
-              <n-icon>
-                <BarsOutlined />
+              <n-icon size="20">
+                <PhClockCounterClockwise />
               </n-icon>
             </template>
             日志
           </n-button>
           <n-button size="small" @click="settingsDialogShowing = true">
             <template #icon>
-              <n-icon>
-                <SettingOutlined />
+              <n-icon size="20">
+                <PhGearSix />
               </n-icon>
             </template>
             配置
           </n-button>
           <n-button size="small" @click="aboutDialogShowing = true">
             <template #icon>
-              <n-icon>
-                <QuestionCircleOutlined />
+              <n-icon size="20">
+                <PhInfo />
               </n-icon>
             </template>
             关于
