@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { commands, ImageRespData } from '../bindings.ts'
 import { useStore } from '../store.ts'
+import IconButton from './IconButton.vue'
+import { PhDownloadSimple, PhFolderOpen } from '@phosphor-icons/vue'
 
 const store = useStore()
 
@@ -55,7 +57,7 @@ async function showComicDownloadDirInFileManager() {
       <div class="flex flex-col w-full justify-between">
         <div class="flex flex-col">
           <span
-            class="font-bold text-xl line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
+            class="font-bold text-lg line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
             @click="pickComic">
             {{ comicTitle }}
           </span>
@@ -63,10 +65,12 @@ async function showComicDownloadDirInFileManager() {
           <span class="text-gray" v-html="`分类：${comicCategories}`"></span>
         </div>
         <div class="flex">
-          <n-button v-if="comicDownloaded" size="tiny" @click="showComicDownloadDirInFileManager">
-            打开下载目录
-          </n-button>
-          <n-button size="tiny" class="ml-auto" @click="downloadComic">一键下载所有章节</n-button>
+          <IconButton v-if="comicDownloaded" title="打开下载目录" @click="showComicDownloadDirInFileManager">
+            <PhFolderOpen :size="24" />
+          </IconButton>
+          <IconButton class="ml-auto" title="一键下载所有章节" @click="downloadComic">
+            <PhDownloadSimple :size="24" />
+          </IconButton>
         </div>
       </div>
     </div>

@@ -3,6 +3,8 @@ import { SelectionArea, SelectionEvent } from '@viselect/vue'
 import { nextTick, ref, watch, watchEffect, computed } from 'vue'
 import { ChapterInfo, commands, DownloadTaskState } from '../bindings.ts'
 import { useStore } from '../store.ts'
+import { PhFolderOpen } from '@phosphor-icons/vue'
+import IconButton from '../components/IconButton.vue'
 
 const store = useStore()
 
@@ -189,7 +191,7 @@ function isDownloading(state: State) {
         <n-button size="small" @click="refreshChapters">刷新</n-button>
         <n-button size="small" type="primary" @click="downloadChapters">下载勾选章节</n-button>
       </div>
-      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5">
+      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 pt-2">
         <n-checkbox
           v-for="{ chapterId, chapterTitle, isDownloaded, state } in chapterInfos"
           :key="chapterId"
@@ -214,16 +216,16 @@ function isDownloading(state: State) {
         referrerpolicy="no-referrer" />
       <div class="flex flex-col w-full justify-between">
         <div class="flex flex-col h-full">
-          <span class="font-bold text-xl line-clamp-2">{{ store.pickedComic.title }}</span>
+          <span class="font-bold text-lg line-clamp-2">{{ store.pickedComic.title }}</span>
           <span class="text-red">作者：{{ store.pickedComic.author }}</span>
           <span class="text-gray" v-html="`分类：${store.pickedComic.categories}`"></span>
-          <n-button
-            v-if="store.pickedComic.isDownloaded === true"
+          <IconButton
+            v-if="store.pickedComic.isDownloaded"
             class="mr-auto mt-auto"
-            size="tiny"
+            title="打开下载目录"
             @click="showComicDownloadDirInFileManager">
-            打开下载目录
-          </n-button>
+            <PhFolderOpen :size="24" />
+          </IconButton>
         </div>
       </div>
     </div>
