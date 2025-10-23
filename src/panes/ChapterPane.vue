@@ -177,6 +177,11 @@ function isDownloading(state: State) {
 
 <template>
   <div class="h-full flex flex-col gap-2 box-border">
+    <div v-if="store.pickedComic !== undefined" class="flex items-center select-none pt-2 gap-1 px-2">
+      <div>左键拖动进行框选，右键打开菜单</div>
+      <n-button class="ml-auto" size="small" @click="refreshChapters">刷新</n-button>
+      <n-button size="small" type="primary" @click="downloadChapters">下载勾选章节</n-button>
+    </div>
     <n-empty v-if="store.pickedComic === undefined" class="pt-2" description="请先进行漫画搜索" />
     <SelectionArea
       v-else
@@ -186,12 +191,7 @@ function isDownloading(state: State) {
       @contextmenu="onContextMenu"
       @move="updateSelectedIds"
       @start="unselectAll">
-      <div class="flex justify-between items-center pt-2">
-        <div>左键拖动进行框选，右键打开菜单</div>
-        <n-button size="small" @click="refreshChapters">刷新</n-button>
-        <n-button size="small" type="primary" @click="downloadChapters">下载勾选章节</n-button>
-      </div>
-      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 pt-2">
+      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5">
         <n-checkbox
           v-for="{ chapterId, chapterTitle, isDownloaded, state } in chapterInfos"
           :key="chapterId"

@@ -233,7 +233,7 @@ async function showExportDirInFileManager() {
     <n-input-group class="box-border px-2 pt-2">
       <n-input-group-label size="small">导出目录</n-input-group-label>
       <n-input v-model:value="store.config.exportDir" size="small" readonly @click="selectExportDir" />
-      <n-button size="small" @click="showExportDirInFileManager">
+      <n-button class="w-10" size="small" @click="showExportDirInFileManager">
         <template #icon>
           <n-icon size="20">
             <PhFolderOpen />

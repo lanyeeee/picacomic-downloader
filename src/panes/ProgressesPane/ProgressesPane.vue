@@ -167,13 +167,8 @@ async function selectDownloadDir() {
   <div class="flex flex-col gap-row-2 flex-1 overflow-auto" v-if="store.config !== undefined">
     <n-input-group class="box-border px-2 pt-2">
       <n-input-group-label size="small">下载目录</n-input-group-label>
-      <n-input
-        v-model:value="store.config.downloadDir"
-        :default-value="0"
-        size="small"
-        readonly
-        @click="selectDownloadDir" />
-      <n-button size="small" @click="showDownloadDirInFileManager">
+      <n-input v-model:value="store.config.downloadDir" size="small" readonly @click="selectDownloadDir" />
+      <n-button class="w-10" size="small" @click="showDownloadDirInFileManager">
         <template #icon>
           <n-icon size="20">
             <PhFolderOpen />
@@ -189,8 +184,11 @@ async function selectDownloadDir() {
       <n-tab-pane class="h-full p-0! overflow-auto" name="completed" tab="已完成">
         <completed-progresses />
       </n-tab-pane>
+
+      <template #suffix>
+        <span class="whitespace-nowrap text-ellipsis overflow-hidden">{{ downloadSpeed }}</span>
+      </template>
     </n-tabs>
-    <span class="ml-auto mr-2 mb-2">下载速度：{{ downloadSpeed }}</span>
   </div>
 </template>
 

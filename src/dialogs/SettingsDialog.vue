@@ -27,9 +27,9 @@ async function showConfigInFileManager() {
 <template>
   <n-modal v-model:show="showing" v-if="store.config !== undefined">
     <n-dialog class="w-140!" :showIcon="false" title="配置" @close="showing = false">
-      <div class="flex flex-col gap-row-2">
+      <div class="flex flex-col">
+        <span class="font-bold">下载格式</span>
         <n-radio-group v-model:value="store.config.downloadFormat">
-          <span class="mr-4">下载格式</span>
           <n-tooltip placement="top" trigger="hover">
             <div>原图不为jpg时，会自动转换为jpg</div>
             <template #trigger>
@@ -59,6 +59,7 @@ async function showConfigInFileManager() {
           </n-tooltip>
         </n-radio-group>
 
+        <span class="font-bold mt-2">下载速度</span>
         <div class="flex flex-col gap-2">
           <div class="flex gap-1">
             <n-input-group class="w-35%">
@@ -116,6 +117,7 @@ async function showConfigInFileManager() {
           </n-input-group>
         </div>
 
+        <span class="font-bold mt-2">下载目录格式</span>
         <n-tooltip placement="top" trigger="hover" width="550">
           <div>
             可以用斜杠
@@ -163,14 +165,11 @@ async function showConfigInFileManager() {
             <span class="bg-gray-200 rounded-md px-2 w-fit">5 - 第5卷</span>
           </div>
           <template #trigger>
-            <n-input-group class="box-border">
-              <n-input-group-label size="small">下载目录格式</n-input-group-label>
-              <n-input
-                v-model:value="dirFmt"
-                size="small"
-                @blur="store.config.dirFmt = dirFmt"
-                @keydown.enter="store.config.dirFmt = dirFmt" />
-            </n-input-group>
+            <n-input
+              v-model:value="dirFmt"
+              size="small"
+              @blur="store.config.dirFmt = dirFmt"
+              @keydown.enter="store.config.dirFmt = dirFmt" />
           </template>
         </n-tooltip>
 
