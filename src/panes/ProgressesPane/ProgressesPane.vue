@@ -7,6 +7,9 @@ import { useStore } from '../../store.ts'
 import UncompletedProgresses from './components/UncompletedProgresses.vue'
 import CompletedProgresses from './components/CompletedProgresses.vue'
 import { ProgressData } from '../../types.ts'
+import ExportProgresses from './components/ExportProgresses.vue'
+
+export type ProgressesPaneTabName = 'uncompleted' | 'completed' | 'export'
 
 const store = useStore()
 
@@ -164,7 +167,7 @@ async function selectDownloadDir() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-row-2 flex-1 overflow-auto" v-if="store.config !== undefined">
+  <div class="flex flex-col gap-2 flex-1 overflow-auto" v-if="store.config !== undefined">
     <n-input-group class="box-border px-2 pt-2">
       <n-input-group-label size="small">下载目录</n-input-group-label>
       <n-input v-model:value="store.config.downloadDir" size="small" readonly @click="selectDownloadDir" />
@@ -177,12 +180,15 @@ async function selectDownloadDir() {
       </n-button>
     </n-input-group>
 
-    <n-tabs class="h-full overflow-auto" type="line" size="small">
+    <n-tabs class="h-full overflow-auto" v-model:value="store.progressesPaneTabName" type="line" size="small">
       <n-tab-pane class="h-full p-0! overflow-auto" name="uncompleted" tab="未完成">
         <uncompleted-progresses />
       </n-tab-pane>
       <n-tab-pane class="h-full p-0! overflow-auto" name="completed" tab="已完成">
         <completed-progresses />
+      </n-tab-pane>
+      <n-tab-pane class="h-full p-0! overflow-auto" name="export" tab="导出进度" display-directive="show">
+        <ExportProgresses />
       </n-tab-pane>
 
       <template #suffix>

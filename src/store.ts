@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { CurrentTabName, ProgressData } from './types.ts'
 import { Comic, Config, GetFavoriteResult, SearchResult, UserProfileDetailRespData, GetRankResult } from './bindings.ts'
 import { ref } from 'vue'
+import { ProgressesPaneTabName } from './panes/ProgressesPane/ProgressesPane.vue'
 
 export const useStore = defineStore('store', () => {
   const config = ref<Config>()
@@ -12,6 +13,7 @@ export const useStore = defineStore('store', () => {
   const getFavoriteResult = ref<GetFavoriteResult>()
   const searchResult = ref<SearchResult>()
   const getRankResult = ref<GetRankResult>()
+  const progressesPaneTabName = ref<ProgressesPaneTabName>('uncompleted')
 
   return {
     config,
@@ -22,5 +24,6 @@ export const useStore = defineStore('store', () => {
     getFavoriteResult,
     searchResult,
     getRankResult,
+    progressesPaneTabName,
   }
 })

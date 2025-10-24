@@ -1,207 +1,65 @@
-<script setup lang="ts">
-import { Comic, commands, events } from '../../bindings.ts'
-import { computed, ref, watch, onMounted } from 'vue'
-import { MessageReactive, useMessage } from 'naive-ui'
+<script setup lang="tsx">
+import { Comic, commands } from '../../bindings.ts'
+import { computed, nextTick, ref, watch, watchEffect } from 'vue'
 import DownloadedComicCard from './components/DownloadedComicCard.vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { PhFolderOpen } from '@phosphor-icons/vue'
 import { useStore } from '../../store.ts'
-
-interface ProgressData {
-  comicTitle: string
-  current: number
-  total: number
-  progressMessage: MessageReactive
-}
+import { DropdownOption, NIcon } from 'naive-ui'
+import { SelectionArea, SelectionEvent } from '@viselect/vue'
+import { PhChecks, PhCheck, PhX } from '@phosphor-icons/vue'
 
 const store = useStore()
 
-const message = useMessage()
+const selectedIds = ref<Set<string>>(new Set())
+const checkedIds = ref<Set<string>>(new Set())
+const { dropdownX, dropdownY, dropdownShowing, dropdownOptions, showDropdown } = useDropdown()
+const selectionAreaRef = ref<InstanceType<typeof SelectionArea>>()
 
-const { currentPage, pageCount, currentPageComics } = useDownloadedComics()
-useProgressTracking()
-
-function useDownloadedComics() {
-  const PAGE_SIZE = 20
-  // 已下载的漫画
-  const downloadedComics = ref<Comic[]>([])
-  // 当前页码
-  const currentPage = ref<number>(1)
-  // 总页数
-  const pageCount = computed<number>(() => {
-    return Math.ceil(downloadedComics.value.length / PAGE_SIZE)
-  })
-  // 当前页的漫画
-  const currentPageComics = computed<Comic[]>(() => {
-    const start = (currentPage.value - 1) * PAGE_SIZE
-    const end = start + PAGE_SIZE
-    return downloadedComics.value.slice(start, end)
-  })
-
-  // 监听标签页变化，更新下载的漫画列表
-  watch(
-    () => store.currentTabName,
-    async () => {
-      if (store.currentTabName !== 'downloaded') {
-        return
-      }
-
-      downloadedComics.value = await commands.getDownloadedComics()
-    },
-    { immediate: true },
-  )
-
-  return { currentPage, pageCount, currentPageComics }
-}
-
-function useProgressTracking() {
-  // TODO: 这里应该改用 ref，否则不会实时更新
-  const progresses = new Map<string, ProgressData>(new Map())
-
-  // 处理导出CBZ事件
-  async function handleExportCbzEvents() {
-    await events.exportCbzEvent.listen(async ({ payload: exportEvent }) => {
-      if (exportEvent.event === 'Start') {
-        const { uuid, comicTitle, total } = exportEvent.data
-        progresses.set(uuid, {
-          comicTitle,
-          current: 0,
-          total,
-          progressMessage: message.loading(
-            () => {
-              const progressData = progresses.get(uuid)
-              if (progressData === undefined) return ''
-              return `${progressData.comicTitle} 正在导出cbz(${progressData.current}/${progressData.total})`
-            },
-            { duration: 0 },
-          ),
-        })
-      } else if (exportEvent.event === 'Progress') {
-        const { uuid, current } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.current = current
-        }
-      } else if (exportEvent.event === 'Error') {
-        const { uuid } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.progressMessage.type = 'error'
-          progressData.progressMessage.content = `${progressData.comicTitle} 导出cbz失败(${progressData.current}/${progressData.total})`
-          setTimeout(() => {
-            progressData.progressMessage.destroy()
-            progresses.delete(uuid)
-          }, 3000)
-        }
-      } else if (exportEvent.event === 'End') {
-        const { uuid } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.progressMessage.type = 'success'
-          progressData.progressMessage.content = `${progressData.comicTitle} 导出cbz完成(${progressData.current}/${progressData.total})`
-          setTimeout(() => {
-            progressData.progressMessage.destroy()
-            progresses.delete(uuid)
-          }, 3000)
-        }
-      }
-    })
+const PAGE_SIZE = 20
+// 已下载的漫画
+const downloadedComics = ref<Comic[]>([])
+// 当前页码
+const currentPage = ref<number>(1)
+// 总页数
+const pageCount = computed<number>(() => {
+  if (downloadedComics.value.length === 0) {
+    return 1
   }
-
-  // 处理导出PDF事件
-  async function handleExportPdfEvents() {
-    await events.exportPdfEvent.listen(async ({ payload: exportEvent }) => {
-      if (exportEvent.event === 'CreateStart') {
-        const { uuid, comicTitle, total } = exportEvent.data
-        progresses.set(uuid, {
-          comicTitle,
-          current: 0,
-          total,
-          progressMessage: message.loading(
-            () => {
-              const progressData = progresses.get(uuid)
-              if (progressData === undefined) return ''
-              return `${progressData.comicTitle} 正在创建pdf(${progressData.current}/${progressData.total})`
-            },
-            { duration: 0 },
-          ),
-        })
-      } else if (exportEvent.event === 'CreateProgress') {
-        const { uuid, current } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.current = current
-        }
-      } else if (exportEvent.event === 'CreateError') {
-        const { uuid } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.progressMessage.type = 'error'
-          progressData.progressMessage.content = `${progressData.comicTitle} 创建pdf失败(${progressData.current}/${progressData.total})`
-          setTimeout(() => {
-            progressData.progressMessage.destroy()
-            progresses.delete(uuid)
-          }, 3000)
-        }
-      } else if (exportEvent.event === 'CreateEnd') {
-        const { uuid } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.progressMessage.type = 'success'
-          progressData.progressMessage.content = `${progressData.comicTitle} 创建pdf完成(${progressData.current}/${progressData.total})`
-          setTimeout(() => {
-            progressData.progressMessage.destroy()
-            progresses.delete(uuid)
-          }, 3000)
-        }
-      } else if (exportEvent.event === 'MergeStart') {
-        const { uuid, comicTitle } = exportEvent.data
-        progresses.set(uuid, {
-          comicTitle,
-          current: 0,
-          total: 1,
-          progressMessage: message.loading(
-            () => {
-              const progressData = progresses.get(uuid)
-              if (progressData === undefined) return ''
-              return `${progressData.comicTitle} 正在合并cbz(${progressData.current}/${progressData.total})`
-            },
-            { duration: 0 },
-          ),
-        })
-      } else if (exportEvent.event === 'MergeError') {
-        const { uuid } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.progressMessage.type = 'error'
-          progressData.progressMessage.content = `${progressData.comicTitle} 合并pdf失败(${progressData.current}/${progressData.total})`
-          setTimeout(() => {
-            progressData.progressMessage.destroy()
-            progresses.delete(uuid)
-          }, 3000)
-        }
-      } else if (exportEvent.event === 'MergeEnd') {
-        const { uuid } = exportEvent.data
-        const progressData = progresses.get(uuid)
-        if (progressData) {
-          progressData.current = 1
-          progressData.progressMessage.type = 'success'
-          progressData.progressMessage.content = `${progressData.comicTitle} 合并pdf完成(${progressData.current}/${progressData.total})`
-          setTimeout(() => {
-            progressData.progressMessage.destroy()
-            progresses.delete(uuid)
-          }, 3000)
-        }
-      }
-    })
+  return Math.ceil(downloadedComics.value.length / PAGE_SIZE)
+})
+// 当前页的漫画
+const currentPageComics = computed<Comic[]>(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  const end = start + PAGE_SIZE
+  return downloadedComics.value.slice(start, end)
+})
+// 确保当前页码不超过总页数
+watchEffect(() => {
+  if (currentPage.value > pageCount.value) {
+    currentPage.value = pageCount.value
   }
+})
 
-  // 监听导出事件
-  onMounted(async () => {
-    await handleExportCbzEvents()
-    await handleExportPdfEvents()
-  })
-}
+watch(currentPage, () => {
+  selectedIds.value.clear()
+  checkedIds.value.clear()
+  selectionAreaRef.value?.selection?.clearSelection()
+  selectionAreaRef.value?.$el.scrollTo({ top: 0, behavior: 'instant' })
+})
+
+// 监听标签页变化，更新下载的漫画列表
+watch(
+  () => store.currentTabName,
+  async () => {
+    if (store.currentTabName !== 'downloaded') {
+      return
+    }
+
+    downloadedComics.value = await commands.getDownloadedComics()
+  },
+  { immediate: true },
+)
 
 async function selectExportDir() {
   if (store.config === undefined) {
@@ -220,34 +78,222 @@ async function showExportDirInFileManager() {
   if (store.config === undefined) {
     return
   }
-
   const result = await commands.showPathInFileManager(store.config.exportDir)
   if (result.status === 'error') {
     console.error(result.error)
   }
 }
+
+function extractIds(elements: Element[]): string[] {
+  return elements
+    .map((element) => element.getAttribute('data-key'))
+    .filter(Boolean)
+    .filter((id) => id !== null)
+}
+
+function updateSelectedIds({
+  store: {
+    changed: { added, removed },
+  },
+}: SelectionEvent) {
+  extractIds(added).forEach((id) => selectedIds.value.add(id))
+  extractIds(removed).forEach((id) => selectedIds.value.delete(id))
+}
+
+function unselectAll({ event, selection }: SelectionEvent) {
+  if (!event?.ctrlKey && !event?.metaKey) {
+    selection.clearSelection()
+    selectedIds.value.clear()
+  }
+}
+
+function checkboxChecked(comic: Comic): boolean {
+  return checkedIds.value.has(comic.id)
+}
+
+function handleCheckboxClick(comic: Comic) {
+  if (checkedIds.value.has(comic.id)) {
+    checkedIds.value.delete(comic.id)
+  } else {
+    checkedIds.value.add(comic.id)
+  }
+}
+
+function handleContextMenu(comic: Comic) {
+  if (selectedIds.value.has(comic.id)) {
+    return
+  }
+
+  selectedIds.value.clear()
+  selectedIds.value.add(comic.id)
+}
+
+async function exportCbz() {
+  if (checkedIds.value.size === 0) {
+    return
+  }
+
+  store.progressesPaneTabName = 'export'
+  const comics = currentPageComics.value.filter((comic) => checkedIds.value.has(comic.id))
+  for (const comic of comics) {
+    const result = await commands.exportCbz(comic)
+    if (result.status === 'error') {
+      console.error(result.error)
+      return
+    }
+  }
+}
+
+async function exportPdf() {
+  if (checkedIds.value.size === 0) {
+    return
+  }
+
+  store.progressesPaneTabName = 'export'
+  const comics = currentPageComics.value.filter((comic) => checkedIds.value.has(comic.id))
+  for (const comic of comics) {
+    const result = await commands.exportPdf(comic)
+    if (result.status === 'error') {
+      console.error(result.error)
+      return
+    }
+  }
+}
+
+function useDropdown() {
+  const dropdownX = ref<number>(0)
+  const dropdownY = ref<number>(0)
+  const dropdownShowing = ref<boolean>(false)
+  const dropdownOptions: DropdownOption[] = [
+    {
+      label: '勾选',
+      key: 'check',
+      icon: () => (
+        <NIcon size="20">
+          <PhCheck />
+        </NIcon>
+      ),
+      props: {
+        onClick: () => {
+          selectedIds.value.forEach((id) => checkedIds.value.add(id))
+          dropdownShowing.value = false
+        },
+      },
+    },
+    {
+      label: '取消勾选',
+      key: 'uncheck',
+      icon: () => (
+        <NIcon size="20">
+          <PhX />
+        </NIcon>
+      ),
+      props: {
+        onClick: () => {
+          selectedIds.value.forEach((id) => checkedIds.value.delete(id))
+          dropdownShowing.value = false
+        },
+      },
+    },
+    {
+      label: '全选',
+      key: 'select-all',
+      icon: () => (
+        <NIcon size="20">
+          <PhChecks />
+        </NIcon>
+      ),
+      props: {
+        onClick: () => {
+          currentPageComics.value.forEach((comic) => selectedIds.value.add(comic.id))
+          dropdownShowing.value = false
+        },
+      },
+    },
+  ]
+
+  async function showDropdown(e: MouseEvent) {
+    dropdownShowing.value = false
+    await nextTick()
+    dropdownShowing.value = true
+    dropdownX.value = e.clientX
+    dropdownY.value = e.clientY
+  }
+
+  return {
+    dropdownX,
+    dropdownY,
+    dropdownShowing,
+    dropdownOptions,
+    showDropdown,
+  }
+}
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-2" v-if="store.config !== undefined">
-    <n-input-group class="box-border px-2 pt-2">
-      <n-input-group-label size="small">导出目录</n-input-group-label>
-      <n-input v-model:value="store.config.exportDir" size="small" readonly @click="selectExportDir" />
-      <n-button class="w-10" size="small" @click="showExportDirInFileManager">
-        <template #icon>
-          <n-icon size="20">
-            <PhFolderOpen />
-          </n-icon>
-        </template>
-      </n-button>
-    </n-input-group>
-    <div class="flex flex-col gap-row-2 overflow-auto box-border px-2">
-      <downloaded-comic-card v-for="comic in currentPageComics" :key="comic.id" :comic="comic" />
+  <div v-if="store.config !== undefined" class="h-full flex flex-col">
+    <div class="flex gap-1 box-border px-2 pt-2">
+      <n-input-group>
+        <n-input-group-label size="small">导出目录</n-input-group-label>
+        <n-input v-model:value="store.config.exportDir" size="small" readonly @click="selectExportDir" />
+        <n-button class="w-10" size="small" @click="showExportDirInFileManager">
+          <template #icon>
+            <n-icon size="20">
+              <PhFolderOpen />
+            </n-icon>
+          </template>
+        </n-button>
+      </n-input-group>
     </div>
+    <div class="flex gap-2 items-center px-2 select-none">
+      <div class="animate-pulse text-sm text-pink flex flex-col">
+        <div>左键拖动进行框选，右键打开菜单</div>
+        <div>右边的按钮作用于勾选项</div>
+      </div>
+      <n-button class="ml-auto" type="primary" size="small" @click="exportCbz">导出cbz</n-button>
+      <n-button type="primary" size="small" @click="exportPdf">导出pdf</n-button>
+    </div>
+    <SelectionArea
+      class="flex flex-col overflow-auto box-border px-2 selection-container mb-2"
+      ref="selectionAreaRef"
+      :options="{ selectables: '.selectable', features: { deselectOnBlur: true } }"
+      @contextmenu="showDropdown"
+      @move="updateSelectedIds"
+      @start="unselectAll">
+      <DownloadedComicCard
+        v-for="comic in currentPageComics"
+        :key="comic.id"
+        :data-key="comic.id"
+        :class="['selectable mb-2', selectedIds.has(comic.id) ? 'selected shadow-md' : 'hover:bg-gray-1']"
+        :comic="comic"
+        :checkbox-checked="checkboxChecked"
+        :handle-checkbox-click="handleCheckboxClick"
+        :handle-context-menu="handleContextMenu" />
+    </SelectionArea>
+
     <n-pagination
       class="box-border p-2 pt-0 mt-auto"
       :page-count="pageCount"
       :page="currentPage"
       @update:page="currentPage = $event" />
+
+    <n-dropdown
+      placement="bottom-start"
+      trigger="manual"
+      :x="dropdownX"
+      :y="dropdownY"
+      :options="dropdownOptions"
+      :show="dropdownShowing"
+      :on-clickoutside="() => (dropdownShowing = false)" />
   </div>
 </template>
+
+<style scoped>
+.selection-container {
+  @apply select-none overflow-auto;
+}
+
+.selection-container .selected {
+  @apply bg-[rgb(204,232,255)];
+}
+</style>

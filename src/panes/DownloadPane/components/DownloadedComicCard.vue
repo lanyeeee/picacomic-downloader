@@ -6,6 +6,9 @@ import IconButton from '../../../components/IconButton.vue'
 
 const props = defineProps<{
   comic: Comic
+  checkboxChecked: (comic: Comic) => boolean
+  handleCheckboxClick: (comic: Comic) => void
+  handleContextMenu: (comic: Comic) => void
 }>()
 
 const store = useStore()
@@ -17,6 +20,7 @@ function pickComic() {
 
 // 导出cbz
 async function exportCbz() {
+  store.progressesPaneTabName = 'export'
   const result = await commands.exportCbz(props.comic)
   if (result.status === 'error') {
     console.error(result.error)
@@ -25,6 +29,7 @@ async function exportCbz() {
 }
 
 async function exportPdf() {
+  store.progressesPaneTabName = 'export'
   const result = await commands.exportPdf(props.comic)
   if (result.status === 'error') {
     console.error(result.error)
@@ -52,36 +57,39 @@ async function showComicDownloadDirInFileManager() {
 </script>
 
 <template>
-  <n-card content-style="padding: 0.25rem;" hoverable>
-    <div class="flex">
-      <img
-        class="w-24 aspect-[3/4] object-contain mr-4 cursor-pointer transform transition-transform duration-200 hover:scale-106"
-        :src="`${comic.thumb.fileServer}/static/${comic.thumb.path}`"
-        alt=""
-        referrerpolicy="no-referrer"
-        @click="pickComic" />
-      <div class="flex flex-col w-full">
-        <span
-          class="font-bold text-lg line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
-          @click="pickComic">
-          {{ comic.title }}
-        </span>
-        <span class="text-red">作者：{{ comic.author }}</span>
-        <span class="text-gray" v-html="`分类：${comic.categories}`"></span>
-        <div class="flex mt-auto gap-col-2">
-          <IconButton title="打开下载目录" @click="showComicDownloadDirInFileManager">
-            <PhFolderOpen :size="24" />
-          </IconButton>
+  <div class="flex relative border border-solid rounded-md border-gray-2 p-1" @contextmenu="handleContextMenu(comic)">
+    <n-checkbox
+      size="large"
+      class="absolute top-3 left-3 z-1"
+      :checked="checkboxChecked(comic)"
+      @click="handleCheckboxClick(comic)" />
+    <img
+      class="w-24 object-cover mr-4"
+      :src="`${comic.thumb.fileServer}/static/${comic.thumb.path}`"
+      alt=""
+      :draggable="false"
+      referrerpolicy="no-referrer" />
+    <div class="flex flex-col w-full">
+      <span
+        class="font-bold text-lg line-clamp-2 cursor-pointer transition-colors duration-200 hover:text-blue-5"
+        @click="pickComic">
+        {{ comic.title }}
+      </span>
+      <span class="text-red">作者：{{ comic.author }}</span>
+      <span class="text-gray" v-html="`分类：${comic.categories}`"></span>
+      <div class="flex mt-auto gap-col-2">
+        <IconButton title="打开下载目录" @click="showComicDownloadDirInFileManager">
+          <PhFolderOpen :size="24" />
+        </IconButton>
 
-          <IconButton class="ml-auto" title="导出cbz" @click="exportCbz">
-            <PhFileZip :size="24" />
-          </IconButton>
+        <IconButton class="ml-auto" title="导出cbz" @click="exportCbz">
+          <PhFileZip :size="24" />
+        </IconButton>
 
-          <IconButton title="导出pdf" @click="exportPdf">
-            <PhFilePdf :size="24" />
-          </IconButton>
-        </div>
+        <IconButton title="导出pdf" @click="exportPdf">
+          <PhFilePdf :size="24" />
+        </IconButton>
       </div>
     </div>
-  </n-card>
+  </div>
 </template>
