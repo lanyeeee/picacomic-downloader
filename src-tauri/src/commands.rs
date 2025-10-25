@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use indexmap::IndexMap;
-use parking_lot::{Mutex, RwLock};
-use tauri::{AppHandle, State};
+use parking_lot::Mutex;
+use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use tauri_specta::Event;
 use tokio::task::JoinSet;
@@ -14,11 +14,9 @@ use tokio::time::sleep;
 use walkdir::WalkDir;
 
 use crate::config::Config;
-use crate::download_manager::DownloadManager;
 use crate::errors::{CommandError, CommandResult};
 use crate::events::DownloadAllFavoritesEvent;
-use crate::extensions::{AnyhowErrorToStringChain, WalkDirEntryExt};
-use crate::pica_client::PicaClient;
+use crate::extensions::{AnyhowErrorToStringChain, AppHandleExt, WalkDirEntryExt};
 use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
 use crate::types::{
     ChapterInfo, Comic, ComicInFavorite, ComicInRank, ComicInSearch, GetFavoriteResult,
@@ -35,18 +33,15 @@ pub fn greet(name: &str) -> String {
 #[tauri::command(async)]
 #[specta::specta]
 #[allow(clippy::needless_pass_by_value)]
-pub fn get_config(config: State<RwLock<Config>>) -> Config {
-    config.read().clone()
+pub fn get_config(app: AppHandle) -> Config {
+    app.get_config().read().clone()
 }
 
 #[tauri::command(async)]
 #[specta::specta]
 #[allow(clippy::needless_pass_by_value)]
-pub fn save_config(
-    app: AppHandle,
-    config_state: State<RwLock<Config>>,
-    config: Config,
-) -> CommandResult<()> {
+pub fn save_config(app: AppHandle, config: Config) -> CommandResult<()> {
+    let config_state = app.get_config();
     let enable_file_logger = config.enable_file_logger;
     let enable_file_logger_changed = config_state
         .read()
@@ -78,27 +73,27 @@ pub fn save_config(
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn login(
-    pica_client: State<'_, PicaClient>,
-    email: String,
-    password: String,
-) -> CommandResult<String> {
+pub async fn login(app: AppHandle, email: String, password: String) -> CommandResult<String> {
+    let pica_client = app.get_pica_client();
+
     let token = pica_client
         .login(&email, &password)
         .await
         .map_err(|err| CommandError::from("登录失败", err))?;
+
     Ok(token)
 }
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_user_profile(
-    pica_client: State<'_, PicaClient>,
-) -> CommandResult<UserProfileDetailRespData> {
+pub async fn get_user_profile(app: AppHandle) -> CommandResult<UserProfileDetailRespData> {
+    let pica_client = app.get_pica_client();
+
     let user_profile = pica_client
         .get_user_profile()
         .await
         .map_err(|err| CommandError::from("获取用户信息失败", err))?;
+
     Ok(user_profile)
 }
 
@@ -106,19 +101,19 @@ pub async fn get_user_profile(
 #[specta::specta]
 pub async fn search_comic(
     app: AppHandle,
-    pica_client: State<'_, PicaClient>,
     keyword: String,
     sort: SearchSort,
     page: i32,
     categories: Vec<String>,
 ) -> CommandResult<SearchResult> {
-    // TODO: 把变量名改为search_resp_data
-    let comic_in_search_pagination = pica_client
+    let pica_client = app.get_pica_client();
+
+    let search_resp_data = pica_client
         .search_comic(&keyword, sort, page, categories)
         .await
         .map_err(|err| CommandError::from("搜索漫画失败", err))?;
 
-    let search_result = SearchResult::from_resp_data(&app, comic_in_search_pagination)
+    let search_result = SearchResult::from_resp_data(&app, search_resp_data)
         .map_err(|err| CommandError::from("搜索漫画失败", err))?;
 
     Ok(search_result)
@@ -126,11 +121,9 @@ pub async fn search_comic(
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_comic(
-    app: AppHandle,
-    pica_client: State<'_, PicaClient>,
-    comic_id: String,
-) -> CommandResult<Comic> {
+pub async fn get_comic(app: AppHandle, comic_id: String) -> CommandResult<Comic> {
+    let pica_client = app.get_pica_client();
+
     let comic = utils::get_comic(&app, pica_client.inner(), &comic_id)
         .await
         .context(format!("获取ID为`{comic_id}`的漫画失败"))
@@ -143,26 +136,27 @@ pub async fn get_comic(
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn get_chapter_image(
-    pica_client: State<'_, PicaClient>,
+    app: AppHandle,
     comic_id: String,
     chapter_order: i64,
     page: i64,
 ) -> CommandResult<Pagination<ChapterImageRespData>> {
+    let pica_client = app.get_pica_client();
+
     let chapter_image_pagination = pica_client
         .get_chapter_img(&comic_id, chapter_order, page)
         .await
         .map_err(|err| CommandError::from("获取章节图片失败", err))?;
+
     Ok(chapter_image_pagination)
 }
 
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn create_download_task(
-    download_manager: State<DownloadManager>,
-    comic: Comic,
-    chapter_id: String,
-) -> CommandResult<()> {
+pub fn create_download_task(app: AppHandle, comic: Comic, chapter_id: String) -> CommandResult<()> {
+    let download_manager = app.get_download_manager();
+
     let comic_title = comic.title.clone();
     download_manager
         .create_download_task(comic, chapter_id.clone())
@@ -171,62 +165,61 @@ pub fn create_download_task(
         ))
         .map_err(|err| CommandError::from("下载任务创建失败", err))?;
     tracing::debug!("下载任务创建成功");
+
     Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn pause_download_task(
-    download_manager: State<DownloadManager>,
-    chapter_id: String,
-) -> CommandResult<()> {
+pub fn pause_download_task(app: AppHandle, chapter_id: String) -> CommandResult<()> {
+    let download_manager = app.get_download_manager();
+
     download_manager
         .pause_download_task(&chapter_id)
         .context(format!("暂停章节ID为`{chapter_id}`的下载任务失败"))
         .map_err(|err| CommandError::from("暂停下载任务失败", err))?;
     tracing::debug!("暂停章节ID为`{chapter_id}`的下载任务成功");
+
     Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn resume_download_task(
-    download_manager: State<DownloadManager>,
-    chapter_id: String,
-) -> CommandResult<()> {
+pub fn resume_download_task(app: AppHandle, chapter_id: String) -> CommandResult<()> {
+    let download_manager = app.get_download_manager();
+
     download_manager
         .resume_download_task(&chapter_id)
         .context(format!("恢复章节ID为`{chapter_id}`的下载任务失败"))
         .map_err(|err| CommandError::from("恢复下载任务失败", err))?;
     tracing::debug!("恢复章节ID为`{chapter_id}`的下载任务成功");
+
     Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn cancel_download_task(
-    download_manager: State<DownloadManager>,
-    chapter_id: String,
-) -> CommandResult<()> {
+pub fn cancel_download_task(app: AppHandle, chapter_id: String) -> CommandResult<()> {
+    let download_manager = app.get_download_manager();
+
     download_manager
         .cancel_download_task(&chapter_id)
         .context(format!("取消章节ID为`{chapter_id}`的下载任务失败"))
         .map_err(|err| CommandError::from("取消下载任务失败", err))?;
     tracing::debug!("取消章节ID为`{chapter_id}`的下载任务成功");
+
     Ok(())
 }
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn download_comic(
-    app: AppHandle,
-    pica_client: State<'_, PicaClient>,
-    download_manager: State<'_, DownloadManager>,
-    comic_id: String,
-) -> CommandResult<()> {
+pub async fn download_comic(app: AppHandle, comic_id: String) -> CommandResult<()> {
+    let pica_client = app.get_pica_client();
+    let download_manager = app.get_download_manager();
+
     let comic = utils::get_comic(&app, pica_client.inner(), &comic_id)
         .await
         .context(format!("获取ID为`{comic_id}`的漫画失败"))
@@ -274,10 +267,11 @@ pub fn show_path_in_file_manager(app: AppHandle, path: &str) -> CommandResult<()
 #[specta::specta]
 pub async fn get_favorite(
     app: AppHandle,
-    pica_client: State<'_, PicaClient>,
     sort: GetFavoriteSort,
     page: i64,
 ) -> CommandResult<GetFavoriteResult> {
+    let pica_client = app.get_pica_client();
+
     let get_favorite_resp_data = pica_client
         .get_favorite(sort, page)
         .await
@@ -291,11 +285,9 @@ pub async fn get_favorite(
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn get_rank(
-    app: AppHandle,
-    pica_client: State<'_, PicaClient>,
-    rank_type: RankType,
-) -> CommandResult<GetRankResult> {
+pub async fn get_rank(app: AppHandle, rank_type: RankType) -> CommandResult<GetRankResult> {
+    let pica_client = app.get_pica_client();
+
     let get_rank_resp_data = pica_client
         .get_rank(rank_type)
         .await
@@ -310,13 +302,10 @@ pub async fn get_rank(
 #[allow(clippy::cast_possible_wrap)]
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn download_all_favorites(
-    app: AppHandle,
-    config: State<'_, RwLock<Config>>,
-    pica_client: State<'_, PicaClient>,
-    download_manager: State<'_, DownloadManager>,
-) -> CommandResult<()> {
-    let pica_client = pica_client.inner().clone();
+pub async fn download_all_favorites(app: AppHandle) -> CommandResult<()> {
+    let config = app.get_config();
+    let pica_client = app.get_pica_client().inner().clone();
+    let download_manager = app.get_download_manager();
     // TODO: 把favorite_page在JoinSet里返回，然后在.join_next()里处理，这样就不用锁了
     let favorite_comics = Arc::new(Mutex::new(vec![]));
     let _ = DownloadAllFavoritesEvent::GettingFavorites.emit(&app);
@@ -425,8 +414,8 @@ pub async fn download_all_favorites(
 #[allow(clippy::too_many_lines)]
 #[tauri::command(async)]
 #[specta::specta]
-pub fn get_downloaded_comics(config: State<RwLock<Config>>) -> Vec<Comic> {
-    let download_dir = config.read().download_dir.clone();
+pub fn get_downloaded_comics(app: AppHandle) -> Vec<Comic> {
+    let download_dir = app.get_config().read().download_dir.clone();
     // 遍历下载目录，获取所有漫画元数据文件的路径和修改时间
     let mut metadata_path_with_modify_time = Vec::new();
     for entry in WalkDir::new(&download_dir)

@@ -5,15 +5,13 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use chrono::{DateTime, Utc};
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use walkdir::WalkDir;
 
 use crate::{
-    config::Config,
-    extensions::WalkDirEntryExt,
+    extensions::{AppHandleExt, WalkDirEntryExt},
     responses::{ChapterRespData, ComicRespData},
     utils,
 };
@@ -184,7 +182,7 @@ impl Comic {
 
     pub fn get_comic_export_dir(&self, app: &AppHandle) -> anyhow::Result<PathBuf> {
         let (download_dir, export_dir) = {
-            let config = app.state::<RwLock<Config>>();
+            let config = app.get_config();
             let config = config.read();
             (config.download_dir.clone(), config.export_dir.clone())
         };

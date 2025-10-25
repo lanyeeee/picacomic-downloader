@@ -1,14 +1,13 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use anyhow::Context;
-use parking_lot::{Mutex, RwLock};
-use tauri::{AppHandle, Manager};
+use parking_lot::Mutex;
+use tauri::AppHandle;
 use tokio::task::JoinSet;
 use walkdir::WalkDir;
 
 use crate::{
-    config::Config,
-    extensions::{AnyhowErrorToStringChain, WalkDirEntryExt},
+    extensions::{AnyhowErrorToStringChain, AppHandleExt, WalkDirEntryExt},
     pica_client::PicaClient,
     types::Comic,
 };
@@ -93,7 +92,7 @@ pub async fn get_comic(
 
 pub fn create_id_to_dir_map(app: &AppHandle) -> anyhow::Result<HashMap<String, PathBuf>> {
     let mut id_to_dir_map: HashMap<String, PathBuf> = HashMap::new();
-    let download_dir = app.state::<RwLock<Config>>().read().download_dir.clone();
+    let download_dir = app.get_config().read().download_dir.clone();
     if !download_dir.exists() {
         return Ok(id_to_dir_map);
     }

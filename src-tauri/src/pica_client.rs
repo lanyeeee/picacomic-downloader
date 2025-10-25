@@ -5,16 +5,15 @@ use bytes::Bytes;
 use chrono::Local;
 use hmac::{Hmac, Mac};
 use image::ImageFormat;
-use parking_lot::RwLock;
 use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde_json::json;
 use sha2::Sha256;
 use tauri::http::StatusCode;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
-use crate::config::Config;
+use crate::extensions::AppHandleExt;
 use crate::responses::{
     ChapterImageRespData, ChapterRespData, ComicRespData, GetChapterImageRespData,
     GetChapterRespData, GetComicRespData, GetFavoriteRespData, GetRankRespData, LoginRespData,
@@ -53,7 +52,7 @@ impl PicaClient {
     ) -> anyhow::Result<reqwest::Response> {
         let time = Local::now().timestamp().to_string();
         let signature = create_signature(path, &method, &time)?;
-        let token = self.app.state::<RwLock<Config>>().read().token.clone();
+        let token = self.app.get_config().read().token.clone();
 
         let request = self
             .api_client
