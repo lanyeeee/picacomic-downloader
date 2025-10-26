@@ -306,8 +306,8 @@ pub async fn download_all_favorites(app: AppHandle) -> CommandResult<()> {
     let config = app.get_config();
     let pica_client = app.get_pica_client().inner().clone();
     let download_manager = app.get_download_manager();
-    // TODO: 把favorite_page在JoinSet里返回，然后在.join_next()里处理，这样就不用锁了
-    let favorite_comics = Arc::new(Mutex::new(vec![]));
+
+    let mut favorite_comics = Vec::new();
     let _ = DownloadAllFavoritesEvent::GettingFavorites.emit(&app);
     // 获取收藏夹第一页
     let first_page = pica_client
@@ -316,29 +316,27 @@ pub async fn download_all_favorites(app: AppHandle) -> CommandResult<()> {
         .context("获取收藏夹的第`1`页失败")
         .map_err(|err| CommandError::from("下载收藏夹失败", err))?;
     // 先把第一页的收藏放进去
-    favorite_comics.lock().extend(first_page.comics.docs);
+    favorite_comics.extend(first_page.comics.docs);
     let page_count = first_page.comics.pages;
     // 获取收藏夹剩余页
     let mut join_set = JoinSet::new();
     for page in 2..=page_count {
         let pica_client = pica_client.clone();
-        let favorite_comics = favorite_comics.clone();
         join_set.spawn(async move {
-            let favorite_page = pica_client
+            let page = pica_client
                 .get_favorite(GetFavoriteSort::TimeNewest, page)
                 .await
                 .context(format!("获取收藏夹的第`{page}`页失败"))?;
-            favorite_comics.lock().extend(favorite_page.comics.docs);
-            Ok::<(), anyhow::Error>(())
+            Ok::<_, anyhow::Error>(page)
         });
     }
     // 等待所有请求完成
     while let Some(Ok(get_favorite_result)) = join_set.join_next().await {
         // 如果有请求失败，直接返回错误
-        get_favorite_result.map_err(|err| CommandError::from("下载收藏夹失败", err))?;
+        let page = get_favorite_result.map_err(|err| CommandError::from("下载收藏夹失败", err))?;
+        favorite_comics.extend(page.comics.docs);
     }
     // 至此，收藏夹已经全部获取完毕
-    let favorite_comics = std::mem::take(&mut *favorite_comics.lock());
     let total = favorite_comics.len() as i64;
     // 获取收藏夹漫画的详细信息
     let interval_sec = config.read().download_all_favorites_interval_sec;
