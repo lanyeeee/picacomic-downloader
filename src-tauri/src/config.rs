@@ -15,6 +15,9 @@ pub struct Config {
     pub enable_file_logger: bool,
     pub download_format: DownloadFormat,
     pub dir_fmt: String,
+    pub proxy_mode: ProxyMode,
+    pub proxy_host: String,
+    pub proxy_port: u16,
     pub chapter_concurrency: usize,
     pub chapter_download_interval_sec: u64,
     pub img_concurrency: usize,
@@ -81,6 +84,9 @@ impl Config {
             enable_file_logger: true,
             download_format: DownloadFormat::default(),
             dir_fmt: "{comic_title}/{order} {chapter_title}".to_string(),
+            proxy_mode: ProxyMode::System,
+            proxy_host: "127.0.0.1".to_string(),
+            proxy_port: 7890,
             chapter_concurrency: 3,
             chapter_download_interval_sec: 0,
             img_concurrency: 20,
@@ -88,4 +94,12 @@ impl Config {
             download_all_favorites_interval_sec: 0,
         }
     }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Type)]
+pub enum ProxyMode {
+    #[default]
+    System,
+    NoProxy,
+    Custom,
 }

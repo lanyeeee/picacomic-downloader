@@ -13,6 +13,7 @@ const store = useStore()
 const showing = defineModel<boolean>('showing', { required: true })
 
 const dirFmt = ref<string>(store.config?.dirFmt ?? '')
+const proxyHost = ref<string>(store.config?.proxyHost ?? '')
 
 async function showConfigInFileManager() {
   const configName = 'config.json'
@@ -116,6 +117,28 @@ async function showConfigInFileManager() {
             <n-input-group-label size="small">秒</n-input-group-label>
           </n-input-group>
         </div>
+
+        <span class="font-bold mt-2">代理类型</span>
+        <n-radio-group v-model:value="store.config.proxyMode" size="small">
+          <n-radio-button value="System">系统代理</n-radio-button>
+          <n-radio-button value="NoProxy">直连</n-radio-button>
+          <n-radio-button value="Custom">自定义</n-radio-button>
+        </n-radio-group>
+        <n-input-group v-if="store.config.proxyMode === 'Custom'" class="mt-1">
+          <n-input-group-label size="small">http://</n-input-group-label>
+          <n-input
+            v-model:value="proxyHost"
+            size="small"
+            placeholder=""
+            @blur="store.config.proxyHost = proxyHost"
+            @keydown.enter="store.config.proxyHost = proxyHost" />
+          <n-input-group-label size="small">:</n-input-group-label>
+          <n-input-number
+            v-model:value="store.config.proxyPort"
+            size="small"
+            placeholder=""
+            :parse="(x: string) => parseInt(x)" />
+        </n-input-group>
 
         <span class="font-bold mt-2">下载目录格式</span>
         <n-tooltip placement="top" trigger="hover" width="550">

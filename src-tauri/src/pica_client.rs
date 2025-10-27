@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
@@ -5,6 +6,7 @@ use bytes::Bytes;
 use chrono::Local;
 use hmac::{Hmac, Mac};
 use image::ImageFormat;
+use parking_lot::RwLock;
 use reqwest_middleware::ClientWithMiddleware;
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
@@ -13,7 +15,8 @@ use sha2::Sha256;
 use tauri::http::StatusCode;
 use tauri::AppHandle;
 
-use crate::extensions::AppHandleExt;
+use crate::config::ProxyMode;
+use crate::extensions::{AnyhowErrorToStringChain, AppHandleExt};
 use crate::responses::{
     ChapterImageRespData, ChapterRespData, ComicRespData, GetChapterImageRespData,
     GetChapterRespData, GetComicRespData, GetFavoriteRespData, GetRankRespData, LoginRespData,
@@ -29,19 +32,30 @@ const DIGEST_KEY: &str = r"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddU
 #[derive(Clone)]
 pub struct PicaClient {
     app: AppHandle,
-    api_client: ClientWithMiddleware,
-    img_client: ClientWithMiddleware,
+    api_client: Arc<RwLock<ClientWithMiddleware>>,
+    img_client: Arc<RwLock<ClientWithMiddleware>>,
 }
 
 impl PicaClient {
     pub fn new(app: AppHandle) -> Self {
-        let api_client = create_api_client();
-        let img_client = create_img_client();
+        let api_client = create_api_client(&app);
+        let api_client = Arc::new(RwLock::new(api_client));
+
+        let img_client = create_img_client(&app);
+        let img_client = Arc::new(RwLock::new(img_client));
+
         Self {
             app,
             api_client,
             img_client,
         }
+    }
+
+    pub fn reload_client(&self) {
+        let api_client = create_api_client(&self.app);
+        *self.api_client.write() = api_client;
+        let img_client = create_img_client(&self.app);
+        *self.img_client.write() = img_client;
     }
 
     async fn pica_request(
@@ -56,6 +70,7 @@ impl PicaClient {
 
         let request = self
             .api_client
+            .read()
             .request(method.clone(), format!("{HOST_URL}{path}").as_str())
             .header("api-key", API_KEY)
             .header("accept", "application/vnd.picacomic.com.v1+json")
@@ -393,7 +408,8 @@ impl PicaClient {
     }
 
     pub async fn get_img_data_and_format(&self, url: &str) -> anyhow::Result<(Bytes, ImageFormat)> {
-        let http_resp = self.img_client.get(url).send().await?;
+        let request = self.img_client.read().get(url);
+        let http_resp = request.send().await?;
 
         let status = http_resp.status();
         if status != StatusCode::OK {
@@ -426,26 +442,62 @@ fn hmac_hex(key: &str, data: &str) -> anyhow::Result<String> {
     Ok(result)
 }
 
-pub fn create_api_client() -> ClientWithMiddleware {
+pub fn create_api_client(app: &AppHandle) -> ClientWithMiddleware {
     let retry_policy = ExponentialBackoff::builder()
         .base(1) // 指数为1，保证重试间隔为1秒不变
         .jitter(Jitter::Bounded) // 重试间隔在1秒左右波动
         .build_with_total_retry_duration(Duration::from_secs(3)); // 重试总时长为3秒
+
     let client = reqwest::ClientBuilder::new()
         .timeout(Duration::from_secs(2)) // 每个请求超过2秒就超时
+        .set_proxy(app, "api_client")
         .build()
         .unwrap();
+
     reqwest_middleware::ClientBuilder::new(client)
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build()
 }
 
-fn create_img_client() -> ClientWithMiddleware {
+fn create_img_client(app: &AppHandle) -> ClientWithMiddleware {
     let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
 
-    let client = reqwest::ClientBuilder::new().build().unwrap();
+    let client = reqwest::ClientBuilder::new()
+        .set_proxy(app, "img_client")
+        .build()
+        .unwrap();
 
     reqwest_middleware::ClientBuilder::new(client)
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build()
+}
+
+trait ClientBuilderExt {
+    fn set_proxy(self, app: &AppHandle, client_name: &str) -> Self;
+}
+
+impl ClientBuilderExt for reqwest::ClientBuilder {
+    fn set_proxy(self, app: &AppHandle, client_name: &str) -> reqwest::ClientBuilder {
+        let proxy_mode = app.get_config().read().proxy_mode;
+        match proxy_mode {
+            ProxyMode::System => self,
+            ProxyMode::NoProxy => self.no_proxy(),
+            ProxyMode::Custom => {
+                let config = app.get_config().inner().read();
+                let proxy_host = &config.proxy_host;
+                let proxy_port = &config.proxy_port;
+                let proxy_url = format!("http://{proxy_host}:{proxy_port}");
+
+                match reqwest::Proxy::all(&proxy_url).map_err(anyhow::Error::from) {
+                    Ok(proxy) => self.proxy(proxy),
+                    Err(err) => {
+                        let err_title = format!("{client_name}将`{proxy_url}`设为代理失败，将直连");
+                        let string_chain = err.to_string_chain();
+                        tracing::error!(err_title, message = string_chain);
+                        self.no_proxy()
+                    }
+                }
+            }
+        }
+    }
 }

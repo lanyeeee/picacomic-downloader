@@ -1,11 +1,9 @@
 #![allow(clippy::used_underscore_binding)]
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use indexmap::IndexMap;
-use parking_lot::Mutex;
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use tauri_specta::Event;
@@ -42,11 +40,17 @@ pub fn get_config(app: AppHandle) -> Config {
 #[allow(clippy::needless_pass_by_value)]
 pub fn save_config(app: AppHandle, config: Config) -> CommandResult<()> {
     let config_state = app.get_config();
+    let pica_client = app.get_pica_client();
+
+    let proxy_changed = {
+        let config_state = config_state.read();
+        config_state.proxy_mode != config.proxy_mode
+            || config_state.proxy_host != config.proxy_host
+            || config_state.proxy_port != config.proxy_port
+    };
+
     let enable_file_logger = config.enable_file_logger;
-    let enable_file_logger_changed = config_state
-        .read()
-        .enable_file_logger
-        .ne(&enable_file_logger);
+    let file_logger_changed = config_state.read().enable_file_logger != enable_file_logger;
 
     {
         // 包裹在大括号中，以便自动释放写锁
@@ -58,7 +62,11 @@ pub fn save_config(app: AppHandle, config: Config) -> CommandResult<()> {
         tracing::debug!("保存配置成功");
     }
 
-    if enable_file_logger_changed {
+    if proxy_changed {
+        pica_client.reload_client();
+    }
+
+    if file_logger_changed {
         if enable_file_logger {
             logger::reload_file_logger()
                 .map_err(|err| CommandError::from("重新加载文件日志失败", err))?;
