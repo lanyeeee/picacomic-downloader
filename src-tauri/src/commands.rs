@@ -13,7 +13,7 @@ use walkdir::WalkDir;
 
 use crate::config::Config;
 use crate::errors::{CommandError, CommandResult};
-use crate::events::DownloadAllFavoritesEvent;
+use crate::events::{DownloadAllFavoritesEvent, UpdateDownloadedComicsEvent};
 use crate::extensions::{AnyhowErrorToStringChain, AppHandleExt, WalkDirEntryExt};
 use crate::responses::{ChapterImageRespData, Pagination, UserProfileDetailRespData};
 use crate::types::{
@@ -130,9 +130,7 @@ pub async fn search_comic(
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn get_comic(app: AppHandle, comic_id: String) -> CommandResult<Comic> {
-    let pica_client = app.get_pica_client();
-
-    let comic = utils::get_comic(&app, pica_client.inner(), &comic_id)
+    let comic = utils::get_comic(&app, &comic_id)
         .await
         .context(format!("获取ID为`{comic_id}`的漫画失败"))
         .map_err(|err| CommandError::from("获取漫画失败", err))?;
@@ -225,10 +223,9 @@ pub fn cancel_download_task(app: AppHandle, chapter_id: String) -> CommandResult
 #[tauri::command(async)]
 #[specta::specta]
 pub async fn download_comic(app: AppHandle, comic_id: String) -> CommandResult<()> {
-    let pica_client = app.get_pica_client();
     let download_manager = app.get_download_manager();
 
-    let comic = utils::get_comic(&app, pica_client.inner(), &comic_id)
+    let comic = utils::get_comic(&app, &comic_id)
         .await
         .context(format!("获取ID为`{comic_id}`的漫画失败"))
         .map_err(|err| CommandError::from("一键下载漫画失败", err))?;
@@ -352,7 +349,7 @@ pub async fn download_all_favorites(app: AppHandle) -> CommandResult<()> {
         let comic_title = &favorite_comic.title;
         let comic_id = &favorite_comic.id;
 
-        let comic = match utils::get_comic(&app, &pica_client, comic_id)
+        let comic = match utils::get_comic(&app, comic_id)
             .await
             .context(format!("获取ID为`{comic_id}`的漫画失败"))
         {
@@ -532,6 +529,97 @@ pub fn get_downloaded_comics(app: AppHandle) -> Vec<Comic> {
     }
 
     unique_comics
+}
+
+#[allow(clippy::cast_possible_wrap)]
+#[tauri::command(async)]
+#[specta::specta]
+pub async fn update_downloaded_comics(app: AppHandle) -> CommandResult<()> {
+    let config = app.get_config();
+    let download_manager = app.get_download_manager();
+
+    // 从下载目录中获取已下载的漫画
+    let downloaded_comics = get_downloaded_comics(app.clone());
+
+    let total = downloaded_comics.len() as i64;
+    let interval_sec = config.read().update_downloaded_comics_interval_sec;
+    let _ = UpdateDownloadedComicsEvent::GetComicStart { total }.emit(&app);
+
+    for (i, downloaded_comic) in downloaded_comics.into_iter().enumerate() {
+        let comic_title = &downloaded_comic.title;
+        let comic_id = &downloaded_comic.id;
+        let current = (i + 1) as i64;
+        let _ = UpdateDownloadedComicsEvent::GetComicProgress { current, total }.emit(&app);
+
+        let comic = match utils::get_comic(&app, comic_id)
+            .await
+            .context(format!("获取ID为`{comic_id}`的漫画失败"))
+        {
+            Ok(comic) => comic,
+            Err(err) => {
+                let err_title = format!("更新库存过程中，获取漫画`{comic_title}`失败，已跳过");
+                let err = err.context("可能是频率太高，请手动去`配置`里调整`更新库存时，每处理完一个已下载的漫画后休息`");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+                sleep(Duration::from_secs(interval_sec)).await;
+                continue;
+            }
+        };
+
+        // 至少有一个章节已下载
+        let has_downloaded_chapter = comic
+            .chapter_infos
+            .iter()
+            .any(|chapter_info| chapter_info.is_downloaded == Some(true));
+
+        if !has_downloaded_chapter {
+            sleep(Duration::from_secs(interval_sec)).await;
+            continue;
+        }
+
+        let chapter_infos: Vec<&ChapterInfo> = comic
+            .chapter_infos
+            .iter()
+            .filter(|chapter| chapter.is_downloaded != Some(true))
+            .collect();
+
+        if chapter_infos.is_empty() {
+            sleep(Duration::from_secs(interval_sec)).await;
+            continue;
+        }
+
+        let _ = UpdateDownloadedComicsEvent::CreateDownloadTasksStart {
+            comic_id: comic.id.clone(),
+            comic_title: comic.title.clone(),
+            current: 0,
+            total: chapter_infos.len() as i64,
+        }
+        .emit(&app);
+
+        for (i, chapter_info) in chapter_infos.into_iter().enumerate() {
+            let chapter_id = chapter_info.chapter_id.clone();
+            let current = (i + 1) as i64;
+
+            let _ = download_manager.create_download_task(comic.clone(), chapter_id);
+
+            let _ = UpdateDownloadedComicsEvent::CreateDownloadTaskProgress {
+                comic_id: comic.id.clone(),
+                current,
+            }
+            .emit(&app);
+
+            sleep(Duration::from_millis(100)).await;
+        }
+
+        let _ =
+            UpdateDownloadedComicsEvent::CreateDownloadTasksEnd { comic_id: comic.id }.emit(&app);
+
+        sleep(Duration::from_secs(interval_sec)).await;
+    }
+
+    let _ = UpdateDownloadedComicsEvent::GetComicEnd.emit(&app);
+
+    Ok(())
 }
 
 #[allow(clippy::needless_pass_by_value)]

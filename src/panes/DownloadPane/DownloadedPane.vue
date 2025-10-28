@@ -8,6 +8,7 @@ import { useStore } from '../../store.ts'
 import { DropdownOption, NIcon } from 'naive-ui'
 import { SelectionArea, SelectionEvent } from '@viselect/vue'
 import { PhChecks, PhCheck, PhX } from '@phosphor-icons/vue'
+import UpdateDownloadedComicsButton from './components/UpdateDownloadedComicsButton.vue'
 
 const store = useStore()
 
@@ -244,6 +245,7 @@ function useDropdown() {
           </template>
         </n-button>
       </n-input-group>
+      <update-downloaded-comics-button />
     </div>
     <div class="flex gap-2 items-center px-2 select-none">
       <div class="animate-pulse text-sm text-pink flex flex-col">

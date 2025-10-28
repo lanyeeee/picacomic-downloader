@@ -8,7 +8,6 @@ use walkdir::WalkDir;
 
 use crate::{
     extensions::{AnyhowErrorToStringChain, AppHandleExt, WalkDirEntryExt},
-    pica_client::PicaClient,
     types::Comic,
 };
 
@@ -30,12 +29,10 @@ pub fn filename_filter(s: &str) -> String {
         .to_string()
 }
 
-pub async fn get_comic(
-    app: &AppHandle,
-    pica_client: &PicaClient,
-    comic_id: &str,
-) -> anyhow::Result<Comic> {
+pub async fn get_comic(app: &AppHandle, comic_id: &str) -> anyhow::Result<Comic> {
     // 获取漫画详情和章节的第一页
+    let pica_client = app.get_pica_client().inner().clone();
+
     let (comic, first_page) = tokio::try_join!(
         async {
             pica_client

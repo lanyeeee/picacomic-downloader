@@ -75,6 +75,14 @@ async downloadAllFavorites() : Promise<Result<null, CommandError>> {
     else return { status: "error", error: e  as any };
 }
 },
+async updateDownloadedComics() : Promise<Result<null, CommandError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_downloaded_comics") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async createDownloadTask(comic: Comic, chapterId: string) : Promise<Result<null, CommandError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_download_task", { comic, chapterId }) };
@@ -202,7 +210,8 @@ downloadSpeedEvent: DownloadSpeedEvent,
 downloadTaskEvent: DownloadTaskEvent,
 exportCbzEvent: ExportCbzEvent,
 exportPdfEvent: ExportPdfEvent,
-logEvent: LogEvent
+logEvent: LogEvent,
+updateDownloadedComicsEvent: UpdateDownloadedComicsEvent
 }>({
 downloadAllFavoritesEvent: "download-all-favorites-event",
 downloadSleepingEvent: "download-sleeping-event",
@@ -210,7 +219,8 @@ downloadSpeedEvent: "download-speed-event",
 downloadTaskEvent: "download-task-event",
 exportCbzEvent: "export-cbz-event",
 exportPdfEvent: "export-pdf-event",
-logEvent: "log-event"
+logEvent: "log-event",
+updateDownloadedComicsEvent: "update-downloaded-comics-event"
 })
 
 /** user-defined constants **/
@@ -226,7 +236,7 @@ export type ComicInFavorite = { id: string; title: string; author: string; pages
 export type ComicInRank = { id: string; title: string; author: string; total_views: number; total_likes: number; pages_count: number; eps_count: number; finished: boolean; categories: string[]; tags: string[]; thumb: ImageRespData; leaderboard_count: number; views_count: number; is_downloaded: boolean; comic_download_dir: string }
 export type ComicInSearch = { id: string; author: string; categories: string[]; chineseTeam: string; createdAt: string; description: string; finished: boolean; likesCount: number; tags: string[]; thumb: ImageRespData; title: string; totalLikes: number | null; totalViews: number | null; updatedAt: string; isDownloaded: boolean; comicDownloadDir: string }
 export type CommandError = { err_title: string; err_message: string }
-export type Config = { token: string; downloadDir: string; exportDir: string; enableFileLogger: boolean; downloadFormat: DownloadFormat; dirFmt: string; proxyMode: ProxyMode; proxyHost: string; proxyPort: number; chapterConcurrency: number; chapterDownloadIntervalSec: number; imgConcurrency: number; imgDownloadIntervalSec: number; downloadAllFavoritesIntervalSec: number }
+export type Config = { token: string; downloadDir: string; exportDir: string; enableFileLogger: boolean; downloadFormat: DownloadFormat; dirFmt: string; proxyMode: ProxyMode; proxyHost: string; proxyPort: number; chapterConcurrency: number; chapterDownloadIntervalSec: number; imgConcurrency: number; imgDownloadIntervalSec: number; downloadAllFavoritesIntervalSec: number; updateDownloadedComicsIntervalSec: number }
 export type Creator = { id: string; gender: string; name: string; title: string; verified: boolean | null; exp: number; level: number; characters: string[]; avatar: Image; slogan: string; role: string; character: string }
 export type DownloadAllFavoritesEvent = { event: "GettingFavorites" } | { event: "GettingComics"; data: { current: number; total: number } } | { event: "EndGetComics" } | { event: "StartCreateDownloadTasks"; data: { comicId: string; comicTitle: string; current: number; total: number } } | { event: "CreatingDownloadTask"; data: { comicId: string; current: number } } | { event: "EndCreateDownloadTasks"; data: { comicId: string } }
 export type DownloadFormat = "Jpeg" | "Png" | "Webp" | "Original"
@@ -249,6 +259,7 @@ export type ProxyMode = "System" | "NoProxy" | "Custom"
 export type RankType = "Day" | "Week" | "Month"
 export type SearchResult = Pagination<ComicInSearch>
 export type SearchSort = "TimeNewest" | "TimeOldest" | "LikeMost" | "ViewMost"
+export type UpdateDownloadedComicsEvent = { event: "GetComicStart"; data: { total: number } } | { event: "GetComicProgress"; data: { current: number; total: number } } | { event: "CreateDownloadTasksStart"; data: { comicId: string; comicTitle: string; current: number; total: number } } | { event: "CreateDownloadTaskProgress"; data: { comicId: string; current: number } } | { event: "CreateDownloadTasksEnd"; data: { comicId: string } } | { event: "GetComicEnd" }
 export type UserProfileDetailRespData = { _id: string; gender: string; name: string; title: string; verified: boolean; exp: number; level: number; characters: string[]; avatar?: ImageRespData; birthday: string; email: string; created_at: string; isPunched: boolean }
 
 /** tauri-specta globals **/

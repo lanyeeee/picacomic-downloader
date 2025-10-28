@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::download_manager::DownloadManager;
 use crate::events::{
     DownloadSpeedEvent, DownloadTaskEvent, ExportCbzEvent, ExportPdfEvent, LogEvent,
+    UpdateDownloadedComicsEvent,
 };
 use crate::pica_client::PicaClient;
 
@@ -44,6 +45,7 @@ pub fn run() {
             get_chapter_image,
             download_comic,
             download_all_favorites,
+            update_downloaded_comics,
             create_download_task,
             pause_download_task,
             resume_download_task,
@@ -65,6 +67,7 @@ pub fn run() {
             DownloadSleepingEvent,
             DownloadTaskEvent,
             DownloadAllFavoritesEvent,
+            UpdateDownloadedComicsEvent,
             ExportCbzEvent,
             ExportPdfEvent,
             LogEvent,
