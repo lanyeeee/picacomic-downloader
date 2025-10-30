@@ -7,14 +7,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AboutDialog: typeof import('./src/components/AboutDialog.vue')['default']
     ComicCard: typeof import('./src/components/ComicCard.vue')['default']
-    CompletedProgresses: typeof import('./src/components/CompletedProgresses.vue')['default']
     DownloadAllFavoriteButton: typeof import('./src/components/DownloadAllFavoriteButton.vue')['default']
-    DownloadedComicCard: typeof import('./src/components/DownloadedComicCard.vue')['default']
     FloatLabelInput: typeof import('./src/components/FloatLabelInput.vue')['default']
-    LoginDialog: typeof import('./src/components/LoginDialog.vue')['default']
-    LogViewer: typeof import('./src/components/LogViewer.vue')['default']
+    IconButton: typeof import('./src/components/IconButton.vue')['default']
     NA: typeof import('naive-ui')['NA']
     NAvatar: typeof import('naive-ui')['NAvatar']
     NButton: typeof import('naive-ui')['NButton']
@@ -39,13 +35,13 @@ declare module 'vue' {
     NPopconfirm: typeof import('naive-ui')['NPopconfirm']
     NProgress: typeof import('naive-ui')['NProgress']
     NRadio: typeof import('naive-ui')['NRadio']
+    NRadioButton: typeof import('naive-ui')['NRadioButton']
     NRadioGroup: typeof import('naive-ui')['NRadioGroup']
     NSelect: typeof import('naive-ui')['NSelect']
+    NTab: typeof import('naive-ui')['NTab']
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
     NTooltip: typeof import('naive-ui')['NTooltip']
     NVirtualList: typeof import('naive-ui')['NVirtualList']
-    SettingsDialog: typeof import('./src/components/SettingsDialog.vue')['default']
-    UncompletedProgresses: typeof import('./src/components/UncompletedProgresses.vue')['default']
   }
 }

@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::download_manager::DownloadManager;
 use crate::events::{
     DownloadSpeedEvent, DownloadTaskEvent, ExportCbzEvent, ExportPdfEvent, LogEvent,
+    UpdateDownloadedComicsEvent,
 };
 use crate::pica_client::PicaClient;
 
@@ -44,12 +45,14 @@ pub fn run() {
             get_chapter_image,
             download_comic,
             download_all_favorites,
+            update_downloaded_comics,
             create_download_task,
             pause_download_task,
             resume_download_task,
             cancel_download_task,
             show_path_in_file_manager,
             get_favorite,
+            get_rank,
             get_downloaded_comics,
             export_cbz,
             export_pdf,
@@ -57,12 +60,14 @@ pub fn run() {
             get_synced_comic,
             get_synced_comic_in_favorite,
             get_synced_comic_in_search,
+            get_synced_comic_in_rank,
         ])
         .events(tauri_specta::collect_events![
             DownloadSpeedEvent,
             DownloadSleepingEvent,
             DownloadTaskEvent,
             DownloadAllFavoritesEvent,
+            UpdateDownloadedComicsEvent,
             ExportCbzEvent,
             ExportPdfEvent,
             LogEvent,
@@ -91,9 +96,11 @@ pub fn run() {
                 .app_data_dir()
                 .context("failed to get app data dir")?;
 
-            std::fs::create_dir_all(&app_data_dir)
-                .context(format!("failed to create app data dir: {app_data_dir:?}"))?;
-            println!("app data dir: {app_data_dir:?}");
+            std::fs::create_dir_all(&app_data_dir).context(format!(
+                "failed to create app data dir: {}",
+                app_data_dir.display()
+            ))?;
+            println!("app data dir: {}", app_data_dir.display());
 
             let config = RwLock::new(Config::new(app.handle())?);
             app.manage(config);

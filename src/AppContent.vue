@@ -2,17 +2,18 @@
 import { onMounted, ref, watch } from 'vue'
 import { commands } from './bindings.ts'
 import { useMessage, useNotification } from 'naive-ui'
-import LoginDialog from './components/LoginDialog.vue'
+import LoginDialog from './dialogs/LoginDialog.vue'
 import SearchPane from './panes/SearchPane.vue'
 import ChapterPane from './panes/ChapterPane.vue'
-import DownloadingPane from './panes/DownloadingPane.vue'
+import ProgressesPane from './panes/ProgressesPane/ProgressesPane.vue'
 import FavoritePane from './panes/FavoritePane.vue'
-import SettingsDialog from './components/SettingsDialog.vue'
-import { QuestionCircleOutlined, UserOutlined, SettingOutlined, BarsOutlined } from '@vicons/antd'
-import AboutDialog from './components/AboutDialog.vue'
-import DownloadedPane from './panes/DownloadedPane.vue'
+import SettingsDialog from './dialogs/SettingsDialog.vue'
+import { PhInfo, PhUser, PhClockCounterClockwise, PhGearSix } from '@phosphor-icons/vue'
+import AboutDialog from './dialogs/AboutDialog.vue'
+import DownloadedPane from './panes/DownloadPane/DownloadedPane.vue'
 import { useStore } from './store.ts'
-import LogViewer from './components/LogViewer.vue'
+import LogDialog from './dialogs/LogDialog.vue'
+import RankPane from './panes/RankPane.vue'
 
 const store = useStore()
 
@@ -92,8 +93,8 @@ onMounted(async () => {
         <n-input v-model:value="store.config.token" placeholder="手动输入或点击右侧的按钮登录" clearable />
         <n-button type="primary" @click="loginDialogShowing = true">
           <template #icon>
-            <n-icon>
-              <UserOutlined />
+            <n-icon size="20">
+              <PhUser />
             </n-icon>
           </template>
           登录
@@ -112,11 +113,14 @@ onMounted(async () => {
 
     <div class="flex overflow-hidden flex-1">
       <n-tabs class="h-full w-1/2" v-model:value="store.currentTabName" type="line" size="small" animated>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="漫画搜索" display-directive="show">
+        <n-tab-pane class="h-full overflow-auto p-0!" name="search" tab="搜索" display-directive="show">
           <search-pane />
         </n-tab-pane>
-        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="漫画收藏" display-directive="show">
+        <n-tab-pane class="h-full overflow-auto p-0!" name="favorite" tab="收藏夹" display-directive="show">
           <favorite-pane />
+        </n-tab-pane>
+        <n-tab-pane class="h-full overflow-auto p-0!" name="rank" tab="排行榜" display-directive="show">
+          <rank-pane />
         </n-tab-pane>
         <n-tab-pane class="h-full overflow-auto p-0!" name="downloaded" tab="本地库存" display-directive="show">
           <downloaded-pane />
@@ -132,37 +136,37 @@ onMounted(async () => {
           <div class="text-xl font-bold box-border">下载列表</div>
           <n-button class="ml-auto" size="small" @click="logViewerShowing = true">
             <template #icon>
-              <n-icon>
-                <BarsOutlined />
+              <n-icon size="20">
+                <PhClockCounterClockwise />
               </n-icon>
             </template>
             日志
           </n-button>
           <n-button size="small" @click="settingsDialogShowing = true">
             <template #icon>
-              <n-icon>
-                <SettingOutlined />
+              <n-icon size="20">
+                <PhGearSix />
               </n-icon>
             </template>
             配置
           </n-button>
           <n-button size="small" @click="aboutDialogShowing = true">
             <template #icon>
-              <n-icon>
-                <QuestionCircleOutlined />
+              <n-icon size="20">
+                <PhInfo />
               </n-icon>
             </template>
             关于
           </n-button>
         </div>
-        <downloading-pane />
+        <progresses-pane />
       </div>
     </div>
 
     <login-dialog v-model:showing="loginDialogShowing" />
     <settings-dialog v-model:showing="settingsDialogShowing" />
     <about-dialog v-model:showing="aboutDialogShowing" />
-    <log-viewer v-model:showing="logViewerShowing" />
+    <log-dialog v-model:showing="logViewerShowing" />
   </div>
 </template>
 

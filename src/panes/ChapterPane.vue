@@ -3,7 +3,8 @@ import { SelectionArea, SelectionEvent } from '@viselect/vue'
 import { nextTick, ref, watch, watchEffect, computed } from 'vue'
 import { ChapterInfo, commands, DownloadTaskState } from '../bindings.ts'
 import { useStore } from '../store.ts'
-import { path } from '@tauri-apps/api'
+import { PhFolderOpen } from '@phosphor-icons/vue'
+import IconButton from '../components/IconButton.vue'
 
 const store = useStore()
 
@@ -156,8 +157,14 @@ async function showComicDownloadDirInFileManager() {
   if (store.pickedComic === undefined || store.config === undefined) {
     return
   }
-  const comicDir = await path.join(store.config.downloadDir, store.pickedComic.comicDirName)
-  const result = await commands.showPathInFileManager(comicDir)
+
+  const comicDownloadDir = store.pickedComic.comicDownloadDir
+  if (comicDownloadDir === undefined || comicDownloadDir === null) {
+    console.error('comicDownloadDir的值为undefined或null')
+    return
+  }
+
+  const result = await commands.showPathInFileManager(comicDownloadDir)
   if (result.status === 'error') {
     console.error(result.error)
   }
@@ -169,22 +176,22 @@ function isDownloading(state: State) {
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-row-2">
+  <div class="h-full flex flex-col gap-2 box-border">
+    <div v-if="store.pickedComic !== undefined" class="flex items-center select-none pt-2 gap-1 px-2">
+      <div>左键拖动进行框选，右键打开菜单</div>
+      <n-button class="ml-auto" size="small" @click="refreshChapters">刷新</n-button>
+      <n-button size="small" type="primary" @click="downloadChapters">下载勾选章节</n-button>
+    </div>
     <n-empty v-if="store.pickedComic === undefined" class="pt-2" description="请先进行漫画搜索" />
     <SelectionArea
       v-else
       ref="selectionAreaRef"
-      class="selection-container flex flex-col flex-1 px-2 overflow-auto"
+      class="selection-container flex flex-col flex-1 px-2 pt-0 overflow-auto"
       :options="{ selectables: '.selectable', features: { deselectOnBlur: true } }"
       @contextmenu="onContextMenu"
       @move="updateSelectedIds"
       @start="unselectAll">
-      <div class="flex justify-between items-center select-none pt-2">
-        <div>左键拖动进行框选，右键打开菜单</div>
-        <n-button size="small" @click="refreshChapters">刷新</n-button>
-        <n-button size="small" type="primary" @click="downloadChapters">下载勾选章节</n-button>
-      </div>
-      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5 pt-2 overflow-auto">
+      <n-checkbox-group v-model:value="checkedIds" class="grid grid-cols-3 gap-1.5">
         <n-checkbox
           v-for="{ chapterId, chapterTitle, isDownloaded, state } in chapterInfos"
           :key="chapterId"
@@ -209,16 +216,16 @@ function isDownloading(state: State) {
         referrerpolicy="no-referrer" />
       <div class="flex flex-col w-full justify-between">
         <div class="flex flex-col h-full">
-          <span class="font-bold text-xl line-clamp-2">{{ store.pickedComic.title }}</span>
+          <span class="font-bold text-lg line-clamp-2">{{ store.pickedComic.title }}</span>
           <span class="text-red">作者：{{ store.pickedComic.author }}</span>
           <span class="text-gray" v-html="`分类：${store.pickedComic.categories}`"></span>
-          <n-button
-            v-if="store.pickedComic.isDownloaded === true"
+          <IconButton
+            v-if="store.pickedComic.isDownloaded"
             class="mr-auto mt-auto"
-            size="tiny"
+            title="打开下载目录"
             @click="showComicDownloadDirInFileManager">
-            打开下载目录
-          </n-button>
+            <PhFolderOpen :size="24" />
+          </IconButton>
         </div>
       </div>
     </div>

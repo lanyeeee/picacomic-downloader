@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { commands, events } from '../bindings.ts'
+import { commands, events } from '../../bindings.ts'
 import { open } from '@tauri-apps/plugin-dialog'
-import { FolderOpenOutlined } from '@vicons/antd'
-import { useStore } from '../store.ts'
-import UncompletedProgresses from '../components/UncompletedProgresses.vue'
-import CompletedProgresses from '../components/CompletedProgresses.vue'
-import { ProgressData } from '../types.ts'
+import { PhFolderOpen } from '@phosphor-icons/vue'
+import { useStore } from '../../store.ts'
+import UncompletedProgresses from './components/UncompletedProgresses.vue'
+import CompletedProgresses from './components/CompletedProgresses.vue'
+import { ProgressData } from '../../types.ts'
+import ExportProgresses from './components/ExportProgresses.vue'
+
+export type ProgressesPaneTabName = 'uncompleted' | 'completed' | 'export'
 
 const store = useStore()
 
@@ -50,6 +53,7 @@ onMounted(async () => {
         await syncPickedComic()
         await syncComicInSearch(progressData)
         await syncComicInFavorite(progressData)
+        await syncComicInRank(progressData)
       }
 
       progressData.percentage = (downloadedImgCount / totalImgCount) * 100
@@ -121,6 +125,22 @@ async function syncComicInFavorite(progressData: ProgressData) {
   Object.assign(comic, { ...result.data })
 }
 
+async function syncComicInRank(progressData: ProgressData) {
+  if (store.getRankResult === undefined) {
+    return
+  }
+  const comic = store.getRankResult.find((comic) => comic.id === progressData.comic.id)
+  if (comic === undefined) {
+    return
+  }
+  const result = await commands.getSyncedComicInRank(comic)
+  if (result.status === 'error') {
+    console.error(result.error)
+    return
+  }
+  Object.assign(comic, { ...result.data })
+}
+
 async function showDownloadDirInFileManager() {
   if (store.config === undefined) {
     return
@@ -147,33 +167,34 @@ async function selectDownloadDir() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-row-2 flex-1 overflow-auto" v-if="store.config !== undefined">
+  <div class="flex flex-col gap-2 flex-1 overflow-auto" v-if="store.config !== undefined">
     <n-input-group class="box-border px-2 pt-2">
       <n-input-group-label size="small">下载目录</n-input-group-label>
-      <n-input
-        v-model:value="store.config.downloadDir"
-        :default-value="0"
-        size="small"
-        readonly
-        @click="selectDownloadDir" />
-      <n-button size="small" @click="showDownloadDirInFileManager">
+      <n-input v-model:value="store.config.downloadDir" size="small" readonly @click="selectDownloadDir" />
+      <n-button class="w-10" size="small" @click="showDownloadDirInFileManager">
         <template #icon>
-          <n-icon>
-            <FolderOpenOutlined />
+          <n-icon size="20">
+            <PhFolderOpen />
           </n-icon>
         </template>
       </n-button>
     </n-input-group>
 
-    <n-tabs class="h-full overflow-auto" type="line" size="small">
+    <n-tabs class="h-full overflow-auto" v-model:value="store.progressesPaneTabName" type="line" size="small">
       <n-tab-pane class="h-full p-0! overflow-auto" name="uncompleted" tab="未完成">
         <uncompleted-progresses />
       </n-tab-pane>
       <n-tab-pane class="h-full p-0! overflow-auto" name="completed" tab="已完成">
         <completed-progresses />
       </n-tab-pane>
+      <n-tab-pane class="h-full p-0! overflow-auto" name="export" tab="导出进度" display-directive="show">
+        <ExportProgresses />
+      </n-tab-pane>
+
+      <template #suffix>
+        <span class="whitespace-nowrap text-ellipsis overflow-hidden">{{ downloadSpeed }}</span>
+      </template>
     </n-tabs>
-    <span class="ml-auto mr-2 mb-2">下载速度：{{ downloadSpeed }}</span>
   </div>
 </template>
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -57,7 +57,10 @@ pub enum ExportCbzEvent {
     #[serde(rename_all = "camelCase")]
     Error { uuid: String },
     #[serde(rename_all = "camelCase")]
-    End { uuid: String },
+    End {
+        uuid: String,
+        chapter_export_dir: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
@@ -74,14 +77,20 @@ pub enum ExportPdfEvent {
     #[serde(rename_all = "camelCase")]
     CreateError { uuid: String },
     #[serde(rename_all = "camelCase")]
-    CreateEnd { uuid: String },
+    CreateEnd {
+        uuid: String,
+        chapter_export_dir: PathBuf,
+    },
 
     #[serde(rename_all = "camelCase")]
     MergeStart { uuid: String, comic_title: String },
     #[serde(rename_all = "camelCase")]
     MergeError { uuid: String },
     #[serde(rename_all = "camelCase")]
-    MergeEnd { uuid: String },
+    MergeEnd {
+        uuid: String,
+        chapter_export_dir: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
@@ -121,4 +130,31 @@ pub enum DownloadAllFavoritesEvent {
 
     #[serde(rename_all = "camelCase")]
     EndCreateDownloadTasks { comic_id: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+#[serde(tag = "event", content = "data")]
+pub enum UpdateDownloadedComicsEvent {
+    #[serde(rename_all = "camelCase")]
+    GetComicStart { total: i64 },
+
+    #[serde(rename_all = "camelCase")]
+    GetComicProgress { current: i64, total: i64 },
+
+    #[serde(rename_all = "camelCase")]
+    CreateDownloadTasksStart {
+        comic_id: String,
+        comic_title: String,
+        current: i64,
+        total: i64,
+    },
+
+    #[serde(rename_all = "camelCase")]
+    CreateDownloadTaskProgress { comic_id: String, current: i64 },
+
+    #[serde(rename_all = "camelCase")]
+    CreateDownloadTasksEnd { comic_id: String },
+
+    #[serde(rename_all = "camelCase")]
+    GetComicEnd,
 }

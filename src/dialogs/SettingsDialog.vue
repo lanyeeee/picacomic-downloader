@@ -12,8 +12,8 @@ const store = useStore()
 
 const showing = defineModel<boolean>('showing', { required: true })
 
-const comicDirNameFmt = ref<string>(store.config?.comicDirNameFmt ?? '')
-const chapterDirNameFmt = ref<string>(store.config?.chapterDirNameFmt ?? '')
+const dirFmt = ref<string>(store.config?.dirFmt ?? '')
+const proxyHost = ref<string>(store.config?.proxyHost ?? '')
 
 async function showConfigInFileManager() {
   const configName = 'config.json'
@@ -28,9 +28,9 @@ async function showConfigInFileManager() {
 <template>
   <n-modal v-model:show="showing" v-if="store.config !== undefined">
     <n-dialog class="w-140!" :showIcon="false" title="配置" @close="showing = false">
-      <div class="flex flex-col gap-row-2">
+      <div class="flex flex-col">
+        <span class="font-bold">下载格式</span>
         <n-radio-group v-model:value="store.config.downloadFormat">
-          <span class="mr-4">下载格式</span>
           <n-tooltip placement="top" trigger="hover">
             <div>原图不为jpg时，会自动转换为jpg</div>
             <template #trigger>
@@ -60,6 +60,7 @@ async function showConfigInFileManager() {
           </n-tooltip>
         </n-radio-group>
 
+        <span class="font-bold mt-2">下载速度</span>
         <div class="flex flex-col gap-2">
           <div class="flex gap-1">
             <n-input-group class="w-35%">
@@ -105,50 +106,59 @@ async function showConfigInFileManager() {
               <n-input-group-label size="small">秒</n-input-group-label>
             </n-input-group>
           </div>
+          <n-input-group>
+            <n-input-group-label size="small">下载整个收藏夹时，每处理完一个收藏夹中的漫画后休息</n-input-group-label>
+            <n-input-number
+              class="w-full"
+              v-model:value="store.config.downloadAllFavoritesIntervalSec"
+              size="small"
+              :min="0"
+              :parse="(x: string) => Number(x)" />
+            <n-input-group-label size="small">秒</n-input-group-label>
+          </n-input-group>
+          <n-input-group>
+            <n-input-group-label size="small">更新库存时，每处理完一个已下载的漫画后休息</n-input-group-label>
+            <n-input-number
+              class="w-full"
+              v-model:value="store.config.updateDownloadedComicsIntervalSec"
+              size="small"
+              :min="0"
+              :parse="(x: string) => Number(x)" />
+            <n-input-group-label size="small">秒</n-input-group-label>
+          </n-input-group>
         </div>
 
-        <n-tooltip placement="top" trigger="hover">
-          <div class="font-semibold">
-            <span class="text-pink">漫画名</span>
-            <span>可用字段：</span>
-          </div>
-          <div>
-            <div>
-              <span class="rounded bg-gray-500 px-1">comic_id</span>
-              <span class="ml-2">漫画ID</span>
-            </div>
-            <div>
-              <span class="rounded bg-gray-500 px-1">comic_title</span>
-              <span class="ml-2">漫画标题</span>
-            </div>
-            <div>
-              <span class="rounded bg-gray-500 px-1">author</span>
-              <span class="ml-2">作者</span>
-            </div>
-          </div>
-          <div class="font-semibold mt-2">例如格式</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">[{author}] {comic_title}({comic_id})</div>
-          <div class="font-semibold">下载《电锯人》的结果：</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">
-            [藤本树（藤本タツキ）] 电锯人(5f606646d50a7c0733961549)
-          </div>
-          <template #trigger>
-            <n-input-group class="box-border">
-              <n-input-group-label size="small">漫画名格式</n-input-group-label>
-              <n-input
-                v-model:value="comicDirNameFmt"
-                size="small"
-                @blur="store.config.comicDirNameFmt = comicDirNameFmt"
-                @keydown.enter="store.config.comicDirNameFmt = comicDirNameFmt" />
-            </n-input-group>
-          </template>
-        </n-tooltip>
+        <span class="font-bold mt-2">代理类型</span>
+        <n-radio-group v-model:value="store.config.proxyMode" size="small">
+          <n-radio-button value="System">系统代理</n-radio-button>
+          <n-radio-button value="NoProxy">直连</n-radio-button>
+          <n-radio-button value="Custom">自定义</n-radio-button>
+        </n-radio-group>
+        <n-input-group v-if="store.config.proxyMode === 'Custom'" class="mt-1">
+          <n-input-group-label size="small">http://</n-input-group-label>
+          <n-input
+            v-model:value="proxyHost"
+            size="small"
+            placeholder=""
+            @blur="store.config.proxyHost = proxyHost"
+            @keydown.enter="store.config.proxyHost = proxyHost" />
+          <n-input-group-label size="small">:</n-input-group-label>
+          <n-input-number
+            v-model:value="store.config.proxyPort"
+            size="small"
+            placeholder=""
+            :parse="(x: string) => parseInt(x)" />
+        </n-input-group>
 
-        <n-tooltip placement="top" trigger="hover">
-          <div class="font-semibold">
-            <span class="text-pink">章节名</span>
-            <span>可用字段：</span>
+        <span class="font-bold mt-2">下载目录格式</span>
+        <n-tooltip placement="top" trigger="hover" width="550">
+          <div>
+            可以用斜杠
+            <span class="rounded bg-gray-500 px-1 text-white">/</span>
+            来分隔目录层级
           </div>
+          <div class="text-pink">至少要有两个层级，最后一层存放章节元数据，倒数第二层存放漫画元数据</div>
+          <div class="font-semibold mt-2">可用字段：</div>
           <div class="grid grid-cols-2">
             <div>
               <span class="rounded bg-gray-500 px-1">comic_id</span>
@@ -176,22 +186,23 @@ async function showConfigInFileManager() {
             </div>
           </div>
           <div class="font-semibold mt-2">例如格式</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">
-            [{author}] {comic_title}({comic_id}) - {order} - {chapter_title}({chapter_id})
+          <div class="bg-gray-200 rounded-md p-1 text-black w-fit">
+            {author}/[{author}] {comic_title}({comic_id})/{order} - {chapter_title}
           </div>
-          <div class="font-semibold">下载《电锯人》第20话的结果：</div>
-          <div class="bg-gray-200 rounded-md p-1 text-black">
-            [藤本树（藤本タツキ）] 电锯人(5f606646d50a7c0733961549) - 20 - 第20話(5f623435a183ac0739ccf041)
+          <div class="font-semibold">下载《浪客行》第5卷会产生三层文件夹，分别是</div>
+          <div class="flex gap-1 text-black">
+            <span class="bg-gray-200 rounded-md px-2 w-fit">井上雄彦</span>
+            <span class="rounded bg-gray-500 px-1 text-white">/</span>
+            <span class="bg-gray-200 rounded-md px-2 w-fit">[井上雄彦] 浪客行(67a18a90cac76a1659ab71f5)</span>
+            <span class="rounded bg-gray-500 px-1 text-white">/</span>
+            <span class="bg-gray-200 rounded-md px-2 w-fit">5 - 第5卷</span>
           </div>
           <template #trigger>
-            <n-input-group class="box-border">
-              <n-input-group-label size="small">章节名格式</n-input-group-label>
-              <n-input
-                v-model:value="chapterDirNameFmt"
-                size="small"
-                @blur="store.config.chapterDirNameFmt = chapterDirNameFmt"
-                @keydown.enter="store.config.chapterDirNameFmt = chapterDirNameFmt" />
-            </n-input-group>
+            <n-input
+              v-model:value="dirFmt"
+              size="small"
+              @blur="store.config.dirFmt = dirFmt"
+              @keydown.enter="store.config.dirFmt = dirFmt" />
           </template>
         </n-tooltip>
 

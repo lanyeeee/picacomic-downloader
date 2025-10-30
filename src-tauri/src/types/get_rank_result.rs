@@ -10,87 +10,83 @@ use specta::Type;
 use tauri::AppHandle;
 
 use crate::{
-    responses::{ComicInFavoriteRespData, GetFavoriteRespData, ImageRespData, Pagination},
+    responses::{ComicInRankRespData, GetRankRespData, ImageRespData},
     utils,
 };
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct GetFavoriteResult(pub Pagination<ComicInFavorite>);
+pub struct GetRankResult(pub Vec<ComicInRank>);
 
-impl Deref for GetFavoriteResult {
-    type Target = Pagination<ComicInFavorite>;
+impl Deref for GetRankResult {
+    type Target = Vec<ComicInRank>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for GetFavoriteResult {
+impl DerefMut for GetRankResult {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl GetFavoriteResult {
+impl GetRankResult {
     pub fn from_resp_data(
         app: &AppHandle,
-        resp_data: GetFavoriteRespData,
-    ) -> anyhow::Result<GetFavoriteResult> {
+        resp_data: GetRankRespData,
+    ) -> anyhow::Result<GetRankResult> {
         let id_to_dir_map =
             utils::create_id_to_dir_map(app).context("创建漫画ID到下载目录映射失败")?;
 
-        let mut docs = Vec::new();
-        for comic in resp_data.comics.docs {
-            let comic = ComicInFavorite::from_resp_data(comic, &id_to_dir_map);
-            docs.push(comic);
-        }
+        let comics = resp_data
+            .comics
+            .into_iter()
+            .map(|comic| ComicInRank::from_resp_data(comic, &id_to_dir_map))
+            .collect();
 
-        let pagination = Pagination {
-            total: resp_data.comics.total,
-            limit: resp_data.comics.limit,
-            page: resp_data.comics.page,
-            pages: resp_data.comics.pages,
-            docs,
-        };
-
-        let result = GetFavoriteResult(pagination);
-
-        Ok(result)
+        Ok(GetRankResult(comics))
     }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct ComicInFavorite {
+pub struct ComicInRank {
     pub id: String,
     pub title: String,
     pub author: String,
+    pub total_views: i64,
+    pub total_likes: i64,
     pub pages_count: i64,
     pub eps_count: i64,
     pub finished: bool,
     pub categories: Vec<String>,
+    pub tags: Vec<String>,
     pub thumb: ImageRespData,
-    pub likes_count: i64,
+    pub leaderboard_count: i64,
+    pub views_count: i64,
     pub is_downloaded: bool,
     pub comic_download_dir: PathBuf,
 }
 
-impl ComicInFavorite {
+impl ComicInRank {
     pub fn from_resp_data(
-        resp_data: ComicInFavoriteRespData,
+        resp_data: ComicInRankRespData,
         id_to_dir_map: &HashMap<String, PathBuf>,
-    ) -> ComicInFavorite {
-        let mut comic = ComicInFavorite {
+    ) -> ComicInRank {
+        let mut comic = ComicInRank {
             id: resp_data.id,
             title: resp_data.title,
             author: resp_data.author,
+            total_views: resp_data.total_views,
+            total_likes: resp_data.total_likes,
             pages_count: resp_data.pages_count,
             eps_count: resp_data.eps_count,
             finished: resp_data.finished,
             categories: resp_data.categories,
+            tags: resp_data.tags,
             thumb: resp_data.thumb,
-            likes_count: resp_data.likes_count,
+            leaderboard_count: resp_data.leaderboard_count,
+            views_count: resp_data.views_count,
             is_downloaded: false,
             comic_download_dir: PathBuf::new(),
         };
