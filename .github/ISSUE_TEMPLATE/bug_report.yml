@@ -1,17 +1,24 @@
 name: 反馈 Bug
 description: 反馈遇到的问题
 labels: [bug]
-title: "[Bug] 修改我！"
+title: "[Bug] 修改我！未修改标题的issue将被自动关闭"
 body:
   - type: markdown
     attributes:
       value: |
         为了使我更好地帮助你，请提供以下信息。以及修改上方的标题
+  - type: checkboxes
+    attributes:
+      label: 复现步骤很重要
+      description: 仅提供错误信息或截图而没有复现步骤，问题难以被定位，也就难以被解决。详细的复现步骤也是对项目维护工作的尊重
+      options:
+        - label: 我已经参考[这个issue](https://github.com/lanyeeee/picacomic-downloader/issues/13)在**问题描述**中写清楚了复现步骤
+          required: true
   - type: textarea
     id: desc
     attributes:
       label: 问题描述
-      description: 发生了什么情况？有什么现状？复现条件是什么？
+      description: 发生了什么情况？有什么现状？复现步骤是什么(哪部漫画，哪个章节)？问题能稳定触发吗？
     validations:
       required: true
   - type: textarea
@@ -37,8 +44,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: 工具版本号
-      placeholder: v0.1
+      label: 工具版本号(点`关于`按钮查看)
+      placeholder: v0.1.0
     validations:
       required: true
   - type: textarea

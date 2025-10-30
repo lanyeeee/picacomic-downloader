@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://github.com/user-attachments/assets/4c92e80c-90fa-4ab6-a361-e48abd66d4b7" style="align-self: center"/>
+    <img src="https://github.com/user-attachments/assets/dc777941-f1ea-43f7-9c3a-dda16cbb7443" style="align-self: center"/>
 </p>
 
 # 哔咔漫画下载器
@@ -10,7 +10,7 @@
 **如果本项目对你有帮助，欢迎点个 Star⭐ 支持！你的支持是我持续更新维护的动力🙏**
 
 # 图形界面
-![image](https://github.com/user-attachments/assets/97294210-2e49-4d8c-ad8e-809bc5a619c9)
+![image](https://github.com/user-attachments/assets/5f798409-760f-4508-a686-38084afd91fd)
 
 # 使用方法
 
