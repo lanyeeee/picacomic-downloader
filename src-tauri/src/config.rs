@@ -24,6 +24,7 @@ pub struct Config {
     pub img_download_interval_sec: u64,
     pub download_all_favorites_interval_sec: u64,
     pub update_downloaded_comics_interval_sec: u64,
+    pub should_download_cover: bool,
 }
 
 impl Config {
@@ -94,6 +95,7 @@ impl Config {
             img_download_interval_sec: 0,
             download_all_favorites_interval_sec: 0,
             update_downloaded_comics_interval_sec: 0,
+            should_download_cover: true,
         }
     }
 }
