@@ -203,6 +203,20 @@ impl Comic {
         Ok(comic_export_dir)
     }
 
+    pub fn get_cover_path(&self) -> anyhow::Result<PathBuf> {
+        let comic_download_dir = self
+            .comic_download_dir
+            .as_ref()
+            .context("`comic_download_dir`字段为`None`")?;
+
+        let path_str = &self.thumb.path;
+        let ext = path_str.rfind('.').map_or("jpg", |i| &path_str[i + 1..]);
+
+        let cover_path = comic_download_dir.join(format!("cover.{ext}"));
+
+        Ok(cover_path)
+    }
+
     fn update_chapter_infos_fields(&mut self) -> anyhow::Result<()> {
         let Some(comic_download_dir) = &self.comic_download_dir else {
             return Err(anyhow!("`comic_download_dir`字段为`None`"));
