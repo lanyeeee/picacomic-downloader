@@ -61,7 +61,7 @@ async function showConfigInFileManager() {
         </n-radio-group>
 
         <span class="font-bold mt-2">下载速度</span>
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-1">
           <div class="flex gap-1">
             <n-input-group class="w-35%">
               <n-input-group-label size="small">章节并发数</n-input-group-label>
@@ -205,6 +205,9 @@ async function showConfigInFileManager() {
               @keydown.enter="store.config.dirFmt = dirFmt" />
           </template>
         </n-tooltip>
+
+        <span class="font-bold mt-2">其他</span>
+        <n-checkbox class="w-fit" v-model:checked="store.config.shouldDownloadCover">下载封面</n-checkbox>
 
         <n-button class="ml-auto mt-2" size="small" @click="showConfigInFileManager">打开配置目录</n-button>
       </div>
