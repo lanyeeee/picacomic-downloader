@@ -201,6 +201,7 @@ impl DownloadTask {
     async fn download_chapter(&self) {
         let comic_title = &self.comic.title;
         let chapter_title = &self.chapter_info.chapter_title;
+
         if let Err(err) = self.save_comic_metadata() {
             let err_title = format!("`{comic_title}`保存元数据失败");
             let string_chain = err.to_string_chain();
@@ -211,6 +212,21 @@ impl DownloadTask {
 
             return;
         }
+
+        let should_download_cover = self.app.get_config().read().should_download_cover;
+        if should_download_cover {
+            if let Err(err) = self.download_cover().await {
+                let err_title = format!("`{comic_title}`下载封面失败");
+                let string_chain = err.to_string_chain();
+                tracing::error!(err_title, message = string_chain);
+
+                self.set_state(DownloadTaskState::Failed);
+                self.emit_download_task_update_event();
+
+                return;
+            }
+        }
+
         // 获取图片链接
         let img_urls = match self.get_img_urls().await {
             Ok(img_urls) => img_urls,
@@ -284,6 +300,40 @@ impl DownloadTask {
 
         self.set_state(DownloadTaskState::Completed);
         self.emit_download_task_update_event();
+    }
+
+    async fn download_cover(&self) -> anyhow::Result<()> {
+        let comic = &self.comic;
+        let cover_path = comic.get_cover_path().context("获取封面路径失败")?;
+        // if cover_path.exists() {
+        //     return Ok(());
+        // }
+
+        let parts: Vec<&str> = comic.thumb.path.split('/').collect();
+        if parts.len() < 3 {
+            return Err(anyhow!(
+                "`comic.thumb.path`出现了意料之外的格式: `{}`",
+                comic.thumb.path
+            ));
+        }
+
+        let file_server = &comic.thumb.file_server;
+        let service = parts[0];
+        let signature = parts[1];
+        let filename = parts[parts.len() - 1];
+        let url = format!("{file_server}/static/{service}/{signature}/{filename}");
+
+        let (img_data, _format) = self
+            .app
+            .get_pica_client()
+            .get_img_data_and_format(&url)
+            .await
+            .context(format!("下载图片`{url}`失败"))?;
+
+        std::fs::write(&cover_path, img_data)
+            .context(format!("保存图片`{}`失败", cover_path.display()))?;
+
+        Ok(())
     }
 
     fn create_temp_download_dir(&self) -> Option<PathBuf> {
@@ -441,7 +491,7 @@ impl DownloadTask {
             let should_keep = path
                 .extension()
                 .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| Some(ext) == extension);
+                .is_some_and(|ext| ext == "gif" || Some(ext) == extension);
             if should_keep {
                 continue;
             }
@@ -705,16 +755,16 @@ impl DownloadImgTask {
         let url = &self.url;
         let comic_title = &self.download_task.comic.title;
         let chapter_title = &self.download_task.chapter_info.chapter_title;
+        let temp_download_dir = &self.temp_download_dir;
 
         let index_filename = format!("{:03}", self.index + 1);
         let download_format = self.app.get_config().read().download_format;
 
-        if let Some(extension) = download_format.extension() {
+        if let Some(ext) = download_format.extension() {
+            let user_format_path = temp_download_dir.join(format!("{index_filename}.{ext}"));
+            let gif_path = temp_download_dir.join(format!("{index_filename}.gif"));
             // 如果图片已存在，则跳过下载
-            let save_path = self
-                .temp_download_dir
-                .join(format!("{index_filename}.{extension}"));
-            if save_path.exists() {
+            if user_format_path.exists() || gif_path.exists() {
                 tracing::trace!(url, comic_title, chapter_title, "图片已存在，跳过下载");
                 self.download_task
                     .downloaded_img_count
@@ -744,11 +794,12 @@ impl DownloadImgTask {
 
         tracing::trace!(url, comic_title, chapter_title, "图片成功下载到内存");
 
-        // 获取图片格式的扩展名
-        let original_img_extension = match img_format {
+        // 获取原图格式的扩展名
+        let src_img_ext = match img_format {
             ImageFormat::Jpeg => "jpg",
             ImageFormat::Png => "png",
             ImageFormat::WebP => "webp",
+            ImageFormat::Gif => "gif",
             _ => {
                 let err_title =
                     format!("`{comic_title} - {chapter_title}`获取图片`{url}`的扩展名失败");
@@ -759,15 +810,16 @@ impl DownloadImgTask {
             }
         };
 
-        let extension = download_format
-            .extension()
-            .unwrap_or(original_img_extension);
+        let ext = match img_format {
+            ImageFormat::Gif => "gif",
+            _ => download_format.extension().unwrap_or(src_img_ext),
+        };
+        let save_path = temp_download_dir.join(format!("{index_filename}.{ext}"));
 
-        let save_path = self
-            .temp_download_dir
-            .join(format!("{index_filename}.{extension}"));
-
-        let target_format = download_format.to_image_format().unwrap_or(img_format);
+        let target_format = match img_format {
+            ImageFormat::Gif => ImageFormat::Gif,
+            _ => download_format.to_image_format().unwrap_or(img_format),
+        };
 
         // 保存图片
         if let Err(err) = save_img(&save_path, target_format, img_data, img_format).await {
