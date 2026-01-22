@@ -26,6 +26,8 @@ pub fn filename_filter(s: &str) -> String {
         })
         .collect::<String>()
         .trim()
+        .trim_end_matches('.')
+        .trim()
         .to_string()
 }
 
